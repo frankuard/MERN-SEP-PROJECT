@@ -154,8 +154,9 @@ Now moving towards the navigation portion of it which uses data from navConfig.j
     </button>
   ))}
   </div>
-  
+
 </div>
+
 
     </div>
   )
