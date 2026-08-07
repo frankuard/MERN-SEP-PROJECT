@@ -1,4 +1,4 @@
-const themes = {
+export const themes = {
   dark: {
     pageBg: "#0c0c10", sidebarBg: "#15141a", border: "#26252c",
     textPrimary: "#f1f0f3", textMuted: "#8b8894", hoverBg: "#1e1d24",
