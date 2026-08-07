@@ -14,14 +14,11 @@ const App = () => {
   return (
     
 
-    <div style={{
-        backgroundColor: t.pageBg,
-        color: t.textPrimary,
-        minHeight: "100vh",
-        padding: "20px",
-      }}>
-
+    <div  className="flex min-h-screen w-full"
+  style={{ backgroundColor: t.pageBg }}
+>
         <Sidebar />
+
     </div>
   )
 }

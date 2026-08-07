@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { themes } from '../../data/themes';
-
+import navConfig from '../../data/navConfig'
 
 const Sidebar = () => {
 
@@ -20,13 +20,15 @@ const Sidebar = () => {
 
     const [openSubmenus, setOpenSubmenus] = useState({})
 
+    // Navigation Items
 
+    const items = navConfig.student;
 
   return (
 
 //  THIS IS THE MAIN DIV
 
-   <div className={`relative h-screen transition-all duration-300 border-r flex flex-col ${
+   <div className={`relative min-h-screen transition-all duration-300 border-r flex flex-col ${
     collapsed ? "w-20" : "w-64"
   }`}
         style={{
@@ -103,6 +105,57 @@ const Sidebar = () => {
 
 {/* Now it is part for the main navigation portion */}
 
+
+<div className="flex-1 overflow-y-auto px-3 pt-4">
+
+  {!collapsed && (
+    <p
+      className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-widest"
+      style={{ color: t.textMuted }}
+    >
+      Main
+    </p>
+  )}
+
+{/* Upto here we have completed the upto main text tag here now moving towards the mapping of the navigation items  */}
+
+{/* 
+Now moving towards the navigation portion of it which uses data from navConfig.js */}
+
+
+<div className="flex flex-col gap-1">
+  {items.map((item) => (
+    <button
+      key={item.id}
+      onClick={() => setActiveId(item.id)}
+      className={`flex items-center rounded-lg px-3 py-2.5 transition-all duration-200 ${
+        collapsed ? "justify-center" : "gap-3"
+      }`}
+      style={{
+        backgroundColor:
+          activeId === item.id ? t.activeBg : "transparent",
+        color:
+          activeId === item.id ? t.activeText : t.textPrimary,
+        border:
+          activeId === item.id
+            ? `1px solid ${t.activeBorder}`
+            : "1px solid transparent",
+      }}
+    >
+      {/* Icon */}
+      <item.icon size={19} />
+
+      {/* Label */}
+      {!collapsed && (
+        <span className="text-sm font-medium">
+          {item.label}
+        </span>
+      )}
+    </button>
+  ))}
+  </div>
+  
+</div>
 
     </div>
   )
