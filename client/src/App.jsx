@@ -1,10 +1,12 @@
 import React from 'react'
+import { useTheme } from './context/ThemeContext'
 
-const { theme } = useTheme();
-
-console.log(theme);
 
 const App = () => {
+
+  const {theme} = useTheme();
+
+  console.log(theme);
   return (
     <div>App</div>
   )
