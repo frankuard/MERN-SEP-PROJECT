@@ -5,14 +5,14 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const {notFound, errorHandler} = require("./middleware/errorHandler");
 
-// ROUTE IMPORTS
+// ROUTE and middleware IMPORTS
 
 const uploadRoutes = require('./routes/upload.routes')
 const authRoutes = require('./routes/auth.routes');
 const authMiddleware = require('./middleware/authMiddleware');
 const roleMiddleware = require('./middleware/roleMiddleware');
 const testPostRoutes = require('./routes/testPost.routes');
-
+const lostFoundRoutes = require('./routes/lostFound.routes');
 
 const app = express();
 
@@ -49,6 +49,8 @@ app.get('/api/test-teacher-or-admin', authMiddleware, roleMiddleware('teacher', 
 
 app.use('/api/upload', uploadRoutes);
 app.use('/api/auth', authRoutes);
+
+app.use('/api/lost-found', lostFoundRoutes);
 
 app.use('/api/test-posts', testPostRoutes);
 
