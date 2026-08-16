@@ -1,19 +1,31 @@
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
-
 const mongoose = require('mongoose');
 
-const connectDB = async () => {
-    try{
-        const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
-    }
-    catch (err){
-        console.log("MongoDB connection failed:", err.message);
-        process.exit(1);
+let isDbConnected = false;
 
-    }
+const connectDB = async () => {
+  if (!process.env.MONGO_URI) {
+    console.warn('MongoDB connection skipped: MONGO_URI is not set.');
+    return;
+  }
+
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    isDbConnected = true;
+    console.log(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
+  } catch (err) {
+    isDbConnected = false;
+    console.warn('MongoDB connection failed:', err.message);
+    console.warn('Server will continue running. Auth routes require MongoDB.');
+  }
 };
 
-module.exports = connectDB
+const getDbStatus = () => ({
+  connected: isDbConnected && mongoose.connection.readyState === 1,
+  readyState: mongoose.connection.readyState,
+});
+
+module.exports = connectDB;
+module.exports.getDbStatus = getDbStatus;
