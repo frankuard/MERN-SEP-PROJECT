@@ -56,4 +56,79 @@ const getLostFoundItem = async (req, res) => {
   }
 };
 
-module.exports = { createLostFoundItem, getLostFoundItems, getLostFoundItem };
+const claimLostFoundItem = async (req, res) => {
+  try {
+    const item = await LostFoundItem.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    if (item.status === 'claimed') {
+      return res.status(400).json({ message: 'This item has already been claimed' });
+    }
+
+    if (item.status === 'resolved') {
+      return res.status(400).json({ message: 'This item has already been resolved and cannot be claimed' });
+    }
+
+    item.claimedBy = req.user.userId;
+    item.status = 'claimed';
+
+    await item.save();
+
+    res.status(200).json({
+      message: 'Item claimed successfully',
+      item,
+    });
+
+  } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid item ID' });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const resolveLostFoundItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    const item = await LostFoundItem.findById(id);
+
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Ownership check — only the original creator can resolve their own post
+    if (item.createdBy.toString() !== userId) {
+      return res.status(403).json({ message: 'Only the original creator can resolve this item' });
+    }
+
+    if (item.status === 'open') {
+      return res.status(400).json({ message: 'This item has not been claimed yet' });
+    }
+
+    if (item.status === 'resolved') {
+      return res.status(400).json({ message: 'This item has already been resolved' });
+    }
+
+    item.status = 'resolved';
+    await item.save();
+
+    res.status(200).json({
+      message: 'Item resolved successfully',
+      item,
+    });
+
+  } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid item ID' });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { createLostFoundItem, getLostFoundItems, getLostFoundItem, claimLostFoundItem, resolveLostFoundItem};
+
