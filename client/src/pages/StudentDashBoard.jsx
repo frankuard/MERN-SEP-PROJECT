@@ -7,7 +7,7 @@ import {
   UtensilsCrossed, Users, ThumbsUp, Send, Share2, Eye, Mic2, Cpu,
   Trophy, BrainCircuit, Code, Palette, Megaphone, Flame, Tag, CheckSquare,
   GraduationCap, Award, CreditCard, Banknote, QrCode, ShoppingBag, Plus, Minus,
-  History, DollarSign, Wallet
+  History, DollarSign, Wallet, Heart, MessageCircle, Bookmark, CheckCheck, TrendingUp
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
@@ -194,7 +194,7 @@ const INITIAL_CAMPUS_HELP = [
   },
 ];
 
-// Full Canteen Menu Items (as requested)
+// Full Canteen Menu Items
 const CANTEEN_MENU = [
   { id: 'cm1', name: 'Aalu Nimki', price: 50, category: 'Snacks', available: true },
   { id: 'cm2', name: 'Chatpatey', price: 50, category: 'Snacks', available: true },
@@ -215,6 +215,70 @@ const CANTEEN_SPECIALS = [
   'Chicken Momo',
 ];
 
+// Official Campus Social Media Posts Feed
+const INITIAL_CAMPUS_POSTS = [
+  {
+    id: 'post_1',
+    author: 'Biratnagar International College',
+    handle: '@bic_biratnagar',
+    avatar: '🏫',
+    time: '2 hours ago',
+    category: 'Campus Reels & Vibes',
+    caption: 'Register gareu tah? 🤩 XPERIA: Experience The Intelligence registration is officially LIVE! Join us for an adrenaline-fueled tech fest packed with student hacks, robotics showdowns, and interactive live workshops.',
+    image: '/post-1.png',
+    likes: 142,
+    comments: 18,
+    shares: 9,
+    liked: false,
+    tag: '#XPERIA2026 #BICStudents #CampusLife',
+  },
+  {
+    id: 'post_2',
+    author: 'BIC International MBA Department',
+    handle: '@bic_mba',
+    avatar: '🎓',
+    time: 'Yesterday at 04:30 PM',
+    category: 'Guest Speaker Series',
+    caption: 'Guest Speaker Session: “IPR Essentials: Trademarks, Copyright and Patents for Business and Digital Content” led by distinguished guest Mr. Kunal Singh Chauhan (Section Officer, High Court of Nepal). Session kicks off this Friday 07:00 AM onwards at BIC Hall.',
+    image: '/post-2.png',
+    likes: 79,
+    comments: 2,
+    shares: 14,
+    liked: false,
+    tag: '#IPREssentials #GuestLecture #HighCourtNepal #BICMBA',
+  },
+  {
+    id: 'post_3',
+    author: 'BIC Research & Academic Guild',
+    handle: '@bic_research',
+    avatar: '📚',
+    time: '2 days ago',
+    category: 'Academic Insights',
+    caption: 'Guest Speaker Session: “Applied Research in Business” featuring Dr. Chandra Upadhyay (Assistant Professor, Tribhuwan University). A comprehensive seminar guiding our scholars on rigorous empirical methodologies and modern market case studies.',
+    image: '/post-3.png',
+    likes: 118,
+    comments: 6,
+    shares: 11,
+    liked: false,
+    tag: '#AppliedResearch #BusinessAnalytics #TribhuwanUniversity #BIC',
+  },
+  {
+    id: 'post_4',
+    author: 'AI Horizon & BIC Devcorps',
+    handle: '@bic.ai_horizon',
+    avatar: '🤖',
+    time: '3 days ago',
+    category: 'Tech Summits & Partnerships',
+    caption: 'Official Partnership Announcement! 🤝 Proud to partner with Birat Sports Zone, Goti Soda, The Kush Garden, and Laxmi iStore for XPERIA: Experience The Intelligence at LT-01 Wulfurana. Grab your passes early!',
+    image: '/post-4.png',
+    likes: 215,
+    comments: 24,
+    shares: 32,
+    liked: false,
+    tag: '#AIHorizon #Devcorps #BiratSportsZone #Sponsorships',
+  },
+];
+
 const StudentDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -223,7 +287,8 @@ const StudentDashboard = () => {
   // Navigation tab state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [eventsFilter, setEventsFilter] = useState('all'); // 'all' | 'college' | 'community'
-  const [ssdActiveSubTab, setSsdActiveSubTab] = useState('attendance'); // 'attendance' | 'volunteering' | 'scholarship'
+  const [ssdActiveSubTab, setSsdActiveSubTab] = useState('scholarship'); // Default to scholarship or attendance
+  const [postFilter, setPostFilter] = useState('all');
 
   // Interactive states
   const [collegeEvents, setCollegeEvents] = useState(INITIAL_COLLEGE_EVENTS);
@@ -231,6 +296,7 @@ const StudentDashboard = () => {
   const [announcements] = useState(INITIAL_ANNOUNCEMENTS);
   const [lostFoundItems, setLostFoundItems] = useState(INITIAL_LOST_FOUND);
   const [helpRequests, setHelpRequests] = useState(INITIAL_CAMPUS_HELP);
+  const [campusPosts, setCampusPosts] = useState(INITIAL_CAMPUS_POSTS);
 
   // Canteen ordering system states
   const [cart, setCart] = useState({}); // { [itemId]: quantity }
@@ -262,18 +328,6 @@ const StudentDashboard = () => {
     { id: 'v2', role: 'Blood Donation Camp Coordinator', event: 'Red Cross & Campus Health Drive', hours: 8, date: 'Jul 2026', verified: true },
     { id: 'v3', role: 'TechFest IT Logistics Volunteer', event: 'Annual TechFest 2026', hours: 16, date: 'May 2026', verified: true },
   ];
-
-  // Scholarship record
-  const scholarshipRecord = {
-    title: 'Merit-Based Academic Scholarship',
-    type: '50% Tuition Fee Waiver',
-    status: 'Active & Verified',
-    minRequiredGPA: 3.50,
-    currentGPA: 3.78,
-    lastReviewed: 'Spring 2026',
-    renewalDeadline: 'Aug 28, 2026',
-    documentsSubmitted: true,
-  };
 
   // Classroom permissions map
   const [classPermissions, setClassPermissions] = useState({
@@ -365,6 +419,22 @@ const StudentDashboard = () => {
           return { ...ev, joined: next };
         }
         return ev;
+      })
+    );
+  };
+
+  const toggleLikePost = (postId) => {
+    setCampusPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          const nextLiked = !p.liked;
+          return {
+            ...p,
+            liked: nextLiked,
+            likes: nextLiked ? p.likes + 1 : p.likes - 1,
+          };
+        }
+        return p;
       })
     );
   };
@@ -598,9 +668,9 @@ const StudentDashboard = () => {
               {activeTab === 'events' && 'Campus Events Hub'}
               {activeTab === 'ssd-help' && 'SSD Help & Records'}
               {activeTab === 'canteen' && 'Campus Canteen & Ordering'}
+              {activeTab === 'campus-posts' && 'Campus Social Posts'}
               {activeTab === 'lost-found' && 'Lost & Found Portal'}
               {activeTab === 'vacant-classes' && 'Vacant Classrooms'}
-              {activeTab === 'campus-posts' && 'Campus Posts'}
               {activeTab === 'borrow-lend' && 'Borrow / Lend Hub'}
               {activeTab === 'location' && 'Location Finder'}
               {activeTab === 'campus-help' && 'Campus Help Desk'}
@@ -775,9 +845,139 @@ const StudentDashboard = () => {
         <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-6xl space-y-8">
             {/* ------------------------------------------------------------- */}
-            {/* VIEW A: DEDICATED CANTEEN & ORDERING SYSTEM (FULL MENU) */}
+            {/* VIEW A: DEDICATED CAMPUS SOCIAL POSTS FEED */}
             {/* ------------------------------------------------------------- */}
-            {activeTab === 'canteen' ? (
+            {activeTab === 'campus-posts' ? (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <FileText className="text-blue-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Campus Social Feed &amp; Recent Posts
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                      Official updates, reels, guest speaker announcements, and student club buzz at Biratnagar International College.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('dashboard')}
+                      className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5"
+                      style={{ borderColor: t.border, color: t.textPrimary }}
+                    >
+                      ← Back to Dashboard
+                    </button>
+                  </div>
+                </div>
+
+                {/* Posts Feed Grid */}
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {campusPosts.map((post) => (
+                    <article
+                      key={post.id}
+                      className="flex flex-col justify-between overflow-hidden rounded-3xl border shadow-xs transition-all hover:shadow-md"
+                      style={{
+                        backgroundColor: t.cardBg || '#ffffff',
+                        borderColor: t.border,
+                      }}
+                    >
+                      {/* Post Header */}
+                      <div className="p-5 pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-lg shadow-xs">
+                              {post.avatar}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                                  {post.author}
+                                </h3>
+                                <span className="rounded-full bg-blue-600 text-white p-0.5 text-[9px] flex items-center justify-center h-3.5 w-3.5">
+                                  ✓
+                                </span>
+                              </div>
+                              <p className="text-[11px]" style={{ color: t.textMuted }}>
+                                {post.handle} · {post.time}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className="rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[10px] font-bold" style={{ color: t.textMuted }}>
+                            {post.category}
+                          </span>
+                        </div>
+
+                        {/* Caption */}
+                        <p className="mt-3.5 text-xs leading-relaxed" style={{ color: t.textPrimary }}>
+                          {post.caption}
+                        </p>
+                        <p className="mt-1.5 text-[11px] font-bold text-blue-600">
+                          {post.tag}
+                        </p>
+                      </div>
+
+                      {/* Post Media Image */}
+                      <div className="relative w-full bg-black/5 overflow-hidden border-y" style={{ borderColor: t.border }}>
+                        <img
+                          src={post.image}
+                          alt={post.caption}
+                          className="h-80 w-full object-cover transition-transform duration-300 hover:scale-[1.02]"
+                        />
+                      </div>
+
+                      {/* Engagement Bar */}
+                      <div className="p-4 flex items-center justify-between border-t" style={{ borderColor: t.border }}>
+                        <div className="flex items-center gap-4">
+                          <button
+                            type="button"
+                            onClick={() => toggleLikePost(post.id)}
+                            className={`flex items-center gap-1.5 text-xs font-bold transition-transform active:scale-125 ${
+                              post.liked ? 'text-red-500' : 'hover:text-red-500'
+                            }`}
+                            style={{ color: post.liked ? '#ef4444' : t.textMuted }}
+                          >
+                            <Heart size={16} className={post.liked ? 'fill-red-500 text-red-500' : ''} />
+                            <span>{post.likes}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => toast('Comments section opened', { icon: '💬' })}
+                            className="flex items-center gap-1.5 text-xs font-bold hover:text-blue-600 transition-colors"
+                            style={{ color: t.textMuted }}
+                          >
+                            <MessageCircle size={16} />
+                            <span>{post.comments}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => toast.success('Post link copied to clipboard!', { icon: '🔗' })}
+                            className="flex items-center gap-1.5 text-xs font-bold hover:text-emerald-600 transition-colors"
+                            style={{ color: t.textMuted }}
+                          >
+                            <Share2 size={16} />
+                            <span>{post.shares}</span>
+                          </button>
+                        </div>
+
+                        <span className="text-[11px] font-medium" style={{ color: t.textMuted }}>
+                          Biratnagar International College
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : activeTab === 'canteen' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW B: DEDICATED CANTEEN & ORDERING SYSTEM (FULL MENU) */
+              /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 {/* Header & Credit Balance Card */}
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -974,7 +1174,7 @@ const StudentDashboard = () => {
                             />
                           </div>
 
-                          {/* Payment Method Selector (3 Options: Cash, Online, Credit Khata) */}
+                          {/* Payment Method Selector */}
                           <div>
                             <label className="block text-xs font-bold mb-2" style={{ color: t.textPrimary }}>
                               Select Payment Option
@@ -1073,7 +1273,7 @@ const StudentDashboard = () => {
               </div>
             ) : activeTab === 'ssd-help' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW B: DEDICATED SSD HELP (ATTENDANCE, VOLUNTEERING, SCHOLARSHIP) */
+              /* VIEW C: DEDICATED SSD HELP (ATTENDANCE, VOLUNTEERING, SCHOLARSHIP AAA STATUS) */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -1085,7 +1285,7 @@ const StudentDashboard = () => {
                       </h2>
                     </div>
                     <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
-                      Track your attendance logs, view verified volunteering service hours, and monitor scholarship standing.
+                      Official evaluation records, attendance tracking, volunteering service, and scholarship AAA status.
                     </p>
                   </div>
 
@@ -1094,6 +1294,17 @@ const StudentDashboard = () => {
                     className="flex items-center gap-1 rounded-xl border p-1 shadow-xs self-start"
                     style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
                   >
+                    <button
+                      type="button"
+                      onClick={() => setSsdActiveSubTab('scholarship')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        ssdActiveSubTab === 'scholarship'
+                          ? 'bg-[#2f4336] text-white shadow-xs'
+                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Scholarship (AAA Status)
+                    </button>
                     <button
                       type="button"
                       onClick={() => setSsdActiveSubTab('attendance')}
@@ -1116,21 +1327,183 @@ const StudentDashboard = () => {
                     >
                       Volunteering History
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setSsdActiveSubTab('scholarship')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                        ssdActiveSubTab === 'scholarship'
-                          ? 'bg-[#2f4336] text-white shadow-xs'
-                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      Scholarship Track Record
-                    </button>
                   </div>
                 </div>
 
-                {/* SubTab 1: Attendance Tracker */}
+                {/* SubTab 1: Scholarship AAA Status (Exact Request) */}
+                {ssdActiveSubTab === 'scholarship' && (
+                  <div className="space-y-6">
+                    <div
+                      className="rounded-3xl border p-7 shadow-xs"
+                      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                    >
+                      <div className="flex flex-col justify-between gap-3 border-b pb-5 sm:flex-row sm:items-center" style={{ borderColor: t.border }}>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 shadow-xs">
+                            <Award size={26} />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-extrabold" style={{ color: t.textPrimary }}>
+                              Scholarship AAA Evaluation Status
+                            </h3>
+                            <p className="text-xs" style={{ color: t.textMuted }}>
+                              Student Services Department official evaluation metric for tuition grant &amp; merit retention
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3.5 py-1.5 text-xs font-extrabold text-emerald-800 shadow-xs">
+                          <CheckCheck size={16} /> AAA Verified &amp; Approved
+                        </span>
+                      </div>
+
+                      {/* AAA Status Display: ATTENDANCE (87%), ACADEMIC (84%), ATTITUDE (2%) */}
+                      <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+                        {/* 1. ATTENDANCE (87%) */}
+                        <div
+                          className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md"
+                          style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-extrabold tracking-wider uppercase text-emerald-700 dark:text-emerald-400">
+                                Metric 1 · AAA
+                              </span>
+                              <span className="rounded-md bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
+                                Above Target
+                              </span>
+                            </div>
+
+                            <h4 className="mt-2 text-sm font-extrabold uppercase" style={{ color: t.textPrimary }}>
+                              Attendance
+                            </h4>
+
+                            <div className="mt-3 flex items-baseline gap-2">
+                              <span className="text-4xl font-black text-emerald-600">
+                                87%
+                              </span>
+                              <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                                / 100%
+                              </span>
+                            </div>
+
+                            <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+                              <div
+                                className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                                style={{ width: '87%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <p className="mt-4 text-xs font-medium" style={{ color: t.textMuted }}>
+                            Requirement: <span className="font-bold text-emerald-600">≥ 75%</span> (Compliant &amp; Active)
+                          </p>
+                        </div>
+
+                        {/* 2. ACADEMIC (84%) */}
+                        <div
+                          className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md"
+                          style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-extrabold tracking-wider uppercase text-blue-700 dark:text-blue-400">
+                                Metric 2 · AAA
+                              </span>
+                              <span className="rounded-md bg-blue-100 dark:bg-blue-950/50 px-2 py-0.5 text-[10px] font-extrabold text-blue-800 dark:text-blue-300">
+                                Honors Level
+                              </span>
+                            </div>
+
+                            <h4 className="mt-2 text-sm font-extrabold uppercase" style={{ color: t.textPrimary }}>
+                              Academic
+                            </h4>
+
+                            <div className="mt-3 flex items-baseline gap-2">
+                              <span className="text-4xl font-black text-blue-600">
+                                84%
+                              </span>
+                              <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                                / 100%
+                              </span>
+                            </div>
+
+                            <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+                              <div
+                                className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                                style={{ width: '84%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <p className="mt-4 text-xs font-medium" style={{ color: t.textMuted }}>
+                            Requirement: <span className="font-bold text-blue-600">≥ 70%</span> (Eligible for 50% waiver)
+                          </p>
+                        </div>
+
+                        {/* 3. ATTITUDE (2%) */}
+                        <div
+                          className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md"
+                          style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-extrabold tracking-wider uppercase text-purple-700 dark:text-purple-400">
+                                Metric 3 · AAA
+                              </span>
+                              <span className="rounded-md bg-purple-100 dark:bg-purple-950/50 px-2 py-0.5 text-[10px] font-extrabold text-purple-800 dark:text-purple-300">
+                                Exemplary Conduct
+                              </span>
+                            </div>
+
+                            <h4 className="mt-2 text-sm font-extrabold uppercase" style={{ color: t.textPrimary }}>
+                              Attitude
+                            </h4>
+
+                            <div className="mt-3 flex items-baseline gap-2">
+                              <span className="text-4xl font-black text-purple-600">
+                                2%
+                              </span>
+                              <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                                Infraction Index (Clean)
+                              </span>
+                            </div>
+
+                            <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+                              <div
+                                className="h-full rounded-full bg-purple-600 transition-all duration-500"
+                                style={{ width: '2%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <p className="mt-4 text-xs font-medium" style={{ color: t.textMuted }}>
+                            Standard: <span className="font-bold text-purple-600">&lt; 5%</span> (Exemplary peer discipline)
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Summary Note Banner */}
+                      <div className="mt-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-amber-500/10 border border-emerald-500/20 p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold text-emerald-900 dark:text-emerald-300">
+                              AAA Status Summary: Attendance 87% · Academic 84% · Attitude 2%
+                            </p>
+                            <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">
+                              Student meets all criteria for full institutional scholarship fee concession.
+                            </p>
+                          </div>
+                          <span className="rounded-xl bg-[#2f4336] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs">
+                            Active Award
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SubTab 2: Attendance Tracker */}
                 {ssdActiveSubTab === 'attendance' && (
                   <div className="space-y-6">
                     {/* Summary Cards */}
@@ -1241,7 +1614,7 @@ const StudentDashboard = () => {
                   </div>
                 )}
 
-                {/* SubTab 2: Volunteering History */}
+                {/* SubTab 3: Volunteering History */}
                 {ssdActiveSubTab === 'volunteering' && (
                   <div className="space-y-6">
                     <div
@@ -1297,80 +1670,10 @@ const StudentDashboard = () => {
                     </div>
                   </div>
                 )}
-
-                {/* SubTab 3: Scholarship Track Record */}
-                {ssdActiveSubTab === 'scholarship' && (
-                  <div className="space-y-6">
-                    <div
-                      className="rounded-2xl border p-6 shadow-xs"
-                      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-                    >
-                      <div className="flex items-center justify-between border-b pb-4 mb-5" style={{ borderColor: t.border }}>
-                        <div className="flex items-center gap-2">
-                          <Award size={20} className="text-amber-600" />
-                          <div>
-                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                              Scholarship Status &amp; Academic Performance
-                            </h3>
-                            <p className="text-xs" style={{ color: t.textMuted }}>
-                              Institutional scholarship maintenance tracking
-                            </p>
-                          </div>
-                        </div>
-                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
-                          {scholarshipRecord.status}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="rounded-xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                          <p className="text-xs font-bold" style={{ color: t.textMuted }}>
-                            Awarded Scholarship
-                          </p>
-                          <h4 className="mt-1 text-base font-bold" style={{ color: t.textPrimary }}>
-                            {scholarshipRecord.title}
-                          </h4>
-                          <p className="mt-1 text-xs font-semibold text-emerald-600">
-                            {scholarshipRecord.type}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                          <p className="text-xs font-bold" style={{ color: t.textMuted }}>
-                            GPA Standing (Requirement: {scholarshipRecord.minRequiredGPA})
-                          </p>
-                          <div className="mt-1 flex items-baseline gap-2">
-                            <span className="text-2xl font-extrabold text-emerald-600">
-                              {scholarshipRecord.currentGPA}
-                            </span>
-                            <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
-                              / 4.00 (Eligible &amp; Active)
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 rounded-xl border p-4 text-xs" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold" style={{ color: t.textPrimary }}>
-                            Next Renewal Verification Deadline:
-                          </span>
-                          <span className="font-bold text-amber-600">{scholarshipRecord.renewalDeadline}</span>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="font-semibold" style={{ color: t.textPrimary }}>
-                            Supporting Documents:
-                          </span>
-                          <span className="font-bold text-emerald-600">Submitted &amp; Approved</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : activeTab === 'lost-found' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW C: DEDICATED LOST & FOUND PORTAL */
+              /* VIEW D: DEDICATED LOST & FOUND PORTAL */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -1466,7 +1769,7 @@ const StudentDashboard = () => {
               </div>
             ) : activeTab === 'events' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW D: DEDICATED EVENTS HUB */
+              /* VIEW E: DEDICATED EVENTS HUB */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -1642,7 +1945,7 @@ const StudentDashboard = () => {
               </div>
             ) : activeTab === 'vacant-classes' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW E: DEDICATED VACANT CLASSES */
+              /* VIEW F: DEDICATED VACANT CLASSES */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
@@ -1722,7 +2025,7 @@ const StudentDashboard = () => {
               </div>
             ) : (
               /* ------------------------------------------------------------- */
-              /* VIEW F: MAIN DASHBOARD VIEW */
+              /* VIEW G: MAIN DASHBOARD VIEW */
               /* ------------------------------------------------------------- */
               <>
                 {/* 1. Header Section with Real-Time Greeting */}
@@ -2467,7 +2770,7 @@ const StudentDashboard = () => {
       {/* MODALS */}
       {/* ========================================================================= */}
 
-      {/* 1. Online QR Payment Modal (Displaying Attached QR) */}
+      {/* 1. Online QR Payment Modal */}
       {showOnlineQrModal && lastPlacedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div
