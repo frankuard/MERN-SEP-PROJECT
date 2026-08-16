@@ -7,7 +7,9 @@ import {
   UtensilsCrossed, Users, ThumbsUp, Send, Share2, Eye, Mic2, Cpu,
   Trophy, BrainCircuit, Code, Palette, Megaphone, Flame, Tag, CheckSquare,
   GraduationCap, Award, CreditCard, Banknote, QrCode, ShoppingBag, Plus, Minus,
-  History, DollarSign, Wallet, Heart, MessageCircle, Bookmark, CheckCheck, TrendingUp
+  History, DollarSign, Wallet, Heart, MessageCircle, Bookmark, CheckCheck, TrendingUp,
+  Video, Camera, Shield, Wrench, AlertTriangle, FileCheck, Layers, ChevronDown, Loader2,
+  Phone, Mail, Globe, Navigation, Building2
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
@@ -280,6 +282,16 @@ const INITIAL_CAMPUS_POSTS = [
   },
 ];
 
+// Initial Library Books
+const INITIAL_LIBRARY_BOOKS = [
+  { id: 'b1', name: 'Database System Concepts', author: 'Silberschatz, Korth & Sudarshan', shelf: 'CS-12', available: true, issuedTo: null },
+  { id: 'b2', name: 'Introduction to Algorithms (CLRS)', author: 'Cormen, Leiserson & Rivest', shelf: 'CS-04', available: false, issuedTo: 'Due in 3 days' },
+  { id: 'b3', name: 'Artificial Intelligence: A Modern Approach', author: 'Stuart Russell & Peter Norvig', shelf: 'AI-01', available: true, issuedTo: null },
+  { id: 'b4', name: 'Principles of Marketing', author: 'Philip Kotler & Gary Armstrong', shelf: 'MKT-08', available: true, issuedTo: null },
+  { id: 'b5', name: 'Computer Networking: A Top-Down Approach', author: 'James Kurose & Keith Ross', shelf: 'NET-03', available: true, issuedTo: null },
+  { id: 'b6', name: 'Business Research Methods', author: 'Donald R. Cooper', shelf: 'RES-02', available: true, issuedTo: null },
+];
+
 const StudentDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -287,9 +299,9 @@ const StudentDashboard = () => {
 
   // Navigation tab state
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [eventsFilter, setEventsFilter] = useState('all'); // 'all' | 'college' | 'community'
-  const [ssdActiveSubTab, setSsdActiveSubTab] = useState('scholarship'); // Default to scholarship or attendance
-  const [postFilter, setPostFilter] = useState('all');
+  const [eventsFilter, setEventsFilter] = useState('all');
+  const [ssdActiveSubTab, setSsdActiveSubTab] = useState('scholarship');
+  const [resourcesActiveCategory, setResourcesActiveCategory] = useState('library'); // 'library' | 'sports' | 'others' | 'complaints'
 
   // Interactive states
   const [collegeEvents, setCollegeEvents] = useState(INITIAL_COLLEGE_EVENTS);
@@ -299,11 +311,90 @@ const StudentDashboard = () => {
   const [helpRequests, setHelpRequests] = useState(INITIAL_CAMPUS_HELP);
   const [campusPosts, setCampusPosts] = useState(INITIAL_CAMPUS_POSTS);
 
+  // CCTV Requests List
+  const [cctvRequests, setCctvRequests] = useState([
+    {
+      id: 'cctv_101',
+      location: 'Library 2nd Floor, Table 4',
+      date: '2026-08-16',
+      timeFrom: '01:30 PM',
+      timeTo: '03:00 PM',
+      reason: 'Black laptop bag misplaced near window counter',
+      status: 'In Review',
+      submittedAt: 'Yesterday',
+    },
+  ]);
+  const [showCctvModal, setShowCctvModal] = useState(false);
+  const [newCctvForm, setNewCctvForm] = useState({
+    location: 'Library, 2nd Floor',
+    date: '2026-08-17',
+    timeFrom: '10:00 AM',
+    timeTo: '12:30 PM',
+    reason: '',
+  });
+
+  // Resources State: 1. Library Books & Bimala Mam 5-sec Approval Tracking
+  const [libraryBooks, setLibraryBooks] = useState(INITIAL_LIBRARY_BOOKS);
+  const [bookSearchQuery, setBookSearchQuery] = useState('');
+  const [pendingBookApprovals, setPendingBookApprovals] = useState({}); // { [bookId]: 'borrowing' | 'returning' }
+
+  // Resources State: 2. Sports Item Requisition
+  const [sportsGearRequests, setSportsGearRequests] = useState([
+    { id: 'sp_1', item: 'Cricket Bat', qty: 2, slot: 'Lunch Break (01:00 PM)', status: 'Approved' },
+    { id: 'sp_2', item: 'Table Tennis (Rackets & Balls)', qty: 1, slot: 'Sports Hour (04:00 PM)', status: 'Ready for Pickup' },
+  ]);
+  const [sportsForm, setSportsForm] = useState({
+    item: 'Cricket Bat',
+    qty: 1,
+    slot: 'Lunch Break (01:00 PM - 02:00 PM)',
+    note: '',
+  });
+
+  // Resources State: 3. Others (Budget Claim & Special Resources)
+  const [budgetClaims, setBudgetClaims] = useState([
+    { id: 'bc_1', title: 'XPERIA Hackathon Refreshments & Banner', amount: 3500, category: 'Club Event & Project', status: 'Approved by SSD' },
+  ]);
+  const [budgetForm, setBudgetForm] = useState({
+    title: '',
+    amount: '',
+    category: 'Club Event & Project',
+    justification: '',
+  });
+
+  // Resources State: 4. Complaining / Facility Maintenance
+  const [complaintTickets, setComplaintTickets] = useState([
+    {
+      id: 'cmp_101',
+      issue: 'AC Problem',
+      room: 'SR01 Wolves',
+      urgency: 'High',
+      description: 'AC unit is making grinding noise and cooling is weak during afternoon sessions.',
+      status: 'Assigned to Maintenance',
+      time: 'Today',
+    },
+    {
+      id: 'cmp_102',
+      issue: 'Projector Issue',
+      room: 'LT01 Wulfurana',
+      urgency: 'Medium',
+      description: 'HDMI color distortion on main presentation screen.',
+      status: 'Resolved',
+      time: 'Yesterday',
+    },
+  ]);
+  const [complaintForm, setComplaintForm] = useState({
+    issue: 'Breakage of Door',
+    room: 'Block A, 1st Floor',
+    urgency: 'Medium',
+    description: '',
+  });
+
   // Canteen ordering system states
-  const [cart, setCart] = useState({}); // { [itemId]: quantity }
+  const [cart, setCart] = useState({});
   const [orderPreference, setOrderPreference] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('online'); // 'cash' | 'online' | 'canteen_credit'
-  const [canteenCreditBalance, setCanteenCreditBalance] = useState(150); // persistent pending credit balance in NPR
+  const [paymentMethod, setPaymentMethod] = useState('online');
+  const [canteenCreditBalance, setCanteenCreditBalance] = useState(150);
+  const [isCheckingByOwner, setIsCheckingByOwner] = useState(false);
   const [orderHistory, setOrderHistory] = useState([
     { id: 'ord_101', item: 'Chicken Momo × 1', amount: 120, method: 'Credit Khata', time: 'Yesterday' },
   ]);
@@ -467,6 +558,145 @@ const StudentDashboard = () => {
     toast.success('Item status marked as Claimed!');
   };
 
+  const handleCctvRequestSubmit = (e) => {
+    e.preventDefault();
+    if (!newCctvForm.reason.trim()) {
+      toast.error('Please provide a reason / details of the lost item');
+      return;
+    }
+    const req = {
+      id: `cctv_${Date.now()}`,
+      location: newCctvForm.location,
+      date: newCctvForm.date,
+      timeFrom: newCctvForm.timeFrom,
+      timeTo: newCctvForm.timeTo,
+      reason: newCctvForm.reason.trim(),
+      status: 'In Review',
+      submittedAt: 'Just now',
+    };
+    setCctvRequests((prev) => [req, ...prev]);
+    setShowCctvModal(false);
+    setNewCctvForm({
+      location: 'Library, 2nd Floor',
+      date: '2026-08-17',
+      timeFrom: '10:00 AM',
+      timeTo: '12:30 PM',
+      reason: '',
+    });
+    toast.success(`CCTV Footage Request #${req.id} submitted to Campus Security!`, { icon: '📹' });
+  };
+
+  // -------------------------------------------------------------
+  // Library Book Borrow / Return Workflow with 5-sec Bimala Mam Approval
+  // -------------------------------------------------------------
+  const handleToggleBorrowBook = (bookId) => {
+    if (pendingBookApprovals[bookId]) return;
+
+    const targetBook = libraryBooks.find((b) => b.id === bookId);
+    if (!targetBook) return;
+
+    if (targetBook.available) {
+      // Student taking book -> 5 seconds verification by Bimala Mam
+      setPendingBookApprovals((prev) => ({ ...prev, [bookId]: 'borrowing' }));
+      toast.loading(
+        `Submitting book issue request for "${targetBook.name}" to Bimala Mam (Library In-Charge)...`,
+        { id: `book_${bookId}`, duration: 5000 }
+      );
+
+      setTimeout(() => {
+        setPendingBookApprovals((prev) => {
+          const next = { ...prev };
+          delete next[bookId];
+          return next;
+        });
+        setLibraryBooks((prev) =>
+          prev.map((b) =>
+            b.id === bookId
+              ? { ...b, available: false, issuedTo: `Issued to ${user?.username || 'Suraj Poddar'} (Due: Sep 01)` }
+              : b
+          )
+        );
+        toast.success(
+          `✅ Bimala Mam (Library In-Charge) approved! Book "${targetBook.name}" issued for 14 days.`,
+          { id: `book_${bookId}`, duration: 4000 }
+        );
+      }, 5000);
+    } else {
+      // Student submitting/returning book -> 5 seconds verification by Bimala Mam
+      setPendingBookApprovals((prev) => ({ ...prev, [bookId]: 'returning' }));
+      toast.loading(
+        `Returning "${targetBook.name}" at library counter. Waiting for Bimala Mam verification...`,
+        { id: `book_${bookId}`, duration: 5000 }
+      );
+
+      setTimeout(() => {
+        setPendingBookApprovals((prev) => {
+          const next = { ...prev };
+          delete next[bookId];
+          return next;
+        });
+        setLibraryBooks((prev) =>
+          prev.map((b) => (b.id === bookId ? { ...b, available: true, issuedTo: null } : b))
+        );
+        toast.success(
+          `✅ Bimala Mam verified and accepted the return for "${targetBook.name}"! Record cleared.`,
+          { id: `book_${bookId}`, duration: 4000 }
+        );
+      }, 5000);
+    }
+  };
+
+  const handleSportsRequestSubmit = (e) => {
+    e.preventDefault();
+    const newReq = {
+      id: `sp_${Date.now()}`,
+      item: sportsForm.item,
+      qty: sportsForm.qty,
+      slot: sportsForm.slot,
+      status: 'Approved & Ready for Pickup',
+    };
+    setSportsGearRequests((prev) => [newReq, ...prev]);
+    toast.success(`Requested ${sportsForm.qty} × ${sportsForm.item}! Approved by Sports Dept.`, { icon: '⚽' });
+  };
+
+  const handleBudgetClaimSubmit = (e) => {
+    e.preventDefault();
+    if (!budgetForm.title || !budgetForm.amount) {
+      toast.error('Please enter title and claim amount');
+      return;
+    }
+    const newClaim = {
+      id: `bc_${Date.now()}`,
+      title: budgetForm.title,
+      amount: Number(budgetForm.amount),
+      category: budgetForm.category,
+      status: 'Approved by SSD',
+    };
+    setBudgetClaims((prev) => [newClaim, ...prev]);
+    setBudgetForm({ title: '', amount: '', category: 'Club Event & Project', justification: '' });
+    toast.success(`Budget Claim of NPR ${newClaim.amount} submitted to SSD!`, { icon: '💰' });
+  };
+
+  const handleComplaintSubmit = (e) => {
+    e.preventDefault();
+    if (!complaintForm.description.trim()) {
+      toast.error('Please describe the problem');
+      return;
+    }
+    const newTicket = {
+      id: `cmp_${Date.now().toString().slice(-4)}`,
+      issue: complaintForm.issue,
+      room: complaintForm.room,
+      urgency: complaintForm.urgency,
+      description: complaintForm.description.trim(),
+      status: 'Assigned to Maintenance Staff',
+      time: 'Just now',
+    };
+    setComplaintTickets((prev) => [newTicket, ...prev]);
+    setComplaintForm({ issue: 'Breakage of Door', room: 'Block A, 1st Floor', urgency: 'Medium', description: '' });
+    toast.success(`Complaint Ticket #${newTicket.id} logged for ${newTicket.issue}!`, { icon: '🔧' });
+  };
+
   const handleAddHelpRequest = (e) => {
     e.preventDefault();
     if (!newHelpRequest.trim()) {
@@ -572,14 +802,31 @@ const StudentDashboard = () => {
     setOrderPreference('');
   };
 
-  const handleClearCredit = () => {
+  // -------------------------------------------------------------
+  // Paying Credit Due in Cash with 3-sec Owner Approval
+  // -------------------------------------------------------------
+  const handleClearCreditCash = () => {
     if (canteenCreditBalance <= 0) {
       toast('You have no pending balance to clear.', { icon: 'ℹ️' });
       return;
     }
-    setCanteenCreditBalance(0);
-    setShowPayCreditModal(false);
-    toast.success('Canteen Credit balance cleared successfully! Receipt generated.', { icon: '✅' });
+    setIsCheckingByOwner(true);
+    const amountToClear = canteenCreditBalance;
+
+    toast.loading('Cash submitted at counter! (Checking by owner... ⏳)', {
+      id: 'canteen_cash_settle',
+      duration: 3000,
+    });
+
+    setTimeout(() => {
+      setIsCheckingByOwner(false);
+      setCanteenCreditBalance(0);
+      setShowPayCreditModal(false);
+      toast.success(`✅ Canteen Owner approved payment of NPR ${amountToClear}! Credit Due is now NPR 0.`, {
+        id: 'canteen_cash_settle',
+        duration: 4000,
+      });
+    }, 3000);
   };
 
   const handleTrackAttendanceToday = () => {
@@ -606,7 +853,6 @@ const StudentDashboard = () => {
 
   const studentName = user?.username ? user.username.split(' ')[0] : 'Suraj';
 
-  // Format today's date
   const todayFormatted = useMemo(() => {
     return new Date().toLocaleDateString('en-US', {
       weekday: 'long',
@@ -614,6 +860,16 @@ const StudentDashboard = () => {
       month: 'long',
     });
   }, []);
+
+  const filteredBooks = useMemo(() => {
+    if (!bookSearchQuery.trim()) return libraryBooks;
+    return libraryBooks.filter(
+      (b) =>
+        b.name.toLowerCase().includes(bookSearchQuery.toLowerCase()) ||
+        b.author.toLowerCase().includes(bookSearchQuery.toLowerCase()) ||
+        b.shelf.toLowerCase().includes(bookSearchQuery.toLowerCase())
+    );
+  }, [libraryBooks, bookSearchQuery]);
 
   const notificationsList = [
     { id: 1, text: 'Devfest registration is now open', time: '10m ago', unread: true },
@@ -668,13 +924,13 @@ const StudentDashboard = () => {
               {activeTab === 'dashboard' && 'Dashboard'}
               {activeTab === 'events' && 'Campus Events Hub'}
               {activeTab === 'ssd-help' && 'SSD Help & Records'}
-              {activeTab === 'canteen' && 'Campus Canteen & Ordering'}
-              {activeTab === 'campus-posts' && 'Campus Social Posts'}
               {activeTab === 'lost-found' && 'Lost & Found Portal'}
+              {activeTab === 'resources' && 'Campus Resources & Services'}
+              {activeTab === 'canteen' && 'Campus Canteen & Ordering'}
               {activeTab === 'vacant-classes' && 'Vacant Classrooms'}
-              {activeTab === 'borrow-lend' && 'Borrow / Lend Hub'}
-              {activeTab === 'location' && 'Location Finder'}
-              {activeTab === 'campus-help' && 'Campus Help Desk'}
+              {activeTab === 'campus-posts' && 'Campus Social Posts'}
+              {activeTab === 'location' && 'Campus Locations & Map'}
+              {activeTab === 'campus-help' && 'Campus Help & Contact Directory'}
             </h1>
             {activeTab !== 'dashboard' && (
               <button
@@ -688,7 +944,7 @@ const StudentDashboard = () => {
             )}
           </div>
 
-          {/* Right Controls: Credit Due (ONLY shown when on Canteen tab), Date Pill, Notification Bell, User Avatar */}
+          {/* Right Controls */}
           <div className="flex items-center gap-3">
             {/* Credit Due Option -> Shown ONLY after clicking Canteen section */}
             {activeTab === 'canteen' && (
@@ -846,9 +1102,790 @@ const StudentDashboard = () => {
         <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-6xl space-y-8">
             {/* ------------------------------------------------------------- */}
-            {/* VIEW A: DEDICATED CAMPUS SOCIAL POSTS FEED */}
+            {/* VIEW A: DEDICATED RESOURCES SECTION WITH PROPER BIG-TEXT NAVBAR IN ONE ROW */}
             {/* ------------------------------------------------------------- */}
-            {activeTab === 'campus-posts' ? (
+            {activeTab === 'resources' ? (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="text-blue-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Campus Resources &amp; Student Services
+                      </h2>
+                    </div>
+                    <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>
+                      Central hub for library book borrowing, sports equipment requisition, budget claims, and facility maintenance.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('dashboard')}
+                    className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5 self-start"
+                    style={{ borderColor: t.border, color: t.textPrimary }}
+                  >
+                    ← Dashboard
+                  </button>
+                </div>
+
+                {/* Prominent Horizontal Navbar for the 4 Sections in One Single Row with Big Text */}
+                <nav
+                  className="flex w-full items-center justify-between overflow-x-auto rounded-2xl border p-2 shadow-xs"
+                  style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setResourcesActiveCategory('library')}
+                    className={`flex flex-1 min-w-[200px] items-center justify-center gap-2.5 rounded-xl py-3.5 px-4 text-sm font-extrabold transition-all ${
+                      resourcesActiveCategory === 'library'
+                        ? 'bg-[#2f4336] text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <BookOpen size={18} />
+                    <span>1. Library Books System</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setResourcesActiveCategory('sports')}
+                    className={`flex flex-1 min-w-[200px] items-center justify-center gap-2.5 rounded-xl py-3.5 px-4 text-sm font-extrabold transition-all ${
+                      resourcesActiveCategory === 'sports'
+                        ? 'bg-[#2f4336] text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <Trophy size={18} />
+                    <span>2. Sports Items Needed</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setResourcesActiveCategory('others')}
+                    className={`flex flex-1 min-w-[200px] items-center justify-center gap-2.5 rounded-xl py-3.5 px-4 text-sm font-extrabold transition-all ${
+                      resourcesActiveCategory === 'others'
+                        ? 'bg-[#2f4336] text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <Wallet size={18} />
+                    <span>3. Budget Claim &amp; Others</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setResourcesActiveCategory('complaints')}
+                    className={`flex flex-1 min-w-[200px] items-center justify-center gap-2.5 rounded-xl py-3.5 px-4 text-sm font-extrabold transition-all ${
+                      resourcesActiveCategory === 'complaints'
+                        ? 'bg-[#2f4336] text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <Wrench size={18} />
+                    <span>4. Facility Complaints</span>
+                  </button>
+                </nav>
+
+                {/* ----------------- CATEGORY 1: LIBRARY BOOK MANAGEMENT (BIMALA MAM APPROVAL) ----------------- */}
+                {resourcesActiveCategory === 'library' && (
+                  <div className="space-y-6">
+                    <div
+                      className="rounded-3xl border p-6 shadow-xs"
+                      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                    >
+                      <div className="flex flex-col justify-between gap-4 border-b pb-4 sm:flex-row sm:items-center" style={{ borderColor: t.border }}>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                              Library Book Management System
+                            </h3>
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                              Bimala Mam (In-Charge)
+                            </span>
+                          </div>
+                          <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>
+                            Search catalog, check shelf locations, and borrow/submit books with instant 5-second Bimala Mam verification
+                          </p>
+                        </div>
+
+                        {/* Search Book */}
+                        <div className="relative w-full sm:w-72">
+                          <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search by book name, author, shelf..."
+                            value={bookSearchQuery}
+                            onChange={(e) => setBookSearchQuery(e.target.value)}
+                            className="w-full rounded-xl border pl-9 pr-3 py-2 text-xs outline-none"
+                            style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {filteredBooks.map((book) => {
+                          const isPending = !!pendingBookApprovals[book.id];
+                          const pendingType = pendingBookApprovals[book.id];
+                          return (
+                            <div
+                              key={book.id}
+                              className="flex flex-col justify-between rounded-2xl border p-4 shadow-xs transition-all hover:shadow-md"
+                              style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                            >
+                              <div>
+                                <div className="flex items-start justify-between">
+                                  <span className="rounded-md bg-blue-100 dark:bg-blue-950 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+                                    Shelf {book.shelf}
+                                  </span>
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                      book.available
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-amber-100 text-amber-800'
+                                    }`}
+                                  >
+                                    {book.available ? 'Available' : 'Issued'}
+                                  </span>
+                                </div>
+
+                                <h4 className="mt-3 text-sm font-bold leading-snug" style={{ color: t.textPrimary }}>
+                                  {book.name}
+                                </h4>
+                                <p className="mt-1 text-xs" style={{ color: t.textMuted }}>
+                                  by {book.author}
+                                </p>
+
+                                {!book.available && book.issuedTo && (
+                                  <p className="mt-2 text-[11px] font-semibold text-amber-600">
+                                    Status: {book.issuedTo}
+                                  </p>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => handleToggleBorrowBook(book.id)}
+                                className={`mt-4 flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold text-white transition-all shadow-xs ${
+                                  isPending
+                                    ? 'bg-amber-600 animate-pulse cursor-not-allowed'
+                                    : book.available
+                                    ? 'bg-[#2f4336] hover:bg-[#25362b]'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                                }`}
+                              >
+                                {isPending && <Loader2 size={13} className="animate-spin" />}
+                                {pendingType === 'borrowing' && '⏳ Waiting Bimala Mam Approval (5s)...'}
+                                {pendingType === 'returning' && '⏳ Bimala Mam Checking Condition (5s)...'}
+                                {!isPending && (book.available ? 'Borrow Book (Bimala Mam Approval)' : 'Return to Library (Submit)')}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ----------------- CATEGORY 2: SPORTS ITEMS NEEDED ----------------- */}
+                {resourcesActiveCategory === 'sports' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                      {/* Left: Sports Item Requisition Form */}
+                      <div className="lg:col-span-6">
+                        <div
+                          className="rounded-3xl border p-6 shadow-xs"
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                        >
+                          <h3 className="text-base font-bold mb-1" style={{ color: t.textPrimary }}>
+                            Request Sports Equipment
+                          </h3>
+                          <p className="text-xs mb-4" style={{ color: t.textMuted }}>
+                            Select item from college sports room inventory for practice or recess matches
+                          </p>
+
+                          <form onSubmit={handleSportsRequestSubmit} className="space-y-4">
+                            <div>
+                              <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                Select Sports Item Needed
+                              </label>
+                              <select
+                                value={sportsForm.item}
+                                onChange={(e) => setSportsForm({ ...sportsForm, item: e.target.value })}
+                                className="w-full rounded-xl border p-2.5 text-xs outline-none font-semibold"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                              >
+                                <option value="Cricket Bat">🏏 Cricket Bat</option>
+                                <option value="Football">⚽ Football</option>
+                                <option value="Basketball">🏀 Basketball</option>
+                                <option value="Table Tennis">🏓 Table Tennis (Rackets &amp; Balls)</option>
+                                <option value="Chess">♟️ Chess Set</option>
+                                <option value="Ludo">🎲 Ludo Board</option>
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                  Quantity
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={5}
+                                  value={sportsForm.qty}
+                                  onChange={(e) => setSportsForm({ ...sportsForm, qty: Number(e.target.value) })}
+                                  className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                  Time / Slot Needed
+                                </label>
+                                <select
+                                  value={sportsForm.slot}
+                                  onChange={(e) => setSportsForm({ ...sportsForm, slot: e.target.value })}
+                                  className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                >
+                                  <option value="Lunch Break (01:00 PM - 02:00 PM)">Lunch Break (01:00 PM)</option>
+                                  <option value="Sports Hour (04:00 PM - 05:30 PM)">Sports Hour (04:00 PM)</option>
+                                  <option value="Inter-Department Match">Inter-Department Match</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="w-full rounded-xl bg-[#2f4336] py-3 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                            >
+                              Submit Sports Equipment Request
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+
+                      {/* Right: Issued & Requested Gear */}
+                      <div className="lg:col-span-6">
+                        <div
+                          className="rounded-3xl border p-6 shadow-xs"
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                        >
+                          <h3 className="text-base font-bold mb-1" style={{ color: t.textPrimary }}>
+                            My Sports Equipment Requisitions
+                          </h3>
+                          <p className="text-xs mb-4" style={{ color: t.textMuted }}>
+                            Pick up approved equipment from Ground Floor Sports In-charge desk
+                          </p>
+
+                          <div className="space-y-3">
+                            {sportsGearRequests.map((req) => (
+                              <div
+                                key={req.id}
+                                className="flex items-center justify-between rounded-2xl border p-4 text-xs"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                              >
+                                <div>
+                                  <h4 className="font-bold text-sm" style={{ color: t.textPrimary }}>
+                                    {req.item} (Qty: {req.qty})
+                                  </h4>
+                                  <p className="text-[11px] mt-0.5" style={{ color: t.textMuted }}>
+                                    Slot: {req.slot}
+                                  </p>
+                                </div>
+
+                                <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-extrabold text-emerald-800">
+                                  {req.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ----------------- CATEGORY 3: BUDGET CLAIM & OTHERS ----------------- */}
+                {resourcesActiveCategory === 'others' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                      {/* Left: Budget Claim Form */}
+                      <div className="lg:col-span-6">
+                        <div
+                          className="rounded-3xl border p-6 shadow-xs"
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                        >
+                          <h3 className="text-base font-bold mb-1" style={{ color: t.textPrimary }}>
+                            Student Budget &amp; Event Fund Claim
+                          </h3>
+                          <p className="text-xs mb-4" style={{ color: t.textMuted }}>
+                            Submit reimbursement or advance funding claim for club fests, workshops, and project components
+                          </p>
+
+                          <form onSubmit={handleBudgetClaimSubmit} className="space-y-4">
+                            <div>
+                              <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                Event / Project Title
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. AI Horizon Workshop Materials & Refreshments"
+                                value={budgetForm.title}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, title: e.target.value })}
+                                className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                required
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                  Claim Amount (NPR)
+                                </label>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 4500"
+                                  value={budgetForm.amount}
+                                  onChange={(e) => setBudgetForm({ ...budgetForm, amount: e.target.value })}
+                                  className="w-full rounded-xl border p-2.5 text-xs outline-none font-bold"
+                                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                  Category
+                                </label>
+                                <select
+                                  value={budgetForm.category}
+                                  onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })}
+                                  className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                >
+                                  <option value="Club Event & Project">Club Event &amp; Project</option>
+                                  <option value="Hackathon Material">Hackathon Hardware Kit</option>
+                                  <option value="Print / Banner Materials">Print &amp; Promotion</option>
+                                  <option value="Student Welfare">Student Welfare / Health</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                Justification &amp; Receipt Note
+                              </label>
+                              <textarea
+                                rows={2}
+                                placeholder="Attach invoice numbers, bill details and advisor approval note..."
+                                value={budgetForm.justification}
+                                onChange={(e) => setBudgetForm({ ...budgetForm, justification: e.target.value })}
+                                className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                              />
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="w-full rounded-xl bg-[#2f4336] py-3 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                            >
+                              Submit Budget Claim to SSD
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+
+                      {/* Right: Special Resource Requisition & Past Claims */}
+                      <div className="lg:col-span-6 space-y-6">
+                        <div
+                          className="rounded-3xl border p-6 shadow-xs"
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                        >
+                          <h3 className="text-base font-bold mb-1" style={{ color: t.textPrimary }}>
+                            Special Resource Requisition
+                          </h3>
+                          <p className="text-xs mb-4" style={{ color: t.textMuted }}>
+                            Request campus equipment for presentations, seminars, and club activities
+                          </p>
+
+                          <div className="space-y-3 text-xs">
+                            <div className="rounded-xl border p-3 flex items-center justify-between" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                              <span>🎤 Portable PA Sound System &amp; 2 Wireless Mics</span>
+                              <button
+                                type="button"
+                                onClick={() => toast.success('Sound System reserved for next event!')}
+                                className="rounded-lg bg-[#2f4336] px-3 py-1 font-bold text-white shadow-xs"
+                              >
+                                Request
+                              </button>
+                            </div>
+                            <div className="rounded-xl border p-3 flex items-center justify-between" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                              <span>🔌 Multi-plug Extension Cords (20m)</span>
+                              <button
+                                type="button"
+                                onClick={() => toast.success('Extension cord booked from Lab 3!')}
+                                className="rounded-lg bg-[#2f4336] px-3 py-1 font-bold text-white shadow-xs"
+                              >
+                                Request
+                              </button>
+                            </div>
+                            <div className="rounded-xl border p-3 flex items-center justify-between" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                              <span>📹 Tripod &amp; Streaming Camera for Sessions</span>
+                              <button
+                                type="button"
+                                onClick={() => toast.success('Camera kit requested from Media Dept!')}
+                                className="rounded-lg bg-[#2f4336] px-3 py-1 font-bold text-white shadow-xs"
+                              >
+                                Request
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Past Claims */}
+                        <div
+                          className="rounded-3xl border p-6 shadow-xs"
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                        >
+                          <h4 className="text-sm font-bold mb-3" style={{ color: t.textPrimary }}>
+                            Submitted Budget Claims
+                          </h4>
+                          <div className="space-y-2.5">
+                            {budgetClaims.map((c) => (
+                              <div
+                                key={c.id}
+                                className="flex items-center justify-between rounded-xl border p-3 text-xs"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                              >
+                                <div>
+                                  <p className="font-bold" style={{ color: t.textPrimary }}>
+                                    {c.title}
+                                  </p>
+                                  <p className="text-[11px] text-emerald-600 font-extrabold">
+                                    NPR {c.amount} ({c.category})
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                                  {c.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ----------------- CATEGORY 4: COMPLAINING & FACILITY MAINTENANCE ----------------- */}
+                {resourcesActiveCategory === 'complaints' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                      {/* Left: Log Complaint Form */}
+                      <div className="lg:col-span-6">
+                        <div
+                          className="rounded-3xl border p-6 shadow-xs"
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                        >
+                          <h3 className="text-base font-bold mb-1" style={{ color: t.textPrimary }}>
+                            Report Campus Facility Issue / Complaint
+                          </h3>
+                          <p className="text-xs mb-4" style={{ color: t.textMuted }}>
+                            Direct ticket dispatch to Campus Facilities &amp; Maintenance Staff
+                          </p>
+
+                          <form onSubmit={handleComplaintSubmit} className="space-y-4">
+                            <div>
+                              <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                Select Issue Type
+                              </label>
+                              <select
+                                value={complaintForm.issue}
+                                onChange={(e) => setComplaintForm({ ...complaintForm, issue: e.target.value })}
+                                className="w-full rounded-xl border p-2.5 text-xs outline-none font-semibold"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                              >
+                                <option value="Breakage of Door">🚪 Breakage of Door</option>
+                                <option value="Bench Management">🪑 Bench Management / Broken Desks</option>
+                                <option value="AC Problem">❄️ AC Problem / Heating</option>
+                                <option value="Projector Issue">📽️ Projector Issue / HDMI</option>
+                                <option value="Sports Item Needed">⚽ Sports Item Needed / Damaged</option>
+                                <option value="Water Leakage">🚰 Water Leakage / Restroom Issue</option>
+                                <option value="Others">🔧 Others / Electrical</option>
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                  Location / Classroom
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Block A, Room 202 or LT01"
+                                  value={complaintForm.room}
+                                  onChange={(e) => setComplaintForm({ ...complaintForm, room: e.target.value })}
+                                  className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                  Urgency Level
+                                </label>
+                                <select
+                                  value={complaintForm.urgency}
+                                  onChange={(e) => setComplaintForm({ ...complaintForm, urgency: e.target.value })}
+                                  className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                >
+                                  <option value="Low">Low (Within 48 hrs)</option>
+                                  <option value="Medium">Medium (Same day)</option>
+                                  <option value="High">High / Urgent (Immediate)</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                                Problem Description
+                              </label>
+                              <textarea
+                                rows={3}
+                                placeholder="Describe the damage, specific bench numbers, or malfunction..."
+                                value={complaintForm.description}
+                                onChange={(e) => setComplaintForm({ ...complaintForm, description: e.target.value })}
+                                className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                                required
+                              />
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="w-full rounded-xl bg-[#2f4336] py-3 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                            >
+                              Dispatch Complaint Ticket to Maintenance
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+
+                      {/* Right: Tracked Complaints */}
+                      <div className="lg:col-span-6">
+                        <div
+                          className="rounded-3xl border p-6 shadow-xs"
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                        >
+                          <h3 className="text-base font-bold mb-1" style={{ color: t.textPrimary }}>
+                            Campus Maintenance Issue Tracker
+                          </h3>
+                          <p className="text-xs mb-4" style={{ color: t.textMuted }}>
+                            Real-time resolution status of logged student tickets
+                          </p>
+
+                          <div className="space-y-3.5">
+                            {complaintTickets.map((ticket) => (
+                              <div
+                                key={ticket.id}
+                                className="rounded-2xl border p-4 space-y-2 text-xs"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-sm" style={{ color: t.textPrimary }}>
+                                      {ticket.issue}
+                                    </span>
+                                    <span className="rounded-md bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                                      {ticket.room}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                      ticket.status === 'Resolved'
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}
+                                  >
+                                    {ticket.status}
+                                  </span>
+                                </div>
+
+                                <p className="leading-relaxed" style={{ color: t.textMuted }}>
+                                  {ticket.description}
+                                </p>
+
+                                <div className="flex items-center justify-between border-t pt-2 text-[11px]" style={{ borderColor: t.border }}>
+                                  <span className="font-semibold text-red-500">Urgency: {ticket.urgency}</span>
+                                  <span style={{ color: t.textMuted }}>{ticket.time}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'lost-found' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW B: DEDICATED LOST & FOUND PORTAL (WITH CCTV FOOTAGE REQUEST) */
+              /* ------------------------------------------------------------- */
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Search className="text-blue-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Lost &amp; Found Portal
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                      Report misplaced belongings, claim found items, and request official CCTV security footage review.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5 self-start">
+                    <button
+                      type="button"
+                      onClick={() => setShowCctvModal(true)}
+                      className="flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 dark:bg-red-950/40 px-3.5 py-2 text-xs font-bold text-red-700 dark:text-red-300 shadow-xs hover:bg-red-100 transition-all"
+                    >
+                      <Video size={14} className="text-red-600" />
+                      Request CCTV Footage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowReportModal(true)}
+                      className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                    >
+                      + Report Lost Item
+                    </button>
+                  </div>
+                </div>
+
+                {/* CCTV Requests Banner */}
+                {cctvRequests.length > 0 && (
+                  <div
+                    className="rounded-3xl border p-5 shadow-xs"
+                    style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                  >
+                    <div className="flex items-center justify-between border-b pb-3 mb-3" style={{ borderColor: t.border }}>
+                      <div className="flex items-center gap-2">
+                        <Camera size={18} className="text-red-600" />
+                        <h3 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                          My CCTV Footage Verification Requests
+                        </h3>
+                      </div>
+                      <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                        Security Desk Review
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {cctvRequests.map((req) => (
+                        <div
+                          key={req.id}
+                          className="flex flex-col justify-between gap-2 rounded-2xl border p-4 text-xs sm:flex-row sm:items-center"
+                          style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm" style={{ color: t.textPrimary }}>
+                                {req.location}
+                              </span>
+                              <span className="rounded-md bg-blue-100 text-blue-800 px-2 py-0.5 text-[10px] font-bold">
+                                {req.date}
+                              </span>
+                              <span className="rounded-md bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-bold" style={{ color: t.textMuted }}>
+                                {req.timeFrom} – {req.timeTo}
+                              </span>
+                            </div>
+                            <p style={{ color: t.textMuted }}>
+                              Reason: {req.reason}
+                            </p>
+                          </div>
+
+                          <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800 self-start sm:self-center">
+                            ⏳ {req.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Items Grid */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {lostFoundItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
+                      style={{
+                        backgroundColor: t.cardBg || '#ffffff',
+                        borderColor: t.border,
+                      }}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between">
+                          <h4 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                            {item.title}
+                          </h4>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                              item.status === 'Claimed'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-1 text-xs" style={{ color: t.textMuted }}>
+                          <p className="flex items-center gap-1.5">
+                            <MapPin size={13} /> {item.location}
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <Clock size={13} /> Reported: {item.time}
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <Tag size={13} /> Category: {item.category}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 border-t pt-3" style={{ borderColor: t.border }}>
+                        {item.status === 'Unclaimed' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleClaimLostItem(item.id)}
+                            className="w-full rounded-xl bg-[#2f4336] py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                          >
+                            Claim this Item
+                          </button>
+                        ) : (
+                          <div className="text-center text-xs font-semibold text-emerald-600">
+                            Claimed &amp; Returned
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : activeTab === 'campus-posts' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW C: DEDICATED CAMPUS SOCIAL POSTS FEED */
+              /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div>
@@ -863,16 +1900,14 @@ const StudentDashboard = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('dashboard')}
-                      className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5"
-                      style={{ borderColor: t.border, color: t.textPrimary }}
-                    >
-                      ← Back to Dashboard
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('dashboard')}
+                    className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5 self-start"
+                    style={{ borderColor: t.border, color: t.textPrimary }}
+                  >
+                    ← Back to Dashboard
+                  </button>
                 </div>
 
                 {/* Posts Feed Grid */}
@@ -977,7 +2012,7 @@ const StudentDashboard = () => {
               </div>
             ) : activeTab === 'canteen' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW B: DEDICATED CANTEEN & ORDERING SYSTEM (FULL MENU) */
+              /* VIEW D: DEDICATED CANTEEN & ORDERING SYSTEM */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 {/* Header & Credit Balance Card */}
@@ -1023,7 +2058,7 @@ const StudentDashboard = () => {
                   </div>
                 </div>
 
-                {/* 2-Column Ordering Layout: Menu Items (Left) | Order Cart & Preferences (Right) */}
+                {/* 2-Column Ordering Layout */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                   {/* Left Column: Menu Items */}
                   <div className="space-y-4 lg:col-span-7">
@@ -1156,7 +2191,7 @@ const StudentDashboard = () => {
                             ))}
                           </div>
 
-                          {/* Extra Preferences / What is needed */}
+                          {/* Extra Preferences */}
                           <div>
                             <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
                               Extra Preferences (What else is needed?)
@@ -1181,7 +2216,6 @@ const StudentDashboard = () => {
                               Select Payment Option
                             </label>
                             <div className="grid grid-cols-3 gap-2 text-xs">
-                              {/* 1. Cash */}
                               <button
                                 type="button"
                                 onClick={() => setPaymentMethod('cash')}
@@ -1196,7 +2230,6 @@ const StudentDashboard = () => {
                                 <span>Cash</span>
                               </button>
 
-                              {/* 2. Online */}
                               <button
                                 type="button"
                                 onClick={() => setPaymentMethod('online')}
@@ -1211,7 +2244,6 @@ const StudentDashboard = () => {
                                 <span>Online (QR)</span>
                               </button>
 
-                              {/* 3. Credit Khata */}
                               <button
                                 type="button"
                                 onClick={() => setPaymentMethod('canteen_credit')}
@@ -1274,7 +2306,7 @@ const StudentDashboard = () => {
               </div>
             ) : activeTab === 'ssd-help' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW C: DEDICATED SSD HELP (ATTENDANCE, VOLUNTEERING, SCHOLARSHIP AAA STATUS) */
+              /* VIEW E: DEDICATED SSD HELP (AAA STATUS & ATTENDANCE) */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -1331,7 +2363,7 @@ const StudentDashboard = () => {
                   </div>
                 </div>
 
-                {/* SubTab 1: Scholarship AAA Status (Exact Request) */}
+                {/* SubTab 1: Scholarship AAA Status */}
                 {ssdActiveSubTab === 'scholarship' && (
                   <div className="space-y-6">
                     <div
@@ -1358,7 +2390,7 @@ const StudentDashboard = () => {
                         </span>
                       </div>
 
-                      {/* AAA Status Display: ATTENDANCE (87%), ACADEMIC (84%), ATTITUDE (2%) */}
+                      {/* AAA Status Display */}
                       <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
                         {/* 1. ATTENDANCE (87%) */}
                         <div
@@ -1507,7 +2539,6 @@ const StudentDashboard = () => {
                 {/* SubTab 2: Attendance Tracker */}
                 {ssdActiveSubTab === 'attendance' && (
                   <div className="space-y-6">
-                    {/* Summary Cards */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                       <div
                         className="rounded-2xl border p-5 shadow-xs text-center"
@@ -1672,105 +2703,9 @@ const StudentDashboard = () => {
                   </div>
                 )}
               </div>
-            ) : activeTab === 'lost-found' ? (
-              /* ------------------------------------------------------------- */
-              /* VIEW D: DEDICATED LOST & FOUND PORTAL */
-              /* ------------------------------------------------------------- */
-              <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Search className="text-blue-600" size={24} />
-                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-                        Lost &amp; Found Portal
-                      </h2>
-                    </div>
-                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
-                      Report misplaced belongings, claim found items, and keep our campus honest and connected.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3 self-start">
-                    <button
-                      type="button"
-                      onClick={() => setShowReportModal(true)}
-                      className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
-                    >
-                      + Report Lost Item
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('dashboard')}
-                      className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5"
-                      style={{ borderColor: t.border, color: t.textPrimary }}
-                    >
-                      ← Dashboard
-                    </button>
-                  </div>
-                </div>
-
-                {/* Items Grid */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {lostFoundItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
-                      style={{
-                        backgroundColor: t.cardBg || '#ffffff',
-                        borderColor: t.border,
-                      }}
-                    >
-                      <div>
-                        <div className="flex items-start justify-between">
-                          <h4 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                            {item.title}
-                          </h4>
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                              item.status === 'Claimed'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-100 text-amber-800'
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 space-y-1 text-xs" style={{ color: t.textMuted }}>
-                          <p className="flex items-center gap-1.5">
-                            <MapPin size={13} /> {item.location}
-                          </p>
-                          <p className="flex items-center gap-1.5">
-                            <Clock size={13} /> Reported: {item.time}
-                          </p>
-                          <p className="flex items-center gap-1.5">
-                            <Tag size={13} /> Category: {item.category}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 border-t pt-3" style={{ borderColor: t.border }}>
-                        {item.status === 'Unclaimed' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleClaimLostItem(item.id)}
-                            className="w-full rounded-xl bg-[#2f4336] py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
-                          >
-                            Claim this Item
-                          </button>
-                        ) : (
-                          <div className="text-center text-xs font-semibold text-emerald-600">
-                            Claimed &amp; Returned
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             ) : activeTab === 'events' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW E: DEDICATED EVENTS HUB */
+              /* VIEW F: DEDICATED EVENTS HUB */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -1946,7 +2881,7 @@ const StudentDashboard = () => {
               </div>
             ) : activeTab === 'vacant-classes' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW F: DEDICATED VACANT CLASSES */
+              /* VIEW G: DEDICATED VACANT CLASSES */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
@@ -1959,7 +2894,7 @@ const StudentDashboard = () => {
                   <button
                     type="button"
                     onClick={() => setActiveTab('dashboard')}
-                    className="rounded-xl border px-3.5 py-2 text-xs font-semibold"
+                    className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5"
                     style={{ borderColor: t.border, color: t.textPrimary }}
                   >
                     ← Back to Dashboard
@@ -2024,9 +2959,361 @@ const StudentDashboard = () => {
                   })}
                 </div>
               </div>
+            ) : activeTab === 'location' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW H: CAMPUS LOCATIONS & DIRECTORY */
+              /* ------------------------------------------------------------- */
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="text-red-500" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Campus Locations &amp; Facilities Guide
+                      </h2>
+                    </div>
+                    <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>
+                      Official college address: Biratnagar 5, Bhrikuti Chowk · Department and classroom mapping
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('dashboard')}
+                    className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5 self-start"
+                    style={{ borderColor: t.border, color: t.textPrimary }}
+                  >
+                    ← Dashboard
+                  </button>
+                </div>
+
+                {/* Campus Address Card */}
+                <div
+                  className="rounded-3xl border p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4"
+                  style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-700 shadow-xs shrink-0">
+                      <Navigation size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
+                        Biratnagar International College (BIC)
+                      </h3>
+                      <p className="text-sm font-semibold text-emerald-600 mt-0.5">
+                        📍 Biratnagar 5, Bhrikuti Chowk, Morang, Koshi Province, Nepal
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: t.textMuted }}>
+                        Phone: 021-500050 / 021-500170 / 9801009090 · Email: info@bicnepal.edu.np
+                      </p>
+                    </div>
+                  </div>
+
+                  <a
+                    href="https://maps.google.com/?q=Biratnagar+International+College"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl bg-[#2f4336] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#25362b] shrink-0 flex items-center gap-1.5"
+                  >
+                    <ExternalLink size={14} /> Open in Google Maps
+                  </a>
+                </div>
+
+                {/* Campus Blocks Grid */}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                  <div className="rounded-3xl border p-6 shadow-xs space-y-3" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <Building2 size={20} />
+                      <h4 className="text-base font-bold" style={{ color: t.textPrimary }}>Block A (Administrative)</h4>
+                    </div>
+                    <ul className="space-y-2 text-xs" style={{ color: t.textMuted }}>
+                      <li>• <strong>Room 102</strong>: Student Services Department (SSD)</li>
+                      <li>• <strong>1st Floor</strong>: SR01 Wolves Lecture Theatre</li>
+                      <li>• <strong>2nd Floor</strong>: SR02 Compton Class</li>
+                      <li>• <strong>Ground Floor</strong>: Reception &amp; Admissions Desk</li>
+                    </ul>
+                  </div>
+
+                  <div className="rounded-3xl border p-6 shadow-xs space-y-3" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
+                    <div className="flex items-center gap-2 text-emerald-600">
+                      <Building2 size={20} />
+                      <h4 className="text-base font-bold" style={{ color: t.textPrimary }}>Block B (Tech &amp; Labs)</h4>
+                    </div>
+                    <ul className="space-y-2 text-xs" style={{ color: t.textMuted }}>
+                      <li>• <strong>Ground Floor</strong>: Mechi Room &amp; Computer Lab 1</li>
+                      <li>• <strong>1st Floor</strong>: Kankai Room &amp; AI Robotics Lab</li>
+                      <li>• <strong>2nd Floor</strong>: Computer Lab 2 &amp; 3</li>
+                      <li>• <strong>Tech Hall</strong>: Innovation Exhibition Lounge</li>
+                    </ul>
+                  </div>
+
+                  <div className="rounded-3xl border p-6 shadow-xs space-y-3" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
+                    <div className="flex items-center gap-2 text-amber-600">
+                      <Building2 size={20} />
+                      <h4 className="text-base font-bold" style={{ color: t.textPrimary }}>Block C &amp; Central</h4>
+                    </div>
+                    <ul className="space-y-2 text-xs" style={{ color: t.textMuted }}>
+                      <li>• <strong>Main Auditorium</strong>: LT01 Wulfurana (120 Seats)</li>
+                      <li>• <strong>2nd Floor</strong>: Central Library &amp; Reading Hub</li>
+                      <li>• <strong>Ground Floor</strong>: Campus Canteen &amp; Dining Hall</li>
+                      <li>• <strong>Sports Desk</strong>: Table Tennis, Cricket &amp; Indoor Games</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : activeTab === 'campus-help' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW I: DEDICATED CAMPUS HELP & OFFICIAL CONTACT DIRECTORY WITH LOGO */
+              /* ------------------------------------------------------------- */
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {/* 1. Official College Header Card with Logo at First */}
+                <div
+                  className="rounded-3xl border p-7 shadow-xs relative overflow-hidden"
+                  style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                >
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b pb-6" style={{ borderColor: t.border }}>
+                    {/* Logo Prominently at First */}
+                    <div className="flex items-center gap-4 bg-white dark:bg-white/95 p-3 rounded-2xl border border-gray-200 shadow-xs">
+                      <img
+                        src="/bic-logo-full.png"
+                        alt="Biratnagar International College | ing"
+                        className="h-14 sm:h-16 w-auto object-contain select-none"
+                      />
+                    </div>
+
+                    <div className="text-center md:text-right space-y-1">
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">
+                        Official Help &amp; Student Support Desk
+                      </span>
+                      <p className="text-xs font-semibold mt-1" style={{ color: t.textMuted }}>
+                        Biratnagar International College · In Academic Partnership with University of Wolverhampton, UK
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 2 Contact Hubs Side-by-Side: Official BIC Contacts (Left) | SSD Help Department (Right) */}
+                  <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {/* Official BIC General Contact Details */}
+                    <div
+                      className="rounded-2xl border p-5 shadow-xs space-y-4"
+                      style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                    >
+                      <div className="flex items-center gap-2.5 border-b pb-3" style={{ borderColor: t.border }}>
+                        <Building2 size={20} className="text-blue-600" />
+                        <div>
+                          <h3 className="text-base font-extrabold uppercase tracking-wide" style={{ color: t.textPrimary }}>
+                            Official BIC Campus Contact
+                          </h3>
+                          <p className="text-[11px]" style={{ color: t.textMuted }}>
+                            General Inquiries, Administration &amp; Academic Affairs
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 text-xs">
+                        {/* PHONE */}
+                        <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
+                          <Phone size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                              PHONE
+                            </p>
+                            <p className="font-extrabold text-sm text-[#2f4336] dark:text-emerald-400 mt-0.5">
+                              021-500050 / 021-500170 / 9801009090
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Front Desk &amp; Admissions Hotline (07:00 AM – 05:00 PM)
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* EMAIL */}
+                        <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
+                          <Mail size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                              EMAIL
+                            </p>
+                            <a
+                              href="mailto:info@bicnepal.edu.np"
+                              className="font-extrabold text-sm text-blue-600 hover:underline mt-0.5 block"
+                            >
+                              info@bicnepal.edu.np
+                            </a>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Official Institutional Correspondence
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* LOCATION */}
+                        <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
+                          <MapPin size={18} className="text-red-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                              LOCATION
+                            </p>
+                            <p className="font-extrabold text-sm" style={{ color: t.textPrimary }}>
+                              Biratnagar 5, Bhrikuti Chowk
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Morang, Koshi Province, Nepal
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Student Services Department (SSD) Specific Contact */}
+                    <div
+                      className="rounded-2xl border p-5 shadow-xs space-y-4"
+                      style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                    >
+                      <div className="flex items-center gap-2.5 border-b pb-3" style={{ borderColor: t.border }}>
+                        <GraduationCap size={22} className="text-amber-600" />
+                        <div>
+                          <h3 className="text-base font-extrabold uppercase tracking-wide" style={{ color: t.textPrimary }}>
+                            SSD Department (Student Services)
+                          </h3>
+                          <p className="text-[11px]" style={{ color: t.textMuted }}>
+                            Attendance, Scholarships, Volunteering &amp; Student Welfare
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 text-xs">
+                        {/* SSD PHONE */}
+                        <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
+                          <Phone size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                              SSD HELPLINE NUMBER
+                            </p>
+                            <a
+                              href="tel:+9779802747227"
+                              className="font-extrabold text-sm text-amber-700 dark:text-amber-300 hover:underline mt-0.5 block"
+                            >
+                              +977 9802747227
+                            </a>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Direct SSD Officer &amp; Student Welfare Coordinator
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* SSD EMAIL */}
+                        <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
+                          <Mail size={18} className="text-purple-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                              SSD DEPARTMENT EMAIL
+                            </p>
+                            <a
+                              href="mailto:studentservices@bicnepal.edu.np"
+                              className="font-extrabold text-sm text-purple-700 dark:text-purple-300 hover:underline mt-0.5 block"
+                            >
+                              studentservices@bicnepal.edu.np
+                            </a>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Scholarship Renewals, Leave Requests &amp; Records
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* SSD ROOM & HOURS */}
+                        <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
+                          <Clock size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                              OFFICE LOCATION &amp; HOURS
+                            </p>
+                            <p className="font-bold text-xs" style={{ color: t.textPrimary }}>
+                              Block A, Room 102 (Administration Floor)
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Sunday – Friday: 07:00 AM – 04:00 PM
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Peer Help & Student Requests Community Board */}
+                <div
+                  className="rounded-3xl border p-6 shadow-xs space-y-5"
+                  style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                >
+                  <div className="flex flex-col justify-between gap-3 border-b pb-4 sm:flex-row sm:items-center" style={{ borderColor: t.border }}>
+                    <div className="flex items-center gap-2">
+                      <HelpCircle size={20} className="text-blue-600" />
+                      <div>
+                        <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                          Campus Peer Help &amp; Study Requests
+                        </h3>
+                        <p className="text-xs" style={{ color: t.textMuted }}>
+                          Ask fellow students for course notes, equipment sharing, or peer tutoring
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowAskHelpModal(true)}
+                      className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b] self-start"
+                    >
+                      + Ask Campus Help
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {helpRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="flex flex-col justify-between rounded-2xl border p-4 shadow-xs transition-all hover:shadow-md"
+                        style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="rounded-md bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+                              {req.sem}
+                            </span>
+                            <span className="text-[10px]" style={{ color: t.textMuted }}>
+                              {req.time}
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-sm font-bold leading-snug" style={{ color: t.textPrimary }}>
+                            “{req.request}”
+                          </p>
+
+                          <p className="mt-2 text-xs" style={{ color: t.textMuted }}>
+                            by <span className="font-semibold" style={{ color: t.textPrimary }}>{req.author}</span>
+                          </p>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between border-t pt-3" style={{ borderColor: t.border }}>
+                          <span className="flex items-center gap-1 text-xs" style={{ color: t.textMuted }}>
+                            <MessageSquare size={13} /> {req.replies} responses
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toast.success(`Replying to ${req.author}...`)}
+                            className="rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                            style={{ borderColor: t.border, color: t.textPrimary }}
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
               /* ------------------------------------------------------------- */
-              /* VIEW G: MAIN DASHBOARD VIEW */
+              /* VIEW J: MAIN DASHBOARD VIEW */
               /* ------------------------------------------------------------- */
               <>
                 {/* 1. Header Section with Real-Time Greeting */}
@@ -2041,7 +3328,7 @@ const StudentDashboard = () => {
                   </div>
                 </div>
 
-                {/* 2. Quick Overview Cards (Three Compact Cards) */}
+                {/* 2. Quick Overview Cards */}
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                   {/* Attendance Card -> Connected to SSD Help */}
                   <div
@@ -2145,7 +3432,7 @@ const StudentDashboard = () => {
                     </button>
                   </div>
 
-                  {/* Today Canteen Special Overview Card -> Navigates to Canteen Ordering */}
+                  {/* Today Canteen Special Overview Card */}
                   <div
                     className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md cursor-pointer"
                     onClick={() => setActiveTab('canteen')}
@@ -2478,15 +3765,15 @@ const StudentDashboard = () => {
                                 Today&apos;s Special
                               </span>
                               <h4 className="text-base font-extrabold" style={{ color: t.textPrimary }}>
-                                Chicken Momo
+                                Diya Ko Royal Biryani
                               </h4>
                               <p className="text-xs" style={{ color: t.textMuted }}>
-                                Fresh steamed dumplings with spicy tomato sesame chutney
+                                Aromatic basmati rice cooked with secret spices &amp; tender chicken
                               </p>
                             </div>
                           </div>
                           <span className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-extrabold text-white shadow-xs">
-                            NPR 120
+                            NPR 220
                           </span>
                         </div>
                       </div>
@@ -2499,7 +3786,7 @@ const StudentDashboard = () => {
                               Order Online &amp; Skip The Queue
                             </p>
                             <p className="text-[11px]" style={{ color: t.textMuted }}>
-                              11 fresh items available · Cash, Online QR or Credit Khata
+                              12 fresh items available · Cash, Online QR or Credit Khata
                             </p>
                           </div>
                           <button
@@ -2517,7 +3804,7 @@ const StudentDashboard = () => {
 
                 {/* 5. Row: Vacant Class Card (Left) | Lost & Found (Right) */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  {/* Vacant Class Dashboard Card (ONLY ONE random room displayed) */}
+                  {/* Vacant Class Dashboard Card */}
                   <div
                     className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs"
                     style={{
@@ -2609,7 +3896,7 @@ const StudentDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Lost & Found Dashboard Section -> Connected to Lost & Found Portal */}
+                  {/* Lost & Found Dashboard Section */}
                   <div
                     className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs"
                     style={{
@@ -2626,7 +3913,7 @@ const StudentDashboard = () => {
                               Lost &amp; Found
                             </h3>
                             <p className="text-xs" style={{ color: t.textMuted }}>
-                              Recently reported campus belongings
+                              Recently reported campus belongings &amp; CCTV
                             </p>
                           </div>
                         </div>
@@ -2688,9 +3975,9 @@ const StudentDashboard = () => {
                   </div>
                 </div>
 
-                {/* 6. Row: Campus Help Section */}
+                {/* 6. Row: Campus Help Section & Official Directory Quick Link */}
                 <div
-                  className="rounded-2xl border p-6 shadow-xs"
+                  className="rounded-2xl border p-6 shadow-xs space-y-5"
                   style={{
                     backgroundColor: t.cardBg || '#ffffff',
                     borderColor: t.border,
@@ -2701,10 +3988,10 @@ const StudentDashboard = () => {
                       <HelpCircle size={20} className="text-blue-600" />
                       <div>
                         <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                          Campus Help &amp; Peer Requests
+                          Campus Help &amp; Official Contact Directory
                         </h3>
                         <p className="text-xs" style={{ color: t.textMuted }}>
-                          Student-to-student assistance for study notes, calculators, books &amp; project help
+                          BIC Campus Helpline: 021-500050 / 9801009090 · SSD Helpline: +977 9802747227
                         </p>
                       </div>
                     </div>
@@ -2722,12 +4009,40 @@ const StudentDashboard = () => {
                         onClick={() => setActiveTab('campus-help')}
                         className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                       >
-                        View Requests →
+                        Open Full Help Directory →
                       </button>
                     </div>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {/* Contact Summary Strip */}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 text-xs">
+                    <div className="rounded-xl border p-3 flex items-center gap-3" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                      <Phone size={16} className="text-emerald-600" />
+                      <div>
+                        <p className="font-bold text-[11px]" style={{ color: t.textPrimary }}>BIC Front Desk</p>
+                        <p className="text-[11px] font-semibold text-emerald-600">021-500050 / 9801009090</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border p-3 flex items-center gap-3" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                      <Phone size={16} className="text-amber-600" />
+                      <div>
+                        <p className="font-bold text-[11px]" style={{ color: t.textPrimary }}>SSD Direct Helpline</p>
+                        <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">+977 9802747227</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border p-3 flex items-center gap-3" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                      <MapPin size={16} className="text-red-500" />
+                      <div>
+                        <p className="font-bold text-[11px]" style={{ color: t.textPrimary }}>Campus Address</p>
+                        <p className="text-[11px]" style={{ color: t.textMuted }}>Biratnagar 5, Bhrikuti Chowk</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Peer Requests */}
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     {helpRequests.map((req) => (
                       <div
                         key={req.id}
@@ -2783,7 +4098,138 @@ const StudentDashboard = () => {
       {/* MODALS */}
       {/* ========================================================================= */}
 
-      {/* 1. Online QR Payment Modal */}
+      {/* 1. Request CCTV Footage Modal */}
+      {showCctvModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div
+            className="w-full max-w-md rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95 duration-150"
+            style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+          >
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
+              <div className="flex items-center gap-2 text-left">
+                <Video size={20} className="text-red-600" />
+                <div>
+                  <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                    Request CCTV Security Footage
+                  </h3>
+                  <p className="text-[11px]" style={{ color: t.textMuted }}>
+                    Campus Security &amp; Surveillance Department
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCctvModal(false)}
+                className="rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCctvRequestSubmit} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold" style={{ color: t.textPrimary }}>
+                  Incident Location / Camera Zone
+                </label>
+                <select
+                  value={newCctvForm.location}
+                  onChange={(e) => setNewCctvForm({ ...newCctvForm, location: e.target.value })}
+                  className="mt-1 w-full rounded-xl border p-2.5 text-xs outline-none font-semibold"
+                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                >
+                  <option value="Library, 2nd Floor">Library 2nd Floor (Reading Tables &amp; Racks)</option>
+                  <option value="Cafeteria & Canteen Area">Cafeteria &amp; Canteen Area</option>
+                  <option value="Block A Main Hallway & Stairs">Block A Main Hallway &amp; Stairs</option>
+                  <option value="Block B Ground Floor">Block B Ground Floor (Labs)</option>
+                  <option value="Classroom SR01 Wolves">Classroom SR01 Wolves</option>
+                  <option value="LT01 Main Lecture Hall">LT01 Main Lecture Hall</option>
+                  <option value="College Parking Area & Gate">College Parking Area &amp; Main Gate</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold" style={{ color: t.textPrimary }}>
+                  Incident Date
+                </label>
+                <input
+                  type="date"
+                  value={newCctvForm.date}
+                  onChange={(e) => setNewCctvForm({ ...newCctvForm, date: e.target.value })}
+                  className="mt-1 w-full rounded-xl border p-2.5 text-xs outline-none"
+                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold" style={{ color: t.textPrimary }}>
+                    Time From
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 10:00 AM"
+                    value={newCctvForm.timeFrom}
+                    onChange={(e) => setNewCctvForm({ ...newCctvForm, timeFrom: e.target.value })}
+                    className="mt-1 w-full rounded-xl border p-2.5 text-xs outline-none"
+                    style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold" style={{ color: t.textPrimary }}>
+                    Time To
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 12:30 PM"
+                    value={newCctvForm.timeTo}
+                    onChange={(e) => setNewCctvForm({ ...newCctvForm, timeTo: e.target.value })}
+                    className="mt-1 w-full rounded-xl border p-2.5 text-xs outline-none"
+                    style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold" style={{ color: t.textPrimary }}>
+                  Reason &amp; Description of Misplaced Item
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Describe your missing item, who you were with, and exact location details..."
+                  value={newCctvForm.reason}
+                  onChange={(e) => setNewCctvForm({ ...newCctvForm, reason: e.target.value })}
+                  className="mt-1 w-full rounded-xl border p-2.5 text-xs outline-none"
+                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCctvModal(false)}
+                  className="rounded-xl border px-4 py-2.5 text-xs font-bold"
+                  style={{ borderColor: t.border }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-red-700"
+                >
+                  Submit CCTV Request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Online QR Payment Modal */}
       {showOnlineQrModal && lastPlacedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div
@@ -2854,7 +4300,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 2. Cash Payment Counter Token Modal */}
+      {/* 3. Cash Payment Counter Token Modal */}
       {showCashTokenModal && lastPlacedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div
@@ -2895,7 +4341,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 3. Report Lost Item Modal */}
+      {/* 4. Report Lost Item Modal */}
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <div
@@ -2988,7 +4434,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 4. Ask Help Modal */}
+      {/* 5. Ask Help Modal */}
       {showAskHelpModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <div
@@ -3048,7 +4494,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 5. Pay Canteen Credit Modal */}
+      {/* 6. Pay Canteen Credit Modal (With 3-sec Owner Approval on Cash) */}
       {showPayCreditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div
@@ -3091,21 +4537,29 @@ const StudentDashboard = () => {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <button
                     type="button"
+                    disabled={isCheckingByOwner}
                     onClick={() => {
                       setShowPayCreditModal(false);
                       setLastPlacedOrder({ amount: canteenCreditBalance, item: 'Credit Khata Balance Settlement' });
                       setShowOnlineQrModal(true);
                     }}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white shadow-xs hover:bg-blue-700"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50"
                   >
                     <QrCode size={16} /> Pay via Fonepay QR
                   </button>
+
                   <button
                     type="button"
-                    onClick={handleClearCredit}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#2f4336] py-3 font-bold text-white shadow-xs hover:bg-[#25362b]"
+                    disabled={isCheckingByOwner}
+                    onClick={handleClearCreditCash}
+                    className={`flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-white shadow-xs transition-all ${
+                      isCheckingByOwner
+                        ? 'bg-amber-600 animate-pulse cursor-not-allowed'
+                        : 'bg-[#2f4336] hover:bg-[#25362b]'
+                    }`}
                   >
-                    <Banknote size={16} /> Pay Cash at Counter
+                    {isCheckingByOwner ? <Loader2 size={16} className="animate-spin" /> : <Banknote size={16} />}
+                    <span>{isCheckingByOwner ? 'Checking by owner (3s)...' : 'Pay Cash at Counter'}</span>
                   </button>
                 </div>
               </div>
@@ -3114,6 +4568,7 @@ const StudentDashboard = () => {
             <div className="mt-5 flex justify-end">
               <button
                 type="button"
+                disabled={isCheckingByOwner}
                 onClick={() => setShowPayCreditModal(false)}
                 className="rounded-xl border px-4 py-2 text-xs font-bold"
                 style={{ borderColor: t.border }}
@@ -3125,7 +4580,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 6. Announcements Modal */}
+      {/* 7. Announcements Modal */}
       {showAnnouncementsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <div
