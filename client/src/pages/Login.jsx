@@ -1,17 +1,12 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
-import AuthLayout from '../components/auth/AuthLayout';
 import { getDashboardPath, useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { themes } from '../data/themes';
 import { DevAuthError } from '../utils/devAuth';
 
 const Login = () => {
   const { login, isAuthenticated, user, loading: authLoading } = useAuth();
-  const { theme } = useTheme();
-  const t = themes[theme];
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -23,7 +18,7 @@ const Login = () => {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0c0c10] text-sm text-[#8b8894]">
+      <div className="flex min-h-screen items-center justify-center bg-[#eef2f7] text-sm text-[#6b7280]">
         Loading...
       </div>
     );
@@ -84,122 +79,147 @@ const Login = () => {
   };
 
   const inputClass =
-    'w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2 focus:ring-blue-500/30';
+    'w-full rounded-xl border border-[#e5e7eb] bg-white py-3 pl-11 pr-4 text-sm text-[#1a2b4c] outline-none transition-colors placeholder:text-[#9ca3af] focus:border-[#1a2b4c] focus:ring-2 focus:ring-[#1a2b4c]/10';
 
   return (
-    <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to access your dashboard, campus updates, and community tools."
-    >
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold" style={{ color: t.textPrimary }}>
-          Sign in
-        </h2>
-        <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
-          Use the email and password associated with your account.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        {errors.form && (
-          <div
-            className="rounded-lg border px-3 py-2.5 text-sm"
-            style={{
-              borderColor: 'rgba(239, 68, 68, 0.35)',
-              backgroundColor: 'rgba(239, 68, 68, 0.08)',
-              color: '#fca5a5',
-            }}
-            role="alert"
-          >
-            {errors.form}
-          </div>
-        )}
-
-        <div>
-          <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={inputClass}
-            style={{
-              backgroundColor: t.pageBg,
-              borderColor: errors.email ? '#ef4444' : t.border,
-              color: t.textPrimary,
-            }}
-            aria-invalid={Boolean(errors.email)}
-            aria-describedby={errors.email ? 'email-error' : undefined}
+    <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden bg-[#eef2f7] px-4 py-8 sm:px-6">
+      <div className="flex w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(26,43,76,0.12)] md:min-h-[620px] md:flex-row">
+        {/* Branding panel — mobile top */}
+        <section className="flex h-44 w-full shrink-0 items-center justify-center bg-[#eef2f7] px-6 sm:h-52 md:hidden">
+          <img
+            src="/chautari-logo.png"
+            alt="Chautari"
+            className="h-auto max-h-full w-auto max-w-full object-contain"
           />
-          {errors.email && (
-            <p id="email-error" className="mt-1.5 text-xs text-red-400">
-              {errors.email}
-            </p>
-          )}
-        </div>
+        </section>
 
-        <div>
-          <label htmlFor="password" className="mb-1.5 block text-sm font-medium">
-            Password
-          </label>
-          <div className="relative">
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className={`${inputClass} pr-11`}
-              style={{
-                backgroundColor: t.pageBg,
-                borderColor: errors.password ? '#ef4444' : t.border,
-                color: t.textPrimary,
-              }}
-              aria-invalid={Boolean(errors.password)}
-              aria-describedby={errors.password ? 'password-error' : undefined}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute inset-y-0 right-0 flex items-center px-3"
-              style={{ color: t.textMuted }}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
+        {/* Form panel */}
+        <section className="flex w-full flex-1 flex-col justify-center px-6 py-10 sm:px-10 md:px-12 lg:px-14">
+          <div className="mx-auto w-full max-w-md">
+            <div className="mb-8 text-center md:text-left">
+              <h1 className="text-3xl font-bold tracking-tight text-[#1a2b4c] sm:text-4xl">
+                Welcome back
+              </h1>
+              <p className="mt-2 text-sm text-[#6b7280] sm:text-base">
+                Sign in to access your dashboard, campus updates, and community tools.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-[#1a2b4c]">Sign in</h2>
+              <p className="mt-1 text-sm text-[#6b7280]">
+                Use the email and password associated with your account.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+              {errors.form && (
+                <div
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
+                  role="alert"
+                >
+                  {errors.form}
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#374151]">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail
+                    size={18}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className={`${inputClass} ${errors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
+                  />
+                </div>
+                {errors.email && (
+                  <p id="email-error" className="mt-1.5 text-xs text-red-500">
+                    {errors.email}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="password" className="mb-2 block text-sm font-semibold text-[#374151]">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={18}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className={`${inputClass} pr-11 ${errors.password ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? 'password-error' : undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3.5 text-[#9ca3af] transition-colors hover:text-[#6b7280]"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p id="password-error" className="mt-1.5 text-xs text-red-500">
+                    {errors.password}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1a2b4c] px-4 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#15233d] focus:outline-none focus:ring-2 focus:ring-[#1a2b4c]/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                {loading ? 'Logging in...' : 'Sign in'}
+              </button>
+            </form>
+
+            <p className="mt-8 text-center text-sm text-[#6b7280]">
+              Don&apos;t have an account?{' '}
+              <Link
+                to="/signup"
+                className="font-semibold text-[#3b82f6] transition-colors hover:text-[#2563eb] focus:outline-none focus:underline"
+              >
+                Create one
+              </Link>
+            </p>
           </div>
-          {errors.password && (
-            <p id="password-error" className="mt-1.5 text-xs text-red-400">
-              {errors.password}
-            </p>
-          )}
-        </div>
+        </section>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
-          {loading ? 'Logging in...' : 'Sign in'}
-        </button>
-      </form>
-
-      <p className="mt-6 text-center text-sm" style={{ color: t.textMuted }}>
-        Don&apos;t have an account?{' '}
-        <Link
-          to="/signup"
-          className="font-medium text-blue-400 transition-colors hover:text-blue-300 focus:outline-none focus:underline"
-        >
-          Create one
-        </Link>
-      </p>
-    </AuthLayout>
+        {/* Branding panel */}
+        <section className="hidden w-full flex-1 items-center justify-center bg-[#eef2f7] px-8 py-10 md:flex">
+          <img
+            src="/chautari-logo.png"
+            alt="Chautari"
+            className="h-auto max-h-[320px] w-auto max-w-full object-contain lg:max-h-[360px]"
+          />
+        </section>
+      </div>
+    </div>
   );
 };
 
