@@ -1,12 +1,32 @@
 export const themes = {
-    dark: {
-        pageBg: "#0c0c10", sidebarBg: "#15141a", border: "#26252c",
-        textPrimary: "#f1f0f3", textMuted: "#8b8894", hoverBg: "#1e1d24",
-        activeBg: "rgba(59,130,246,0.14)", activeBorder: "#3b82f6", activeText: "#93c5fd",
-    },
-    light: {
-        pageBg: "#f5f5f7", sidebarBg: "#ffffff", border: "#e5e5ea",
-        textPrimary: "#18181b", textMuted: "#8a8894", hoverBg: "#f2f2f4",
-        activeBg: "rgba(59,130,246,0.08)", activeBorder: "#3b82f6", activeText: "#2563eb",
-    },
-};
+  dark: {
+    pageBg: '#0f1115',
+    sidebarBg: '#16191f',
+    cardBg: '#1e222b',
+    border: '#2a303c',
+    textPrimary: '#f3f4f6',
+    textMuted: '#9ca3af',
+    hoverBg: '#262c37',
+    activeBg: '#232934',
+    activeBorder: '#3b82f6',
+    activeText: '#93c5fd',
+    accentGreen: '#10b981',
+    accentBadge: '#262c37',
+    chipBg: '#262c37',
+  },
+  light: {
+    pageBg: '#f4f3ed',
+    sidebarBg: '#eeede6',
+    cardBg: '#ffffff',
+    border: '#e4e2d8',
+    textPrimary: '#1e2621',
+    textMuted: '#6d776f',
+    hoverBg: '#e7e5dc',
+    activeBg: '#ffffff',
+    activeBorder: '#e2e0d6',
+    activeText: '#2f4336',
+    accentGreen: '#2f4336',
+    accentBadge: '#e8e6dd',
+    chipBg: '#e9e7df',
+  },
+};
