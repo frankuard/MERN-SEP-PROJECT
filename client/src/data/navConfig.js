@@ -9,6 +9,7 @@ import {
 const navConfig = {
   student: [
     { id: "dashboard", label: "Dashboard", icon: Home },
+    { id: "events", label: "Events", icon: Calendar },
     { id: "lost-found", label: "Lost & Found", icon: Search },
     { id: "campus-posts", label: "Posts", icon: FileText },
     { id: "campus-help", label: "Help", icon: HelpCircle },

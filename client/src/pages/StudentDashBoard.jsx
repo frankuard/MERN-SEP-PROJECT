@@ -4,7 +4,8 @@ import {
   AlertCircle, ChevronRight, RefreshCw, X, Coffee, BookOpen,
   MessageSquare, User, Sparkles, Filter, ExternalLink, ArrowRight,
   School, HelpCircle, Package, FileText, Check, ShieldAlert, HeartHandshake,
-  Utensils, Users, ThumbsUp, Send, Share2, Eye
+  UtensilsCrossed, Users, ThumbsUp, Send, Share2, Eye, Mic2, Cpu,
+  Trophy, BrainCircuit, Code, Palette, Megaphone, Flame, Tag, CheckSquare
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
@@ -29,8 +30,10 @@ const INITIAL_COLLEGE_EVENTS = [
     date: 'Aug 26',
     time: '10:00 AM',
     venue: 'Main Auditorium',
-    badge: '🎤 Tech Conference',
+    badge: 'Tech Conference',
+    iconType: 'mic',
     registered: false,
+    desc: 'Annual flagship technical symposium featuring keynotes, panel discussions, and student project exhibitions.',
   },
   {
     id: 'ce2',
@@ -38,8 +41,10 @@ const INITIAL_COLLEGE_EVENTS = [
     date: 'Sep 20',
     time: '11:30 AM',
     venue: 'Tech Hall Block B',
-    badge: '🤖 Robotics & AI',
+    badge: 'Robotics & AI',
+    iconType: 'cpu',
     registered: false,
+    desc: 'Cutting-edge innovation expo showcasing autonomous robotics, hardware hacks, and machine learning prototypes.',
   },
   {
     id: 'ce3',
@@ -47,8 +52,10 @@ const INITIAL_COLLEGE_EVENTS = [
     date: 'Sep 27',
     time: '1:00 PM',
     venue: 'College Ground',
-    badge: '🏆 Annual Fest',
+    badge: 'Annual Fest',
+    iconType: 'trophy',
     registered: false,
+    desc: 'Inter-department cultural celebration with acoustic live music, art installations, and traditional food stalls.',
   },
 ];
 
@@ -60,8 +67,10 @@ const INITIAL_COMMUNITY_EVENTS = [
     date: 'Aug 22',
     time: '2:00 PM',
     venue: 'LT01 Wulfurana',
-    badge: '🧠 Workshop',
+    badge: 'Workshop',
+    iconType: 'brain',
     joined: false,
+    desc: 'Hands-on generative AI and LLM prompt engineering masterclass guided by senior student mentors.',
   },
   {
     id: 'cme2',
@@ -70,8 +79,10 @@ const INITIAL_COMMUNITY_EVENTS = [
     date: 'Aug 24',
     time: '3:30 PM',
     venue: 'Lab 3',
-    badge: '💻 Hackathon',
+    badge: 'Hackathon',
+    iconType: 'code',
     joined: false,
+    desc: 'Fast-paced algorithmic challenge focusing on dynamic programming and graph theory problem solving.',
   },
   {
     id: 'cme3',
@@ -80,8 +91,10 @@ const INITIAL_COMMUNITY_EVENTS = [
     date: 'Aug 29',
     time: '1:00 PM',
     venue: 'Design Studio',
-    badge: '🎨 Design Session',
+    badge: 'Design Session',
+    iconType: 'palette',
     joined: false,
+    desc: 'Figma wireframing and responsive component styling sprint for next-generation student applications.',
   },
 ];
 
@@ -128,7 +141,6 @@ const INITIAL_LOST_FOUND = [
     time: '2 hours ago',
     category: 'Bags',
     status: 'Unclaimed',
-    color: '#f59e0b',
   },
   {
     id: 'lf2',
@@ -137,7 +149,6 @@ const INITIAL_LOST_FOUND = [
     time: '4 hours ago',
     category: 'Keys',
     status: 'Unclaimed',
-    color: '#f59e0b',
   },
   {
     id: 'lf3',
@@ -146,7 +157,6 @@ const INITIAL_LOST_FOUND = [
     time: 'Yesterday',
     category: 'Electronics',
     status: 'Claimed',
-    color: '#10b981',
   },
 ];
 
@@ -158,7 +168,6 @@ const INITIAL_CAMPUS_HELP = [
     sem: 'CS 5th Sem',
     replies: 3,
     time: '1h ago',
-    solved: false,
   },
   {
     id: 'ch2',
@@ -167,7 +176,6 @@ const INITIAL_CAMPUS_HELP = [
     sem: 'BBA 2nd Sem',
     replies: 1,
     time: '3h ago',
-    solved: true,
   },
   {
     id: 'ch3',
@@ -176,7 +184,6 @@ const INITIAL_CAMPUS_HELP = [
     sem: 'BCA 4th Sem',
     replies: 4,
     time: '5h ago',
-    solved: false,
   },
 ];
 
@@ -186,6 +193,30 @@ const CANTEEN_SPECIALS = [
   'Diya Ko Royal Biryani',
 ];
 
+const TOP_FOOD_ITEMS = [
+  {
+    rank: 1,
+    name: 'Chicken Momo',
+    price: 'NPR 120',
+    status: 'Available',
+    statusType: 'available',
+  },
+  {
+    rank: 2,
+    name: 'Chowmein',
+    price: 'NPR 100',
+    status: 'Almost Sold Out',
+    statusType: 'warning',
+  },
+  {
+    rank: 3,
+    name: 'Thakali Set',
+    price: 'NPR 180',
+    status: 'Available',
+    statusType: 'available',
+  },
+];
+
 const StudentDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -193,6 +224,7 @@ const StudentDashboard = () => {
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [eventsFilter, setEventsFilter] = useState('all'); // 'all' | 'college' | 'community'
 
   // Interactive states
   const [collegeEvents, setCollegeEvents] = useState(INITIAL_COLLEGE_EVENTS);
@@ -248,18 +280,18 @@ const StudentDashboard = () => {
     if (current === 'vacant') {
       setClassPermissions((prev) => ({ ...prev, [roomId]: 'pending' }));
       toast.success('Permission request submitted! Status: Pending Approval', {
-        icon: '🟡',
+        icon: '⏳',
       });
-      // Simulate approval after 3 seconds for seamless demo
+      // Simulate approval after 3 seconds
       setTimeout(() => {
         setClassPermissions((prev) => ({ ...prev, [roomId]: 'approved' }));
         toast.success(`Permission Approved for ${CLASSROOM_POOL.find((r) => r.id === roomId)?.name || 'Classroom'}!`, {
-          icon: '🟢',
+          icon: '✅',
         });
-      }, 3500);
+      }, 3000);
     } else if (current === 'pending') {
       setClassPermissions((prev) => ({ ...prev, [roomId]: 'approved' }));
-      toast.success('Permission marked as Approved!', { icon: '🟢' });
+      toast.success('Permission marked as Approved!', { icon: '✅' });
     } else {
       setClassPermissions((prev) => ({ ...prev, [roomId]: 'vacant' }));
       toast('Permission released. Classroom is now Vacant.', { icon: 'ℹ️' });
@@ -272,7 +304,7 @@ const StudentDashboard = () => {
         if (ev.id === id) {
           const next = !ev.registered;
           toast[next ? 'success' : 'dismiss'](
-            next ? `Registered for ${ev.name}! 🎉` : `Registration cancelled for ${ev.name}`
+            next ? `Registered for ${ev.name}` : `Registration cancelled for ${ev.name}`
           );
           return { ...ev, registered: next };
         }
@@ -287,7 +319,7 @@ const StudentDashboard = () => {
         if (ev.id === id) {
           const next = !ev.joined;
           toast[next ? 'success' : 'dismiss'](
-            next ? `Joined ${ev.name}! 🚀` : `Left event ${ev.name}`
+            next ? `Joined ${ev.name}` : `Left event ${ev.name}`
           );
           return { ...ev, joined: next };
         }
@@ -309,7 +341,6 @@ const StudentDashboard = () => {
       time: 'Just now',
       category: newLostItem.category,
       status: 'Unclaimed',
-      color: '#f59e0b',
     };
     setLostFoundItems((prev) => [item, ...prev]);
     setNewLostItem({ title: '', location: '', category: 'General' });
@@ -330,7 +361,6 @@ const StudentDashboard = () => {
       sem: 'Current Student',
       replies: 0,
       time: 'Just now',
-      solved: false,
     };
     setHelpRequests((prev) => [req, ...prev]);
     setNewHelpRequest('');
@@ -364,6 +394,25 @@ const StudentDashboard = () => {
     { id: 4, text: 'Library closes early at 4 PM today', time: '3h ago', unread: false },
   ];
 
+  const renderEventIcon = (type) => {
+    switch (type) {
+      case 'mic':
+        return <Mic2 size={16} className="text-blue-600" />;
+      case 'cpu':
+        return <Cpu size={16} className="text-indigo-600" />;
+      case 'trophy':
+        return <Trophy size={16} className="text-amber-600" />;
+      case 'brain':
+        return <BrainCircuit size={16} className="text-purple-600" />;
+      case 'code':
+        return <Code size={16} className="text-emerald-600" />;
+      case 'palette':
+        return <Palette size={16} className="text-pink-600" />;
+      default:
+        return <Calendar size={16} className="text-gray-600" />;
+    }
+  };
+
   return (
     <div
       className="flex min-h-screen w-full font-sans antialiased"
@@ -372,10 +421,10 @@ const StudentDashboard = () => {
         color: t.textPrimary,
       }}
     >
-      {/* Sidebar Component */}
+      {/* Sidebar Navigation */}
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Main Content Area */}
+      {/* Main Content View */}
       <div className="flex flex-1 flex-col overflow-x-hidden">
         {/* Top Navbar */}
         <header
@@ -385,10 +434,11 @@ const StudentDashboard = () => {
             borderColor: t.border,
           }}
         >
-          {/* Breadcrumb / Title */}
+          {/* Section Heading & Breadcrumb */}
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
               {activeTab === 'dashboard' && 'Dashboard'}
+              {activeTab === 'events' && 'Campus Events Hub'}
               {activeTab === 'vacant-classes' && 'Vacant Classrooms'}
               {activeTab === 'lost-found' && 'Lost & Found Portal'}
               {activeTab === 'campus-posts' && 'Campus Posts'}
@@ -409,9 +459,9 @@ const StudentDashboard = () => {
             )}
           </div>
 
-          {/* Right Action Icons */}
+          {/* Right Controls: Date Pill, Notification Bell, User Avatar */}
           <div className="flex items-center gap-3">
-            {/* Date Capsule */}
+            {/* Live Date Pill */}
             <div
               className="hidden items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold shadow-xs sm:flex"
               style={{
@@ -424,7 +474,7 @@ const StudentDashboard = () => {
               <span>{todayFormatted}</span>
             </div>
 
-            {/* Notification Bell */}
+            {/* Notification Center */}
             <div className="relative">
               <button
                 type="button"
@@ -441,7 +491,7 @@ const StudentDashboard = () => {
                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
               </button>
 
-              {/* Notifications Dropdown */}
+              {/* Notifications Popover */}
               {showNotifications && (
                 <div
                   className="absolute right-0 mt-2 w-80 rounded-2xl border p-4 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
@@ -451,9 +501,12 @@ const StudentDashboard = () => {
                   }}
                 >
                   <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: t.border }}>
-                    <h3 className="text-sm font-bold" style={{ color: t.textPrimary }}>
-                      Notifications 🔔
-                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <Bell size={15} className="text-blue-600" />
+                      <h3 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                        Notifications
+                      </h3>
+                    </div>
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                       2 new
                     </span>
@@ -480,7 +533,7 @@ const StudentDashboard = () => {
               )}
             </div>
 
-            {/* Profile Menu */}
+            {/* Profile Dropdown */}
             <div className="relative">
               <button
                 type="button"
@@ -502,7 +555,6 @@ const StudentDashboard = () => {
                 </span>
               </button>
 
-              {/* Profile Dropdown */}
               {showProfileMenu && (
                 <div
                   className="absolute right-0 mt-2 w-56 rounded-2xl border p-3 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
@@ -547,18 +599,255 @@ const StudentDashboard = () => {
           </div>
         </header>
 
-        {/* Scrollable Main View Container */}
+        {/* Scrollable Main Body */}
         <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-6xl space-y-8">
-            {/* Conditional Views Based on Sidebar Active Tab */}
-            {activeTab === 'vacant-classes' ? (
-              /* DEDICATED VACANT CLASSES SECTION */
+            {/* ------------------------------------------------------------- */}
+            {/* VIEW A: DEDICATED EVENTS HUB (FROM SIDEBAR OR DASHBOARD LINKS) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'events' ? (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-                      Vacant Classrooms 🏫
-                    </h2>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="text-blue-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Campus Events Hub
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                      Browse and register for official college programs and student community workshops.
+                    </p>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div
+                    className="flex items-center gap-1 rounded-xl border p-1 shadow-xs self-start"
+                    style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setEventsFilter('all')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        eventsFilter === 'all'
+                          ? 'bg-[#2f4336] text-white shadow-xs'
+                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      All Events ({collegeEvents.length + communityEvents.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEventsFilter('college')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        eventsFilter === 'college'
+                          ? 'bg-[#2f4336] text-white shadow-xs'
+                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      College Events ({collegeEvents.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEventsFilter('community')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        eventsFilter === 'community'
+                          ? 'bg-[#2f4336] text-white shadow-xs'
+                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Community Events ({communityEvents.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* College Events Section in Events Hub */}
+                {(eventsFilter === 'all' || eventsFilter === 'college') && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: t.border }}>
+                      <div className="flex items-center gap-2">
+                        <Trophy size={18} className="text-amber-600" />
+                        <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                          Official College Events
+                        </h3>
+                      </div>
+                      <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                        Institution-organized
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {collegeEvents.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
+                          style={{
+                            backgroundColor: t.cardBg || '#ffffff',
+                            borderColor: t.border,
+                          }}
+                        >
+                          <div>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40">
+                                  {renderEventIcon(ev.iconType)}
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                                    {ev.name}
+                                  </h4>
+                                  <span className="text-[11px] font-semibold text-blue-600">
+                                    {ev.badge}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="mt-3 text-xs leading-relaxed" style={{ color: t.textMuted }}>
+                              {ev.desc}
+                            </p>
+
+                            <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                              <div className="flex items-center gap-2">
+                                <Calendar size={13} className="text-gray-500" />
+                                <span className="font-semibold" style={{ color: t.textPrimary }}>{ev.date}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock size={13} className="text-gray-500" />
+                                <span>{ev.time}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MapPin size={13} className="text-gray-500" />
+                                <span>{ev.venue}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-5">
+                            <button
+                              type="button"
+                              onClick={() => toggleCollegeEvent(ev.id)}
+                              className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
+                                ev.registered
+                                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                  : 'bg-[#2f4336] text-white hover:bg-[#25362b] shadow-xs'
+                              }`}
+                            >
+                              {ev.registered ? (
+                                <>
+                                  <Check size={14} /> Registered
+                                </>
+                              ) : (
+                                'Register for Event'
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Community Events Section in Events Hub */}
+                {(eventsFilter === 'all' || eventsFilter === 'community') && (
+                  <div className="space-y-4 pt-4">
+                    <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: t.border }}>
+                      <div className="flex items-center gap-2">
+                        <Users size={18} className="text-purple-600" />
+                        <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                          Student Community Events
+                        </h3>
+                      </div>
+                      <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                        Clubs &amp; Guilds
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {communityEvents.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
+                          style={{
+                            backgroundColor: t.cardBg || '#ffffff',
+                            borderColor: t.border,
+                          }}
+                        >
+                          <div>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/40">
+                                  {renderEventIcon(ev.iconType)}
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                                    {ev.name}
+                                  </h4>
+                                  <span className="text-[11px] font-semibold text-purple-600">
+                                    by {ev.org}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="mt-3 text-xs leading-relaxed" style={{ color: t.textMuted }}>
+                              {ev.desc}
+                            </p>
+
+                            <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                              <div className="flex items-center gap-2">
+                                <Calendar size={13} className="text-gray-500" />
+                                <span className="font-semibold" style={{ color: t.textPrimary }}>{ev.date}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock size={13} className="text-gray-500" />
+                                <span>{ev.time}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MapPin size={13} className="text-gray-500" />
+                                <span>{ev.venue}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-5">
+                            <button
+                              type="button"
+                              onClick={() => toggleCommunityEvent(ev.id)}
+                              className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
+                                ev.joined
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                  : 'bg-[#2f4336] text-white hover:bg-[#25362b] shadow-xs'
+                              }`}
+                            >
+                              {ev.joined ? (
+                                <>
+                                  <Check size={14} /> Joined Session
+                                </>
+                              ) : (
+                                'Join Event'
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'vacant-classes' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW B: DEDICATED VACANT CLASSES SECTION */
+              /* ------------------------------------------------------------- */
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <School className="text-emerald-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Vacant Classrooms
+                      </h2>
+                    </div>
                     <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
                       Real-time availability of classrooms for study sessions, club meetings, and rehearsals.
                     </p>
@@ -642,8 +931,8 @@ const StudentDashboard = () => {
                             }`}
                           >
                             {status === 'vacant' && 'Take Permission'}
-                            {status === 'pending' && '🟡 Permission Pending (Click to Approve)'}
-                            {status === 'approved' && '🟢 Approved (Release Room)'}
+                            {status === 'pending' && 'Permission Pending (Click to Approve)'}
+                            {status === 'approved' && 'Approved (Release Room)'}
                           </button>
                         </div>
                       </div>
@@ -652,7 +941,9 @@ const StudentDashboard = () => {
                 </div>
               </div>
             ) : activeTab !== 'dashboard' ? (
-              /* DEDICATED VIEW FOR OTHER TABS */
+              /* ------------------------------------------------------------- */
+              /* VIEW C: GENERIC TAB PLACEHOLDER */
+              /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
                   <div>
@@ -678,10 +969,10 @@ const StudentDashboard = () => {
                   style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
                 >
                   <div
-                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-2xl shadow-xs"
+                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl shadow-xs"
                     style={{ backgroundColor: t.hoverBg }}
                   >
-                    🚀
+                    <Package size={28} className="text-[#2f4336]" />
                   </div>
                   <h3 className="mt-4 text-lg font-bold" style={{ color: t.textPrimary }}>
                     {activeTab.replace('-', ' ').toUpperCase()} Portal
@@ -699,13 +990,15 @@ const StudentDashboard = () => {
                 </div>
               </div>
             ) : (
-              /* MAIN DASHBOARD CONTENT */
+              /* ------------------------------------------------------------- */
+              /* VIEW D: MAIN DASHBOARD VIEW */
+              /* ------------------------------------------------------------- */
               <>
                 {/* 1. Header Section */}
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-baseline">
                   <div>
                     <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl" style={{ color: t.textPrimary }}>
-                      {greeting}, {studentName} 👋
+                      {greeting}, {studentName}
                     </h2>
                     <p className="mt-1 text-sm font-medium italic" style={{ color: t.textMuted }}>
                       Here’s what’s happening on campus
@@ -733,8 +1026,8 @@ const StudentDashboard = () => {
                             <ShieldAlert size={12} /> Low Alert
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                            🟢 On Track
+                          <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> On Track
                           </span>
                         )}
                       </div>
@@ -767,9 +1060,10 @@ const StudentDashboard = () => {
                     </button>
                   </div>
 
-                  {/* Upcoming Events Overview Card */}
+                  {/* Upcoming Events Overview Card -> Connected to Events Hub */}
                   <div
-                    className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md"
+                    className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md cursor-pointer"
+                    onClick={() => setActiveTab('events')}
                     style={{
                       backgroundColor: t.cardBg || '#ffffff',
                       borderColor: t.border,
@@ -786,9 +1080,12 @@ const StudentDashboard = () => {
                       </div>
 
                       <div className="mt-3">
-                        <p className="text-lg font-bold" style={{ color: t.textPrimary }}>
-                          🎤 Devfest Program
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <Mic2 size={16} className="text-blue-600 shrink-0" />
+                          <p className="text-lg font-bold truncate" style={{ color: t.textPrimary }}>
+                            Devfest Program
+                          </p>
+                        </div>
                         <p className="mt-1 text-xs font-medium" style={{ color: t.textMuted }}>
                           Aug 26 · 10:00 AM · Main Auditorium
                         </p>
@@ -800,12 +1097,16 @@ const StudentDashboard = () => {
                       </div>
                     </div>
 
-                    <a
-                      href="#college-events"
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTab('events');
+                      }}
                       className="mt-5 flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                     >
-                      View Schedule →
-                    </a>
+                      View Schedule in Events Hub →
+                    </button>
                   </div>
 
                   {/* Canteen Overview Card */}
@@ -822,7 +1123,7 @@ const StudentDashboard = () => {
                           Canteen
                         </span>
                         <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                          ⭐ Special
+                          <Flame size={12} className="text-amber-600" /> Featured
                         </span>
                       </div>
 
@@ -863,17 +1164,24 @@ const StudentDashboard = () => {
                   >
                     <div>
                       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: t.border }}>
-                        <div>
-                          <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                            Upcoming College Events 🏛️
-                          </h3>
-                          <p className="text-xs" style={{ color: t.textMuted }}>
-                            Official campus ceremonies, fests &amp; conferences
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Trophy size={18} className="text-amber-600" />
+                          <div>
+                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                              Upcoming College Events
+                            </h3>
+                            <p className="text-xs" style={{ color: t.textMuted }}>
+                              Official campus ceremonies, fests &amp; conferences
+                            </p>
+                          </div>
                         </div>
-                        <span className="rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] font-semibold" style={{ color: t.textMuted }}>
-                          {collegeEvents.length} Events
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('events')}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                          View in Events Hub →
+                        </button>
                       </div>
 
                       <div className="mt-4 space-y-3.5">
@@ -888,6 +1196,9 @@ const StudentDashboard = () => {
                           >
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950/50">
+                                  {renderEventIcon(ev.iconType)}
+                                </div>
                                 <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
                                   {ev.name}
                                 </h4>
@@ -917,7 +1228,7 @@ const StudentDashboard = () => {
                                   : 'bg-[#2f4336] text-white hover:bg-[#25362b] shadow-xs'
                               }`}
                             >
-                              {ev.registered ? 'Registered ✅' : 'Register'}
+                              {ev.registered ? 'Registered' : 'Register'}
                             </button>
                           </div>
                         ))}
@@ -935,17 +1246,24 @@ const StudentDashboard = () => {
                   >
                     <div>
                       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: t.border }}>
-                        <div>
-                          <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                            Community Events 🤝
-                          </h3>
-                          <p className="text-xs" style={{ color: t.textMuted }}>
-                            Organized by AI Horizon, Coding Clubs &amp; Student Groups
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Users size={18} className="text-purple-600" />
+                          <div>
+                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                              Community Events
+                            </h3>
+                            <p className="text-xs" style={{ color: t.textMuted }}>
+                              Organized by AI Horizon, Coding Clubs &amp; Student Groups
+                            </p>
+                          </div>
                         </div>
-                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
-                          Student-Led
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('events')}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                          View in Events Hub →
+                        </button>
                       </div>
 
                       <div className="mt-4 space-y-3.5">
@@ -960,6 +1278,9 @@ const StudentDashboard = () => {
                           >
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950/50">
+                                  {renderEventIcon(ev.iconType)}
+                                </div>
                                 <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
                                   {ev.name}
                                 </h4>
@@ -989,7 +1310,7 @@ const StudentDashboard = () => {
                                   : 'bg-[#2f4336] text-white hover:bg-[#25362b] shadow-xs'
                               }`}
                             >
-                              {ev.joined ? 'Joined 🎉' : 'Join Event'}
+                              {ev.joined ? 'Joined' : 'Join Event'}
                             </button>
                           </div>
                         ))}
@@ -1010,13 +1331,16 @@ const StudentDashboard = () => {
                   >
                     <div>
                       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: t.border }}>
-                        <div>
-                          <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                            Important Announcements 📢
-                          </h3>
-                          <p className="text-xs" style={{ color: t.textMuted }}>
-                            Official notices and deadline alerts
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Megaphone size={18} className="text-blue-600" />
+                          <div>
+                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                              Important Announcements
+                            </h3>
+                            <p className="text-xs" style={{ color: t.textMuted }}>
+                              Official notices and deadline alerts
+                            </p>
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -1037,7 +1361,9 @@ const StudentDashboard = () => {
                               borderColor: t.border,
                             }}
                           >
-                            <span className="mt-0.5 text-base">📢</span>
+                            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-800">
+                              <Megaphone size={13} />
+                            </span>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-baseline justify-between gap-2">
                                 <h4 className="truncate text-xs font-bold" style={{ color: t.textPrimary }}>
@@ -1057,7 +1383,7 @@ const StudentDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Today's Canteen Detailed Card */}
+                  {/* Today's Canteen Detailed Card with Serially Point-Wise Top 3 */}
                   <div
                     id="canteen-section"
                     className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs"
@@ -1068,30 +1394,40 @@ const StudentDashboard = () => {
                   >
                     <div>
                       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: t.border }}>
-                        <div>
-                          <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                            Today&apos;s Canteen 🍽️
-                          </h3>
-                          <p className="text-xs" style={{ color: t.textMuted }}>
-                            Fresh menu, availability &amp; crowd status
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <UtensilsCrossed size={18} className="text-amber-600" />
+                          <div>
+                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                              Today&apos;s Canteen
+                            </h3>
+                            <p className="text-xs" style={{ color: t.textMuted }}>
+                              Fresh menu, availability &amp; crowd status
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
                           <span>Current Crowd:</span>
-                          <span>🟡 Medium</span>
+                          <span className="flex items-center gap-1">
+                            <span className="h-2 w-2 rounded-full bg-amber-500"></span> Medium
+                          </span>
                         </div>
                       </div>
 
                       {/* Featured Special Banner */}
                       <div className="mt-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300/40 p-3.5">
                         <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-                              Today&apos;s Special ⭐
-                            </span>
-                            <h4 className="mt-0.5 text-sm font-extrabold" style={{ color: t.textPrimary }}>
-                              🍗 Chicken Momo
-                            </h4>
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                              <Flame size={18} />
+                            </div>
+                            <div>
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                                Today&apos;s Special
+                              </span>
+                              <h4 className="text-sm font-extrabold" style={{ color: t.textPrimary }}>
+                                Chicken Momo
+                              </h4>
+                            </div>
                           </div>
                           <span className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-extrabold text-white shadow-xs">
                             NPR 120
@@ -1099,66 +1435,55 @@ const StudentDashboard = () => {
                         </div>
                       </div>
 
-                      {/* Top 3 Menu Items */}
+                      {/* Top 3 Menu Items (Point-Wise Serial List) */}
                       <div className="mt-4">
-                        <p className="mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
-                          Top 3 Today
-                        </p>
-                        <div className="space-y-2.5">
-                          <div
-                            className="flex items-center justify-between rounded-xl border px-3.5 py-2.5"
-                            style={{ backgroundColor: t.pageBg, borderColor: t.border }}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-base">🥟</span>
-                              <div>
-                                <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
-                                  1. Chicken Momo
-                                </p>
-                                <p className="text-[11px] font-semibold text-emerald-600">NPR 120</p>
-                              </div>
-                            </div>
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                              🟢 Available
-                            </span>
-                          </div>
-
-                          <div
-                            className="flex items-center justify-between rounded-xl border px-3.5 py-2.5"
-                            style={{ backgroundColor: t.pageBg, borderColor: t.border }}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-base">🍜</span>
-                              <div>
-                                <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
-                                  2. Chowmein
-                                </p>
-                                <p className="text-[11px] font-semibold text-emerald-600">NPR 100</p>
-                              </div>
-                            </div>
-                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
-                              🟡 Almost Sold Out
-                            </span>
-                          </div>
-
-                          <div
-                            className="flex items-center justify-between rounded-xl border px-3.5 py-2.5"
-                            style={{ backgroundColor: t.pageBg, borderColor: t.border }}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-base">🍛</span>
-                              <div>
-                                <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
-                                  3. Thakali Set
-                                </p>
-                                <p className="text-[11px] font-semibold text-emerald-600">NPR 180</p>
-                              </div>
-                            </div>
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                              🟢 Available
-                            </span>
-                          </div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
+                            Top 3 Today
+                          </p>
+                          <span className="text-[11px] font-medium" style={{ color: t.textMuted }}>
+                            Ranked by student orders
+                          </span>
                         </div>
+
+                        <ol className="space-y-2.5 list-none p-0 m-0">
+                          {TOP_FOOD_ITEMS.map((item) => (
+                            <li
+                              key={item.rank}
+                              className="flex items-center justify-between rounded-xl border px-3.5 py-2.5 transition-all hover:border-gray-300 dark:hover:border-gray-700"
+                              style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                            >
+                              <div className="flex items-center gap-3">
+                                {/* Serial Number Indicator */}
+                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2f4336] text-[11px] font-extrabold text-white">
+                                  {item.rank}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
+                                    {item.name}
+                                  </p>
+                                  <p className="text-[11px] font-semibold text-emerald-600">{item.price}</p>
+                                </div>
+                              </div>
+
+                              {/* Status Badge */}
+                              <span
+                                className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                                  item.statusType === 'available'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    item.statusType === 'available' ? 'bg-emerald-600' : 'bg-amber-600'
+                                  }`}
+                                ></span>
+                                {item.status}
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
                       </div>
                     </div>
                   </div>
@@ -1177,8 +1502,9 @@ const StudentDashboard = () => {
                     <div>
                       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: t.border }}>
                         <div className="flex items-center gap-2">
+                          <School size={18} className="text-emerald-600" />
                           <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                            Vacant Classroom 🏫
+                            Vacant Classroom
                           </h3>
                           <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                             Live Room
@@ -1212,7 +1538,7 @@ const StudentDashboard = () => {
                               Available Class
                             </p>
                             <h4 className="mt-1 text-xl font-extrabold" style={{ color: t.textPrimary }}>
-                              🏫 {currentRandomRoom.name}
+                              {currentRandomRoom.name}
                             </h4>
                             <p className="mt-1 text-xs" style={{ color: t.textMuted }}>
                               {currentRandomRoom.block} · {currentRandomRoom.facilities}
@@ -1221,17 +1547,17 @@ const StudentDashboard = () => {
 
                           {currentRandomStatus === 'vacant' && (
                             <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
-                              <span className="h-2 w-2 rounded-full bg-emerald-500"></span> 🟢 Vacant
+                              <span className="h-2 w-2 rounded-full bg-emerald-500"></span> Vacant
                             </span>
                           )}
                           {currentRandomStatus === 'pending' && (
                             <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 animate-pulse">
-                              <span className="h-2 w-2 rounded-full bg-amber-500"></span> 🟡 Pending
+                              <span className="h-2 w-2 rounded-full bg-amber-500"></span> Pending
                             </span>
                           )}
                           {currentRandomStatus === 'approved' && (
                             <span className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-                              <span className="h-2 w-2 rounded-full bg-blue-600"></span> 🟢 Approved
+                              <span className="h-2 w-2 rounded-full bg-blue-600"></span> Approved
                             </span>
                           )}
                         </div>
@@ -1249,8 +1575,8 @@ const StudentDashboard = () => {
                             }`}
                           >
                             {currentRandomStatus === 'vacant' && 'Take Permission'}
-                            {currentRandomStatus === 'pending' && '🟡 Permission Pending (Click to Approve)'}
-                            {currentRandomStatus === 'approved' && '🟢 Approved (Release Room)'}
+                            {currentRandomStatus === 'pending' && 'Permission Pending (Click to Approve)'}
+                            {currentRandomStatus === 'approved' && 'Approved (Release Room)'}
                           </button>
                         </div>
                       </div>
@@ -1267,13 +1593,16 @@ const StudentDashboard = () => {
                   >
                     <div>
                       <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: t.border }}>
-                        <div>
-                          <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                            Lost &amp; Found 🎒
-                          </h3>
-                          <p className="text-xs" style={{ color: t.textMuted }}>
-                            Recently reported campus belongings
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Search size={18} className="text-blue-600" />
+                          <div>
+                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                              Lost &amp; Found
+                            </h3>
+                            <p className="text-xs" style={{ color: t.textMuted }}>
+                              Recently reported campus belongings
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
@@ -1313,13 +1642,18 @@ const StudentDashboard = () => {
                             </div>
 
                             <span
-                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                              className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                                 item.status === 'Claimed'
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : 'bg-amber-100 text-amber-800'
                               }`}
                             >
-                              {item.status === 'Claimed' ? '🟢 Claimed' : '🟡 Unclaimed'}
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  item.status === 'Claimed' ? 'bg-emerald-600' : 'bg-amber-600'
+                                }`}
+                              ></span>
+                              {item.status}
                             </span>
                           </div>
                         ))}
@@ -1337,13 +1671,16 @@ const StudentDashboard = () => {
                   }}
                 >
                   <div className="flex flex-col justify-between gap-3 border-b pb-4 sm:flex-row sm:items-center" style={{ borderColor: t.border }}>
-                    <div>
-                      <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                        Campus Help &amp; Peer Requests 🙋
-                      </h3>
-                      <p className="text-xs" style={{ color: t.textMuted }}>
-                        Student-to-student assistance for study notes, calculators, books &amp; project help
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <HelpCircle size={20} className="text-blue-600" />
+                      <div>
+                        <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                          Campus Help &amp; Peer Requests
+                        </h3>
+                        <p className="text-xs" style={{ color: t.textMuted }}>
+                          Student-to-student assistance for study notes, calculators, books &amp; project help
+                        </p>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -1428,9 +1765,12 @@ const StudentDashboard = () => {
             style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
           >
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
-              <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
-                Report Lost Item 🎒
-              </h3>
+              <div className="flex items-center gap-2">
+                <Search size={18} className="text-blue-600" />
+                <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
+                  Report Lost Item
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowReportModal(false)}
@@ -1518,9 +1858,12 @@ const StudentDashboard = () => {
             style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
           >
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
-              <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
-                Ask for Campus Help 🙋
-              </h3>
+              <div className="flex items-center gap-2">
+                <HelpCircle size={18} className="text-blue-600" />
+                <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
+                  Ask for Campus Help
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowAskHelpModal(false)}
@@ -1577,7 +1920,7 @@ const StudentDashboard = () => {
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
               <div>
                 <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
-                  Attendance Breakdown 📊
+                  Attendance Breakdown
                 </h3>
                 <p className="text-xs" style={{ color: t.textMuted }}>
                   Semester attendance overview (Minimum required: 75%)
@@ -1655,7 +1998,7 @@ const StudentDashboard = () => {
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
               <div>
                 <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
-                  All Important Announcements 📢
+                  All Important Announcements
                 </h3>
                 <p className="text-xs" style={{ color: t.textMuted }}>
                   Campus updates and deadlines
@@ -1710,4 +2053,3 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
-
