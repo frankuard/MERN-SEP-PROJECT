@@ -1,12 +1,22 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const { getDbStatus } = require('../config/db');
 
-const jwt = require('jsonwebtoken'); // not directly used here, but fine to leave out if unused
 const generateToken = require('../utils/generateToken');
+
+const ensureDatabase = (res) => {
+  if (!getDbStatus().connected) {
+    res.status(503).json({ message: 'Database is unavailable. Please try again later.' });
+    return false;
+  }
+  return true;
+};
 
 // REGISTER PART
 const register = async (req, res) => {
   try {
+    if (!ensureDatabase(res)) return;
+
     const { username, email, password, role, department, semester } = req.body;
 
     // 1. Required field validation
@@ -86,6 +96,8 @@ const register = async (req, res) => {
 // LOGIN PART
 const loginUser = async (req, res) => {
   try {
+    if (!ensureDatabase(res)) return;
+
     const { email, password } = req.body;
 
     // 1 & 2. Validate input

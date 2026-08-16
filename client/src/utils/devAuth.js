@@ -13,11 +13,31 @@ export class DevAuthError extends Error {
 export const isDevEnvironment = () => import.meta.env.DEV;
 
 export const isNetworkError = (error) => {
+  if (!error) return false;
+
+  const status = error?.response?.status;
+  if (status === 502 || status === 503 || status === 504) {
+    return true;
+  }
+
   if (error?.response) return false;
+
   return (
     error?.code === 'ERR_NETWORK' ||
+    error?.code === 'ECONNREFUSED' ||
     error?.message === 'Network Error' ||
-    error?.message?.includes('Network Error')
+    error?.message?.includes('Network Error') ||
+    error?.cause?.code === 'ECONNREFUSED'
+  );
+};
+
+export const isBackendUnavailableError = (error) => {
+  if (isNetworkError(error)) return true;
+
+  const message = error?.response?.data?.message || '';
+  return (
+    error?.response?.status === 503 &&
+    message.toLowerCase().includes('database is unavailable')
   );
 };
 

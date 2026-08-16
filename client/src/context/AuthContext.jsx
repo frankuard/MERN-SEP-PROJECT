@@ -7,7 +7,7 @@ import {
   createDemoDevUser,
   createDevUserFromSignup,
   isDevEnvironment,
-  isNetworkError,
+  isBackendUnavailableError,
   matchesDevCredentials,
 } from '../utils/devAuth';
 
@@ -119,7 +119,7 @@ const AuthProvider = ({ children }) => {
         persistAuth(data.token, data.user);
         return data;
       } catch (error) {
-        if (isDevEnvironment() && isNetworkError(error)) {
+        if (isDevEnvironment() && isBackendUnavailableError(error)) {
           return loginWithDevFallback(email, password);
         }
         throw error;
@@ -140,7 +140,7 @@ const AuthProvider = ({ children }) => {
         const { data } = await axiosInstance.post('/auth/register', payload);
         return data;
       } catch (error) {
-        if (isDevEnvironment() && isNetworkError(error)) {
+        if (isDevEnvironment() && isBackendUnavailableError(error)) {
           return registerWithDevFallback(payload);
         }
         throw error;

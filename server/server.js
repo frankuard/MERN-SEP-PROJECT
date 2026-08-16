@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const { getDbStatus } = require('./config/db');
 const {notFound, errorHandler} = require("./middleware/errorHandler");
 
 // ROUTE and middleware IMPORTS
@@ -21,6 +22,15 @@ app.use(express.json());
 
 app.get('/', (req,res) => {
     res.json({message: 'Chautari API is running'})
+});
+
+app.get('/api/health', (req, res) => {
+  const db = getDbStatus();
+  res.status(200).json({
+    status: 'ok',
+    message: 'Chautari API is running',
+    db: db.connected ? 'connected' : 'disconnected',
+  });
 });
 
 // auth middleware part
