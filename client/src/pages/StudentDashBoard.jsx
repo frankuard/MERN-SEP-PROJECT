@@ -196,6 +196,7 @@ const INITIAL_CAMPUS_HELP = [
 
 // Full Canteen Menu Items
 const CANTEEN_MENU = [
+  { id: 'cm0', name: 'Diya Ko Royal Biryani', price: 220, category: 'Meals', available: true },
   { id: 'cm1', name: 'Aalu Nimki', price: 50, category: 'Snacks', available: true },
   { id: 'cm2', name: 'Chatpatey', price: 50, category: 'Snacks', available: true },
   { id: 'cm3', name: 'Chicken Chatpatey', price: 100, category: 'Snacks', available: true },
@@ -209,10 +210,10 @@ const CANTEEN_MENU = [
   { id: 'cm11', name: 'Chicken Momo', price: 120, category: 'Momo & Noodles', available: true },
 ];
 
-const CANTEEN_SPECIALS = [
-  'Aalu Nimki',
-  'Chatpatey',
-  'Chicken Momo',
+const CANTEEN_SPECIALS_LIST = [
+  { id: 1, name: 'Diya Ko Royal Biryani', price: 220, isBold: true },
+  { id: 2, name: 'Chicken Momo', price: 120, isBold: false },
+  { id: 3, name: 'Aalu Nimki', price: 50, isBold: false },
 ];
 
 // Official Campus Social Media Posts Feed
@@ -2144,7 +2145,7 @@ const StudentDashboard = () => {
                     </button>
                   </div>
 
-                  {/* Canteen Overview Card -> Navigates to Canteen Ordering */}
+                  {/* Today Canteen Special Overview Card -> Navigates to Canteen Ordering */}
                   <div
                     className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md cursor-pointer"
                     onClick={() => setActiveTab('canteen')}
@@ -2156,25 +2157,37 @@ const StudentDashboard = () => {
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
-                          Canteen &amp; Menu
+                          Today Canteen Special
                         </span>
                         <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                          <Flame size={12} className="text-amber-600" /> Featured
+                          <Flame size={12} className="text-amber-600" /> Specials
                         </span>
                       </div>
 
-                      <div className="mt-3">
-                        <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
-                          Today&apos;s Featured Items:
-                        </p>
-                        <p className="mt-1 text-sm font-bold leading-snug" style={{ color: t.textPrimary }}>
-                          {CANTEEN_SPECIALS.join(' · ')}
-                        </p>
-                      </div>
-
-                      <div className="mt-2.5 flex items-baseline justify-between rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5 text-xs">
-                        <span className="font-semibold text-emerald-600">Chicken Momo</span>
-                        <span className="font-extrabold" style={{ color: t.textPrimary }}>NPR 120</span>
+                      {/* 3 Food Item Point-Wise List with Diya Ko Royal Biryani Bold */}
+                      <div className="mt-3 space-y-2">
+                        {CANTEEN_SPECIALS_LIST.map((food) => (
+                          <div
+                            key={food.id}
+                            className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition-all ${
+                              food.isBold
+                                ? 'bg-amber-500/15 border border-amber-500/30 text-amber-950 dark:text-amber-200'
+                                : 'bg-black/5 dark:bg-white/5'
+                            }`}
+                          >
+                            <span className={`flex items-center gap-1.5 ${food.isBold ? 'font-black text-sm tracking-tight' : 'font-medium'}`}>
+                              <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${food.isBold ? 'bg-amber-600 text-white font-bold' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                                {food.id}
+                              </span>
+                              <strong className={food.isBold ? 'font-extrabold text-amber-900 dark:text-amber-200' : 'font-semibold'} style={{ color: food.isBold ? undefined : t.textPrimary }}>
+                                {food.name}
+                              </strong>
+                            </span>
+                            <span className={`font-extrabold ${food.isBold ? 'text-amber-700 dark:text-amber-300 text-xs' : 'text-emerald-600'}`}>
+                              NPR {food.price}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
