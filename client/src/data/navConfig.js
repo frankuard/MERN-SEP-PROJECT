@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from "react";
 import {
   Home, Search, HelpCircle, Package, FileText, Coffee, MapPin,
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
   AlertTriangle, ClipboardList, CheckSquare, Settings, LogOut,
   ChevronLeft, ChevronRight, Menu, X, Sun, Moon, PlusCircle, TrendingUp, Bell,
+  Building2, School,
 } from "lucide-react";
- 
 
 const navConfig = {
   student: [
     { id: "dashboard", label: "Dashboard", icon: Home },
+    { id: "events", label: "Events", icon: Calendar },
     { id: "lost-found", label: "Lost & Found", icon: Search },
-    { id: "campus-help", label: "Campus Help", icon: HelpCircle },
-    { id: "borrow-lend", label: "Borrow / Lend", icon: Package },
-    { id: "campus-posts", label: "Campus Posts", icon: FileText },
+    { id: "campus-posts", label: "Posts", icon: FileText },
+    { id: "campus-help", label: "Help", icon: HelpCircle },
+    { id: "borrow-lend", label: "Borrow/Lend", icon: Package },
     { id: "canteen", label: "Canteen", icon: Coffee },
-    { id: "location", label: "Location Finder", icon: MapPin },
+    { id: "vacant-classes", label: "Vacant Classes", icon: School },
+    { id: "location", label: "Locations", icon: MapPin },
   ],
   teacher: [
     { id: "dashboard", label: "Dashboard", icon: Home },
