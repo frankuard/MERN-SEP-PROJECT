@@ -143,7 +143,7 @@ const Signup = () => {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden bg-[#eef2f7] px-4 py-8 sm:px-6">
-      <div className="flex w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(26,43,76,0.12)] md:min-h-[620px] md:flex-row">
+      <div className="flex w-full max-w-245 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(26,43,76,0.12)] md:min-h-155 md:flex-row">
         {/* Branding panel — mobile top */}
         <section className="flex h-44 w-full shrink-0 items-center justify-center bg-[#eef2f7] px-6 sm:h-52 md:hidden">
           <img
@@ -258,7 +258,7 @@ const Signup = () => {
                     type="text"
                     value={formData.department}
                     onChange={(event) => updateField('department', event.target.value)}
-                    className={`${inputClass} !pl-4`}
+                    className={`${inputClass} pl-4!`}
                   />
                 </div>
 
@@ -272,7 +272,7 @@ const Signup = () => {
                     type="text"
                     value={formData.semester}
                     onChange={(event) => updateField('semester', event.target.value)}
-                    className={`${inputClass} !pl-4`}
+                    className={`${inputClass} pl-4!`}
                   />
                 </div>
               </div>
@@ -368,7 +368,7 @@ const Signup = () => {
           <img
             src="/chautari-logo.png"
             alt="Chautari"
-            className="h-auto max-h-[320px] w-auto max-w-full object-contain lg:max-h-[360px]"
+            className="h-auto max-h-80 w-auto max-w-full object-contain lg:max-h-[360px]"
           />
         </section>
       </div>
