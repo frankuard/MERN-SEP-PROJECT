@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Moon, Sun } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import navConfig from '../../data/navConfig';
@@ -14,18 +14,30 @@ const roleLabels = {
   admin: 'Admin Portal',
 };
 
-const Sidebar = () => {
+const Sidebar = ({ activeTab: controlledActiveTab, onTabChange }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const t = themes[theme];
+  const t = themes[theme] || themes.light;
 
   const [collapsed, setCollapsed] = useState(false);
-  const [activeId, setActiveId] = useState('dashboard');
+  const [internalActiveId, setInternalActiveId] = useState('dashboard');
+
+  const activeId = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveId;
 
   const role = user?.role || 'student';
   const items = navConfig[role] || navConfig.student;
-  const initials = user?.username?.charAt(0)?.toUpperCase() || 'U';
+  const username = user?.username || 'Suraj Poddar';
+  const initials = username.charAt(0).toUpperCase() || 'S';
+
+  const handleItemClick = (id) => {
+    if (controlledActiveTab === undefined) {
+      setInternalActiveId(id);
+    }
+    if (onTabChange) {
+      onTabChange(id);
+    }
+  };
 
   const handleLogout = () => {
     disconnectSocket();
@@ -34,8 +46,8 @@ const Sidebar = () => {
   };
 
   return (
-    <div
-      className={`relative flex min-h-screen flex-col border-r transition-all duration-300 ${
+    <aside
+      className={`relative flex min-h-screen shrink-0 flex-col border-r transition-all duration-300 select-none ${
         collapsed ? 'w-20' : 'w-64'
       }`}
       style={{
@@ -44,23 +56,30 @@ const Sidebar = () => {
         color: t.textPrimary,
       }}
     >
+      {/* User Header */}
       <div
-        className={`flex items-center border-b px-4 py-5 ${
+        className={`relative flex items-center border-b px-4 py-5 ${
           collapsed ? 'justify-center' : 'gap-3'
         }`}
         style={{ borderColor: t.border }}
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-bold shadow-sm"
+          style={{
+            backgroundColor: theme === 'dark' ? '#3b82f6' : '#2f4336',
+            color: '#ffffff',
+          }}
+        >
           {initials}
         </div>
 
         {!collapsed && (
-          <div className="flex-1">
-            <p className="text-[10px] uppercase tracking-widest" style={{ color: t.textMuted }}>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.textMuted }}>
               {role}
             </p>
-            <h2 className="truncate text-sm font-semibold" style={{ color: t.textPrimary }}>
-              {user?.username || roleLabels[role]}
+            <h2 className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>
+              {roleLabels[role] || 'Student Portal'}
             </h2>
           </div>
         )}
@@ -68,97 +87,124 @@ const Sidebar = () => {
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute top-5 right-0 z-50 flex h-8 w-8 translate-x-1/2 items-center justify-center rounded-full border shadow-md"
+          className="absolute top-6 -right-3.5 z-40 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-transform hover:scale-105"
           style={{
-            backgroundColor: t.sidebarBg,
+            backgroundColor: t.cardBg || '#ffffff',
             borderColor: t.border,
             color: t.textPrimary,
           }}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {collapsed ? '>' : '<'}
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
       </div>
 
-      <div className="px-4 pt-3">
+      {/* Theme Toggle Pill */}
+      <div className="px-4 pt-4">
         <button
           type="button"
           onClick={toggleTheme}
-          className={`relative h-10 rounded-full transition-all duration-300 ${
-            collapsed ? 'w-10' : 'w-16'
-          }`}
-          style={{ backgroundColor: t.hoverBg }}
-          aria-label="Toggle theme"
+          className="flex h-7 w-12 items-center rounded-full border p-0.5 transition-colors"
+          style={{
+            backgroundColor: t.hoverBg,
+            borderColor: t.border,
+          }}
+          aria-label="Toggle dark/light mode"
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
           <div
-            className={`absolute top-1 flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300 ${
-              theme === 'dark' ? 'left-1' : 'left-7'
-            }`}
-            style={{ backgroundColor: t.sidebarBg, color: t.textPrimary }}
+            className="flex h-5.5 w-5.5 items-center justify-center rounded-full shadow-sm transition-transform duration-200"
+            style={{
+              backgroundColor: t.cardBg || '#ffffff',
+              color: t.textPrimary,
+              transform: theme === 'dark' ? 'translateX(20px)' : 'translateX(0px)',
+            }}
           >
-            {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
+            {theme === 'dark' ? <Moon size={12} /> : <Sun size={12} />}
           </div>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pt-4">
+      {/* Main Nav Items */}
+      <div className="flex-1 overflow-y-auto px-3 pt-5">
         {!collapsed && (
           <p
-            className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-widest"
+            className="px-2.5 pb-2 text-[11px] font-bold uppercase tracking-widest"
             style={{ color: t.textMuted }}
           >
             Main
           </p>
         )}
 
-        <div className="flex flex-col gap-1">
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveId(item.id)}
-              className={`flex items-center rounded-lg px-3 py-2.5 transition-all duration-200 ${
-                collapsed ? 'justify-center' : 'gap-3'
-              }`}
-              style={{
-                backgroundColor: activeId === item.id ? t.activeBg : 'transparent',
-                color: activeId === item.id ? t.activeText : t.textPrimary,
-                border:
-                  activeId === item.id
+        <nav className="flex flex-col gap-1.5" aria-label="Sidebar Navigation">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeId === item.id;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleItemClick(item.id)}
+                className={`flex items-center rounded-xl px-3 py-2.5 text-left font-medium transition-all duration-200 ${
+                  collapsed ? 'justify-center' : 'gap-3'
+                } ${
+                  isActive
+                    ? 'shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+                    : 'hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+                style={{
+                  backgroundColor: isActive ? t.activeBg : 'transparent',
+                  color: isActive ? t.activeText : t.textPrimary,
+                  border: isActive
                     ? `1px solid ${t.activeBorder}`
                     : '1px solid transparent',
-              }}
-            >
-              <item.icon size={19} aria-hidden="true" />
-              {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
-            </button>
-          ))}
-        </div>
+                }}
+              >
+                <Icon
+                  size={19}
+                  className="shrink-0"
+                  style={{
+                    color: isActive ? t.activeText : t.textMuted,
+                  }}
+                  aria-hidden="true"
+                />
+                {!collapsed && (
+                  <span className="truncate text-[13.5px] tracking-tight">
+                    {item.label}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
-      <div className="border-t px-3 py-4" style={{ borderColor: t.border }}>
+      {/* Logout Footer */}
+      <div className="border-t p-3" style={{ borderColor: t.border }}>
         <button
           type="button"
           onClick={handleLogout}
-          className={`flex w-full items-center rounded-lg px-3 py-2.5 transition-colors ${
+          className={`flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
             collapsed ? 'justify-center' : 'gap-3'
           }`}
           style={{ color: t.textMuted }}
           onMouseEnter={(event) => {
             event.currentTarget.style.backgroundColor = t.hoverBg;
-            event.currentTarget.style.color = t.textPrimary;
+            event.currentTarget.style.color = '#ef4444';
           }}
           onMouseLeave={(event) => {
             event.currentTarget.style.backgroundColor = 'transparent';
             event.currentTarget.style.color = t.textMuted;
           }}
         >
-          <LogOut size={19} aria-hidden="true" />
-          {!collapsed && <span className="text-sm font-medium">Log out</span>}
+          <LogOut size={18} aria-hidden="true" />
+          {!collapsed && <span>Log out</span>}
         </button>
       </div>
-    </div>
+    </aside>
   );
 };
 
 export default Sidebar;
+
