@@ -1,6 +1,10 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
+const jwt = require('jsonwebtoken'); // not directly used here, but fine to leave out if unused
+const generateToken = require('../utils/generateToken');
+
+// REGISTER PART
 const register = async (req, res) => {
   try {
     const { username, email, password, role, department, semester } = req.body;
@@ -79,4 +83,60 @@ const register = async (req, res) => {
   }
 };
 
-module.exports = { register };
+// LOGIN PART
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1 & 2. Validate input
+    if (!email || !password) {
+      return res.status(400).json({ message: 'email and password are required' });
+    }
+
+    // 3. Find user by email
+    const user = await User.findOne({ email });
+
+    // 4. User not found
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // 5. Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    // 6. Wrong password — same generic message as "user not found"
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // 7. Check account status
+    if (user.status === 'pending') {
+      return res.status(403).json({ message: 'Your account is pending admin approval' });
+    }
+
+    if (user.status === 'rejected') {
+      return res.status(403).json({ message: 'Your account request was rejected. Contact admin.' });
+    }
+
+    // 8. Generate JWT
+    const token = generateToken(user._id, user.role);
+
+    // 9. Success response
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+      },
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { register, loginUser };
