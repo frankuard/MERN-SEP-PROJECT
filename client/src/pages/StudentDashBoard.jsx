@@ -5,7 +5,9 @@ import {
   MessageSquare, User, Sparkles, Filter, ExternalLink, ArrowRight,
   School, HelpCircle, Package, FileText, Check, ShieldAlert, HeartHandshake,
   UtensilsCrossed, Users, ThumbsUp, Send, Share2, Eye, Mic2, Cpu,
-  Trophy, BrainCircuit, Code, Palette, Megaphone, Flame, Tag, CheckSquare
+  Trophy, BrainCircuit, Code, Palette, Megaphone, Flame, Tag, CheckSquare,
+  GraduationCap, Award, CreditCard, Banknote, QrCode, ShoppingBag, Plus, Minus,
+  History, DollarSign, Wallet
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +25,7 @@ const CLASSROOM_POOL = [
   { id: 'lt01', name: 'LT01 Wulfurana', block: 'Main Lecture Hall', capacity: 120, facilities: 'Dual Projectors · Stage · AC' },
 ];
 
+// College Events
 const INITIAL_COLLEGE_EVENTS = [
   {
     id: 'ce1',
@@ -59,6 +62,7 @@ const INITIAL_COLLEGE_EVENTS = [
   },
 ];
 
+// Community Events
 const INITIAL_COMMUNITY_EVENTS = [
   {
     id: 'cme1',
@@ -98,6 +102,7 @@ const INITIAL_COMMUNITY_EVENTS = [
   },
 ];
 
+// Announcements
 const INITIAL_ANNOUNCEMENTS = [
   {
     id: 'a1',
@@ -133,6 +138,7 @@ const INITIAL_ANNOUNCEMENTS = [
   },
 ];
 
+// Lost & Found Items
 const INITIAL_LOST_FOUND = [
   {
     id: 'lf1',
@@ -160,6 +166,7 @@ const INITIAL_LOST_FOUND = [
   },
 ];
 
+// Campus Help Requests
 const INITIAL_CAMPUS_HELP = [
   {
     id: 'ch1',
@@ -187,34 +194,25 @@ const INITIAL_CAMPUS_HELP = [
   },
 ];
 
-const CANTEEN_SPECIALS = [
-  'Aalu Nimki',
-  'Gillo Chatpatey',
-  'Diya Ko Royal Biryani',
+// Full Canteen Menu Items (as requested)
+const CANTEEN_MENU = [
+  { id: 'cm1', name: 'Aalu Nimki', price: 50, category: 'Snacks', available: true },
+  { id: 'cm2', name: 'Chatpatey', price: 50, category: 'Snacks', available: true },
+  { id: 'cm3', name: 'Chicken Chatpatey', price: 100, category: 'Snacks', available: true },
+  { id: 'cm4', name: 'Fried Rice', price: 100, category: 'Meals', available: true },
+  { id: 'cm5', name: 'Chicken Chowmein', price: 100, category: 'Momo & Noodles', available: true },
+  { id: 'cm6', name: 'Veg Chowmein', price: 60, category: 'Momo & Noodles', available: true },
+  { id: 'cm7', name: 'Samosa', price: 50, category: 'Snacks', available: true },
+  { id: 'cm8', name: 'Lassi', price: 80, category: 'Beverages', available: true },
+  { id: 'cm9', name: 'Thuppa', price: 80, category: 'Momo & Noodles', available: true },
+  { id: 'cm10', name: 'Veg Momo', price: 80, category: 'Momo & Noodles', available: true },
+  { id: 'cm11', name: 'Chicken Momo', price: 120, category: 'Momo & Noodles', available: true },
 ];
 
-const TOP_FOOD_ITEMS = [
-  {
-    rank: 1,
-    name: 'Chicken Momo',
-    price: 'NPR 120',
-    status: 'Available',
-    statusType: 'available',
-  },
-  {
-    rank: 2,
-    name: 'Chowmein',
-    price: 'NPR 100',
-    status: 'Almost Sold Out',
-    statusType: 'warning',
-  },
-  {
-    rank: 3,
-    name: 'Thakali Set',
-    price: 'NPR 180',
-    status: 'Available',
-    statusType: 'available',
-  },
+const CANTEEN_SPECIALS = [
+  'Aalu Nimki',
+  'Chatpatey',
+  'Chicken Momo',
 ];
 
 const StudentDashboard = () => {
@@ -222,9 +220,10 @@ const StudentDashboard = () => {
   const { theme } = useTheme();
   const t = themes[theme] || themes.light;
 
-  // Active navigation tab
+  // Navigation tab state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [eventsFilter, setEventsFilter] = useState('all'); // 'all' | 'college' | 'community'
+  const [ssdActiveSubTab, setSsdActiveSubTab] = useState('attendance'); // 'attendance' | 'volunteering' | 'scholarship'
 
   // Interactive states
   const [collegeEvents, setCollegeEvents] = useState(INITIAL_COLLEGE_EVENTS);
@@ -233,7 +232,50 @@ const StudentDashboard = () => {
   const [lostFoundItems, setLostFoundItems] = useState(INITIAL_LOST_FOUND);
   const [helpRequests, setHelpRequests] = useState(INITIAL_CAMPUS_HELP);
 
-  // Classroom permissions map: { [roomId]: 'vacant' | 'pending' | 'approved' }
+  // Canteen ordering system states
+  const [cart, setCart] = useState({}); // { [itemId]: quantity }
+  const [orderPreference, setOrderPreference] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('online'); // 'cash' | 'online' | 'canteen_credit'
+  const [canteenCreditBalance, setCanteenCreditBalance] = useState(150); // persistent pending credit balance in NPR
+  const [orderHistory, setOrderHistory] = useState([
+    { id: 'ord_101', item: 'Chicken Momo × 1', amount: 120, method: 'Credit Khata', time: 'Yesterday' },
+  ]);
+
+  // Modals for payment workflows
+  const [showOnlineQrModal, setShowOnlineQrModal] = useState(false);
+  const [showCashTokenModal, setShowCashTokenModal] = useState(false);
+  const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
+
+  // Attendance tracking logger
+  const [attendanceRecords, setAttendanceRecords] = useState([
+    { date: 'Today (Aug 17)', status: 'Present', time: '09:45 AM', room: 'SR01 Wolves' },
+    { date: 'Aug 16', status: 'Present', time: '09:50 AM', room: 'LT01 Wulfurana' },
+    { date: 'Aug 15', status: 'Present', time: '09:40 AM', room: 'SR02 Compton' },
+    { date: 'Aug 14', status: 'Absent', time: '-', room: '-' },
+    { date: 'Aug 13', status: 'Present', time: '10:05 AM', room: 'Baraha' },
+  ]);
+  const [isLoggedToday, setIsLoggedToday] = useState(true);
+
+  // Volunteering history
+  const volunteeringHistory = [
+    { id: 'v1', role: 'Campus Orientation Peer Mentor', event: 'Freshers Induction 2026', hours: 12, date: 'Aug 2026', verified: true },
+    { id: 'v2', role: 'Blood Donation Camp Coordinator', event: 'Red Cross & Campus Health Drive', hours: 8, date: 'Jul 2026', verified: true },
+    { id: 'v3', role: 'TechFest IT Logistics Volunteer', event: 'Annual TechFest 2026', hours: 16, date: 'May 2026', verified: true },
+  ];
+
+  // Scholarship record
+  const scholarshipRecord = {
+    title: 'Merit-Based Academic Scholarship',
+    type: '50% Tuition Fee Waiver',
+    status: 'Active & Verified',
+    minRequiredGPA: 3.50,
+    currentGPA: 3.78,
+    lastReviewed: 'Spring 2026',
+    renewalDeadline: 'Aug 28, 2026',
+    documentsSubmitted: true,
+  };
+
+  // Classroom permissions map
   const [classPermissions, setClassPermissions] = useState({
     sr01: 'vacant',
     sr02: 'vacant',
@@ -246,13 +288,13 @@ const StudentDashboard = () => {
   // Random vacant room on dashboard
   const [randomRoomIndex, setRandomRoomIndex] = useState(0);
 
-  // Modals state
-  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  // General Modals state
   const [showReportModal, setShowReportModal] = useState(false);
   const [showAskHelpModal, setShowAskHelpModal] = useState(false);
   const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showPayCreditModal, setShowPayCreditModal] = useState(false);
 
   // Form states for modals
   const [newLostItem, setNewLostItem] = useState({ title: '', location: '', category: 'General' });
@@ -282,7 +324,6 @@ const StudentDashboard = () => {
       toast.success('Permission request submitted! Status: Pending Approval', {
         icon: '⏳',
       });
-      // Simulate approval after 3 seconds
       setTimeout(() => {
         setClassPermissions((prev) => ({ ...prev, [roomId]: 'approved' }));
         toast.success(`Permission Approved for ${CLASSROOM_POOL.find((r) => r.id === roomId)?.name || 'Classroom'}!`, {
@@ -348,6 +389,13 @@ const StudentDashboard = () => {
     toast.success('Lost item report posted successfully!');
   };
 
+  const handleClaimLostItem = (id) => {
+    setLostFoundItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: 'Claimed' } : item))
+    );
+    toast.success('Item status marked as Claimed!');
+  };
+
   const handleAddHelpRequest = (e) => {
     e.preventDefault();
     if (!newHelpRequest.trim()) {
@@ -368,11 +416,120 @@ const StudentDashboard = () => {
     toast.success('Help request shared with campus!');
   };
 
-  // Dynamic greeting based on hour
+  // Canteen cart actions
+  const updateCartQuantity = (itemId, delta) => {
+    setCart((prev) => {
+      const currentQty = prev[itemId] || 0;
+      const newQty = currentQty + delta;
+      if (newQty <= 0) {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      }
+      return { ...prev, [itemId]: newQty };
+    });
+  };
+
+  const cartItems = useMemo(() => {
+    return Object.entries(cart)
+      .map(([id, qty]) => {
+        const item = CANTEEN_MENU.find((m) => m.id === id);
+        return item ? { ...item, qty, total: item.price * qty } : null;
+      })
+      .filter(Boolean);
+  }, [cart]);
+
+  const cartSubtotal = useMemo(() => {
+    return cartItems.reduce((acc, item) => acc + item.total, 0);
+  }, [cartItems]);
+
+  const handleProcessOrder = (e) => {
+    e.preventDefault();
+    if (cartItems.length === 0) {
+      toast.error('Please add at least one food item to your order.');
+      return;
+    }
+
+    const orderDescription = cartItems.map((i) => `${i.name} × ${i.qty}`).join(', ');
+    const orderData = {
+      id: `ord_${Date.now()}`,
+      item: orderDescription,
+      amount: cartSubtotal,
+      preference: orderPreference,
+      tokenNumber: Math.floor(100 + Math.random() * 900),
+    };
+    setLastPlacedOrder(orderData);
+
+    if (paymentMethod === 'cash') {
+      setShowCashTokenModal(true);
+      toast('Please go to counter to pay cash & collect your token.', {
+        icon: '💵',
+        duration: 4000,
+      });
+      setOrderHistory((prev) => [
+        { ...orderData, method: 'Cash (Counter)', time: 'Just now' },
+        ...prev,
+      ]);
+      setCart({});
+      setOrderPreference('');
+    } else if (paymentMethod === 'online') {
+      setShowOnlineQrModal(true);
+    } else if (paymentMethod === 'canteen_credit') {
+      setCanteenCreditBalance((prev) => prev + cartSubtotal);
+      toast.success(
+        `Order placed! NPR ${cartSubtotal} added to your Credit Due (Khata). Total due: NPR ${canteenCreditBalance + cartSubtotal}`,
+        { icon: '💳', duration: 4500 }
+      );
+      setOrderHistory((prev) => [
+        { ...orderData, method: 'Credit Khata', time: 'Just now' },
+        ...prev,
+      ]);
+      setCart({});
+      setOrderPreference('');
+    }
+  };
+
+  const handleConfirmOnlinePayment = () => {
+    if (!lastPlacedOrder) return;
+    toast.success(`Online payment of NPR ${lastPlacedOrder.amount} verified! Order sent to kitchen.`, { icon: '✅' });
+    setOrderHistory((prev) => [
+      { ...lastPlacedOrder, method: 'Online (Fonepay QR)', time: 'Just now' },
+      ...prev,
+    ]);
+    setShowOnlineQrModal(false);
+    setCart({});
+    setOrderPreference('');
+  };
+
+  const handleClearCredit = () => {
+    if (canteenCreditBalance <= 0) {
+      toast('You have no pending balance to clear.', { icon: 'ℹ️' });
+      return;
+    }
+    setCanteenCreditBalance(0);
+    setShowPayCreditModal(false);
+    toast.success('Canteen Credit balance cleared successfully! Receipt generated.', { icon: '✅' });
+  };
+
+  const handleTrackAttendanceToday = () => {
+    if (isLoggedToday) {
+      toast.success('Today’s attendance is already tracked & verified! 🟢');
+      return;
+    }
+    setIsLoggedToday(true);
+    setAttendanceRecords((prev) => [
+      { date: 'Today (Aug 17)', status: 'Present', time: '09:45 AM', room: 'SR01 Wolves' },
+      ...prev,
+    ]);
+    toast.success('Attendance recorded for today! Present at SR01 Wolves.', { icon: '✅' });
+  };
+
+  // Dynamic greeting based on real local time
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
+    if (hour >= 5 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+    if (hour >= 17 && hour < 22) return 'Good Evening';
     return 'Good Evening';
   }, []);
 
@@ -390,8 +547,8 @@ const StudentDashboard = () => {
   const notificationsList = [
     { id: 1, text: 'Devfest registration is now open', time: '10m ago', unread: true },
     { id: 2, text: 'Class SR01 Wolves permission granted', time: '1h ago', unread: true },
-    { id: 3, text: 'New special in Canteen: Diya Ko Royal Biryani', time: '2h ago', unread: false },
-    { id: 4, text: 'Library closes early at 4 PM today', time: '3h ago', unread: false },
+    { id: 3, text: 'Canteen Credit balance updated', time: '2h ago', unread: false },
+    { id: 4, text: 'SSD Attendance verified for Spring Semester', time: '3h ago', unread: false },
   ];
 
   const renderEventIcon = (type) => {
@@ -439,13 +596,14 @@ const StudentDashboard = () => {
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
               {activeTab === 'dashboard' && 'Dashboard'}
               {activeTab === 'events' && 'Campus Events Hub'}
-              {activeTab === 'vacant-classes' && 'Vacant Classrooms'}
+              {activeTab === 'ssd-help' && 'SSD Help & Records'}
+              {activeTab === 'canteen' && 'Campus Canteen & Ordering'}
               {activeTab === 'lost-found' && 'Lost & Found Portal'}
+              {activeTab === 'vacant-classes' && 'Vacant Classrooms'}
               {activeTab === 'campus-posts' && 'Campus Posts'}
-              {activeTab === 'campus-help' && 'Campus Help Desk'}
               {activeTab === 'borrow-lend' && 'Borrow / Lend Hub'}
-              {activeTab === 'canteen' && 'Campus Canteen'}
               {activeTab === 'location' && 'Location Finder'}
+              {activeTab === 'campus-help' && 'Campus Help Desk'}
             </h1>
             {activeTab !== 'dashboard' && (
               <button
@@ -459,8 +617,21 @@ const StudentDashboard = () => {
             )}
           </div>
 
-          {/* Right Controls: Date Pill, Notification Bell, User Avatar */}
+          {/* Right Controls: Credit Due (ONLY shown when on Canteen tab), Date Pill, Notification Bell, User Avatar */}
           <div className="flex items-center gap-3">
+            {/* Credit Due Option -> Shown ONLY after clicking Canteen section */}
+            {activeTab === 'canteen' && (
+              <button
+                type="button"
+                onClick={() => setShowPayCreditModal(true)}
+                className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 shadow-xs transition-transform hover:scale-105 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                title="Click to view & pay your Credit Due (Khata)"
+              >
+                <CreditCard size={14} className="text-amber-600" />
+                <span>Credit Due: NPR {canteenCreditBalance}</span>
+              </button>
+            )}
+
             {/* Live Date Pill */}
             <div
               className="hidden items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold shadow-xs sm:flex"
@@ -585,12 +756,13 @@ const StudentDashboard = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setShowAttendanceModal(true);
+                        setActiveTab('ssd-help');
+                        setSsdActiveSubTab('attendance');
                         setShowProfileMenu(false);
                       }}
                       className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                     >
-                      <CheckCircle2 size={14} /> Attendance History
+                      <CheckCircle2 size={14} /> Track Attendance in SSD
                     </button>
                   </div>
                 </div>
@@ -603,9 +775,699 @@ const StudentDashboard = () => {
         <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-6xl space-y-8">
             {/* ------------------------------------------------------------- */}
-            {/* VIEW A: DEDICATED EVENTS HUB (FROM SIDEBAR OR DASHBOARD LINKS) */}
+            {/* VIEW A: DEDICATED CANTEEN & ORDERING SYSTEM (FULL MENU) */}
             {/* ------------------------------------------------------------- */}
-            {activeTab === 'events' ? (
+            {activeTab === 'canteen' ? (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {/* Header & Credit Balance Card */}
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <UtensilsCrossed className="text-amber-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Campus Canteen &amp; Food Ordering
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                      Order fresh campus meals, specify preferences, and pay via Cash, Online QR, or Credit Khata.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-3 rounded-2xl border p-3.5 shadow-xs"
+                      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                        <Wallet size={20} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
+                          Credit Due (Khata)
+                        </p>
+                        <p className="text-base font-extrabold text-amber-700 dark:text-amber-400">
+                          NPR {canteenCreditBalance} Pending
+                        </p>
+                      </div>
+                      {canteenCreditBalance > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowPayCreditModal(true)}
+                          className="ml-2 rounded-xl bg-[#2f4336] px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                        >
+                          Pay Khata
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2-Column Ordering Layout: Menu Items (Left) | Order Cart & Preferences (Right) */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                  {/* Left Column: Menu Items */}
+                  <div className="space-y-4 lg:col-span-7">
+                    <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: t.border }}>
+                      <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                        Available Menu Items
+                      </h3>
+                      <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                        {CANTEEN_MENU.length} Items Available
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                      {CANTEEN_MENU.map((item) => {
+                        const qtyInCart = cart[item.id] || 0;
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex flex-col justify-between rounded-2xl border p-4 shadow-xs transition-all hover:shadow-md"
+                            style={{
+                              backgroundColor: t.cardBg || '#ffffff',
+                              borderColor: t.border,
+                            }}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-start justify-between">
+                                <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                                  {item.name}
+                                </h4>
+                                <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                                  Available
+                                </span>
+                              </div>
+                              <span className="text-[11px]" style={{ color: t.textMuted }}>
+                                {item.category}
+                              </span>
+                              <p className="text-sm font-extrabold text-emerald-600">
+                                NPR {item.price}
+                              </p>
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between border-t pt-3" style={{ borderColor: t.border }}>
+                              {qtyInCart > 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCartQuantity(item.id, -1)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg border hover:bg-black/5 dark:hover:bg-white/5"
+                                    style={{ borderColor: t.border }}
+                                  >
+                                    <Minus size={13} />
+                                  </button>
+                                  <span className="w-5 text-center text-xs font-bold" style={{ color: t.textPrimary }}>
+                                    {qtyInCart}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCartQuantity(item.id, 1)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2f4336] text-white hover:bg-[#25362b]"
+                                  >
+                                    <Plus size={13} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => updateCartQuantity(item.id, 1)}
+                                  className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                                  style={{ borderColor: t.border, color: t.textPrimary }}
+                                >
+                                  <Plus size={13} /> Add to Cart
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Order Checkout & Custom Preferences */}
+                  <div className="space-y-4 lg:col-span-5">
+                    <div
+                      className="rounded-2xl border p-5 shadow-xs sticky top-24"
+                      style={{
+                        backgroundColor: t.cardBg || '#ffffff',
+                        borderColor: t.border,
+                      }}
+                    >
+                      <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag size={18} className="text-emerald-600" />
+                          <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                            Your Food Cart
+                          </h3>
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                          {cartItems.length} items
+                        </span>
+                      </div>
+
+                      {cartItems.length === 0 ? (
+                        <div className="py-8 text-center" style={{ color: t.textMuted }}>
+                          <ShoppingBag size={32} className="mx-auto text-gray-400 mb-2" />
+                          <p className="text-xs font-semibold">Your food cart is empty</p>
+                          <p className="text-[11px]">Click &quot;Add to Cart&quot; on any menu dish to order</p>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleProcessOrder} className="mt-4 space-y-4">
+                          {/* Itemized List */}
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {cartItems.map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center justify-between rounded-xl border p-2.5 text-xs"
+                                style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                              >
+                                <div>
+                                  <p className="font-bold" style={{ color: t.textPrimary }}>
+                                    {item.name}
+                                  </p>
+                                  <p className="text-[11px]" style={{ color: t.textMuted }}>
+                                    NPR {item.price} × {item.qty}
+                                  </p>
+                                </div>
+                                <span className="font-extrabold text-emerald-600">
+                                  NPR {item.total}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Extra Preferences / What is needed */}
+                          <div>
+                            <label className="block text-xs font-bold mb-1" style={{ color: t.textPrimary }}>
+                              Extra Preferences (What else is needed?)
+                            </label>
+                            <textarea
+                              rows={2}
+                              placeholder="e.g. Extra spicy achar, no onions, pack separately for takeaway..."
+                              value={orderPreference}
+                              onChange={(e) => setOrderPreference(e.target.value)}
+                              className="w-full rounded-xl border p-2.5 text-xs outline-none"
+                              style={{
+                                backgroundColor: t.pageBg,
+                                borderColor: t.border,
+                                color: t.textPrimary,
+                              }}
+                            />
+                          </div>
+
+                          {/* Payment Method Selector (3 Options: Cash, Online, Credit Khata) */}
+                          <div>
+                            <label className="block text-xs font-bold mb-2" style={{ color: t.textPrimary }}>
+                              Select Payment Option
+                            </label>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              {/* 1. Cash */}
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod('cash')}
+                                className={`flex flex-col items-center justify-center rounded-xl border p-2.5 font-bold transition-all ${
+                                  paymentMethod === 'cash'
+                                    ? 'border-[#2f4336] bg-[#2f4336] text-white shadow-xs'
+                                    : 'hover:bg-black/5 dark:hover:bg-white/5'
+                                }`}
+                                style={{ borderColor: paymentMethod === 'cash' ? '#2f4336' : t.border }}
+                              >
+                                <Banknote size={16} className="mb-1" />
+                                <span>Cash</span>
+                              </button>
+
+                              {/* 2. Online */}
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod('online')}
+                                className={`flex flex-col items-center justify-center rounded-xl border p-2.5 font-bold transition-all ${
+                                  paymentMethod === 'online'
+                                    ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
+                                    : 'hover:bg-black/5 dark:hover:bg-white/5'
+                                }`}
+                                style={{ borderColor: paymentMethod === 'online' ? '#2563eb' : t.border }}
+                              >
+                                <QrCode size={16} className="mb-1" />
+                                <span>Online (QR)</span>
+                              </button>
+
+                              {/* 3. Credit Khata */}
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethod('canteen_credit')}
+                                className={`flex flex-col items-center justify-center rounded-xl border p-2.5 font-bold transition-all ${
+                                  paymentMethod === 'canteen_credit'
+                                    ? 'border-amber-600 bg-amber-600 text-white shadow-xs'
+                                    : 'hover:bg-black/5 dark:hover:bg-white/5'
+                                }`}
+                                style={{ borderColor: paymentMethod === 'canteen_credit' ? '#d97706' : t.border }}
+                              >
+                                <CreditCard size={16} className="mb-1" />
+                                <span>Credit Khata</span>
+                              </button>
+                            </div>
+
+                            {paymentMethod === 'cash' && (
+                              <p className="mt-2 rounded-lg bg-gray-100 dark:bg-gray-800 p-2 text-[11px] font-medium" style={{ color: t.textMuted }}>
+                                ℹ️ Pay NPR {cartSubtotal} at the counter when picking up your food.
+                              </p>
+                            )}
+
+                            {paymentMethod === 'online' && (
+                              <p className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 p-2 text-[11px] font-medium text-blue-800 dark:text-blue-300">
+                                ℹ️ Scan Machhapuchchhre Bank QR code (Fonepay/eSewa/Khalti) on the next step.
+                              </p>
+                            )}
+
+                            {paymentMethod === 'canteen_credit' && (
+                              <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 p-2 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                                ℹ️ NPR {cartSubtotal} will be added to your pending Credit Due (Khata).
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Subtotal & Order Button */}
+                          <div className="border-t pt-3" style={{ borderColor: t.border }}>
+                            <div className="flex items-center justify-between text-sm font-bold mb-3">
+                              <span style={{ color: t.textPrimary }}>Total Amount:</span>
+                              <span className="text-base text-emerald-600 font-extrabold">
+                                NPR {cartSubtotal}
+                              </span>
+                            </div>
+
+                            <button
+                              type="submit"
+                              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2f4336] py-3 text-xs font-bold text-white shadow-sm hover:bg-[#25362b]"
+                            >
+                              {paymentMethod === 'online'
+                                ? 'Proceed to QR Payment →'
+                                : paymentMethod === 'cash'
+                                ? 'Confirm Cash Order'
+                                : 'Add to Credit Khata & Order'}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : activeTab === 'ssd-help' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW B: DEDICATED SSD HELP (ATTENDANCE, VOLUNTEERING, SCHOLARSHIP) */
+              /* ------------------------------------------------------------- */
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="text-blue-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Student Services Department (SSD) Help
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                      Track your attendance logs, view verified volunteering service hours, and monitor scholarship standing.
+                    </p>
+                  </div>
+
+                  {/* Sub-Tabs Selector */}
+                  <div
+                    className="flex items-center gap-1 rounded-xl border p-1 shadow-xs self-start"
+                    style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSsdActiveSubTab('attendance')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        ssdActiveSubTab === 'attendance'
+                          ? 'bg-[#2f4336] text-white shadow-xs'
+                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Attendance Tracker
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSsdActiveSubTab('volunteering')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        ssdActiveSubTab === 'volunteering'
+                          ? 'bg-[#2f4336] text-white shadow-xs'
+                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Volunteering History
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSsdActiveSubTab('scholarship')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                        ssdActiveSubTab === 'scholarship'
+                          ? 'bg-[#2f4336] text-white shadow-xs'
+                          : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      Scholarship Track Record
+                    </button>
+                  </div>
+                </div>
+
+                {/* SubTab 1: Attendance Tracker */}
+                {ssdActiveSubTab === 'attendance' && (
+                  <div className="space-y-6">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                      <div
+                        className="rounded-2xl border p-5 shadow-xs text-center"
+                        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                      >
+                        <p className="text-3xl font-extrabold text-emerald-600">87%</p>
+                        <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
+                          Overall Attendance
+                        </p>
+                        <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Above 75% Requirement</p>
+                      </div>
+
+                      <div
+                        className="rounded-2xl border p-5 shadow-xs text-center"
+                        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                      >
+                        <p className="text-3xl font-extrabold text-blue-600">42</p>
+                        <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
+                          Present Days
+                        </p>
+                        <p className="text-[10px]" style={{ color: t.textMuted }}>Total sessions attended</p>
+                      </div>
+
+                      <div
+                        className="rounded-2xl border p-5 shadow-xs text-center"
+                        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                      >
+                        <p className="text-3xl font-extrabold text-red-500">6</p>
+                        <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
+                          Absent Days
+                        </p>
+                        <p className="text-[10px]" style={{ color: t.textMuted }}>Excused/Unexcused</p>
+                      </div>
+
+                      <div
+                        className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs"
+                        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                      >
+                        <div>
+                          <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
+                            Daily Attendance
+                          </p>
+                          <p className="text-[11px]" style={{ color: t.textMuted }}>
+                            {isLoggedToday ? 'Verified Present Today' : 'Pending Check-In'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleTrackAttendanceToday}
+                          className="mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-[#2f4336] py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                        >
+                          <CheckCircle2 size={14} /> Click to Track Attendance
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Attendance Logs Table */}
+                    <div
+                      className="rounded-2xl border p-6 shadow-xs"
+                      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                    >
+                      <h3 className="text-base font-bold mb-4" style={{ color: t.textPrimary }}>
+                        Recent Attendance Activity Log
+                      </h3>
+                      <div className="space-y-2.5">
+                        {attendanceRecords.map((rec, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between rounded-xl border p-3.5 text-xs"
+                            style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`flex h-2.5 w-2.5 rounded-full ${
+                                  rec.status === 'Present' ? 'bg-emerald-500' : 'bg-red-500'
+                                }`}
+                              />
+                              <div>
+                                <p className="font-bold" style={{ color: t.textPrimary }}>
+                                  {rec.date}
+                                </p>
+                                <p className="text-[11px]" style={{ color: t.textMuted }}>
+                                  {rec.room !== '-' ? `Room: ${rec.room}` : 'No entry recorded'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="text-[11px]" style={{ color: t.textMuted }}>
+                                {rec.time}
+                              </span>
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                  rec.status === 'Present'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-red-100 text-red-700'
+                                }`}
+                              >
+                                {rec.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SubTab 2: Volunteering History */}
+                {ssdActiveSubTab === 'volunteering' && (
+                  <div className="space-y-6">
+                    <div
+                      className="rounded-2xl border p-6 shadow-xs"
+                      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                    >
+                      <div className="flex items-center justify-between border-b pb-4 mb-5" style={{ borderColor: t.border }}>
+                        <div>
+                          <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                            Community Volunteering &amp; Service Hours
+                          </h3>
+                          <p className="text-xs" style={{ color: t.textMuted }}>
+                            Official records registered with Student Services Department
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">
+                          36 Total Hours Completed
+                        </span>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        {volunteeringHistory.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex flex-col justify-between gap-3 rounded-xl border p-4 sm:flex-row sm:items-center"
+                            style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                                  {item.role}
+                                </h4>
+                                <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                                  {item.event}
+                                </span>
+                              </div>
+                              <p className="text-xs" style={{ color: t.textMuted }}>
+                                Date: {item.date} · Verified by SSD Campus Coordinator
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-3 self-end sm:self-center">
+                              <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-800">
+                                +{item.hours} Hours
+                              </span>
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                                Verified ✅
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SubTab 3: Scholarship Track Record */}
+                {ssdActiveSubTab === 'scholarship' && (
+                  <div className="space-y-6">
+                    <div
+                      className="rounded-2xl border p-6 shadow-xs"
+                      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+                    >
+                      <div className="flex items-center justify-between border-b pb-4 mb-5" style={{ borderColor: t.border }}>
+                        <div className="flex items-center gap-2">
+                          <Award size={20} className="text-amber-600" />
+                          <div>
+                            <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                              Scholarship Status &amp; Academic Performance
+                            </h3>
+                            <p className="text-xs" style={{ color: t.textMuted }}>
+                              Institutional scholarship maintenance tracking
+                            </p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                          {scholarshipRecord.status}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="rounded-xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                          <p className="text-xs font-bold" style={{ color: t.textMuted }}>
+                            Awarded Scholarship
+                          </p>
+                          <h4 className="mt-1 text-base font-bold" style={{ color: t.textPrimary }}>
+                            {scholarshipRecord.title}
+                          </h4>
+                          <p className="mt-1 text-xs font-semibold text-emerald-600">
+                            {scholarshipRecord.type}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                          <p className="text-xs font-bold" style={{ color: t.textMuted }}>
+                            GPA Standing (Requirement: {scholarshipRecord.minRequiredGPA})
+                          </p>
+                          <div className="mt-1 flex items-baseline gap-2">
+                            <span className="text-2xl font-extrabold text-emerald-600">
+                              {scholarshipRecord.currentGPA}
+                            </span>
+                            <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                              / 4.00 (Eligible &amp; Active)
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 rounded-xl border p-4 text-xs" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold" style={{ color: t.textPrimary }}>
+                            Next Renewal Verification Deadline:
+                          </span>
+                          <span className="font-bold text-amber-600">{scholarshipRecord.renewalDeadline}</span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="font-semibold" style={{ color: t.textPrimary }}>
+                            Supporting Documents:
+                          </span>
+                          <span className="font-bold text-emerald-600">Submitted &amp; Approved</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'lost-found' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW C: DEDICATED LOST & FOUND PORTAL */
+              /* ------------------------------------------------------------- */
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Search className="text-blue-600" size={24} />
+                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        Lost &amp; Found Portal
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                      Report misplaced belongings, claim found items, and keep our campus honest and connected.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-start">
+                    <button
+                      type="button"
+                      onClick={() => setShowReportModal(true)}
+                      className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                    >
+                      + Report Lost Item
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('dashboard')}
+                      className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5"
+                      style={{ borderColor: t.border, color: t.textPrimary }}
+                    >
+                      ← Dashboard
+                    </button>
+                  </div>
+                </div>
+
+                {/* Items Grid */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {lostFoundItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
+                      style={{
+                        backgroundColor: t.cardBg || '#ffffff',
+                        borderColor: t.border,
+                      }}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between">
+                          <h4 className="text-base font-bold" style={{ color: t.textPrimary }}>
+                            {item.title}
+                          </h4>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                              item.status === 'Claimed'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-1 text-xs" style={{ color: t.textMuted }}>
+                          <p className="flex items-center gap-1.5">
+                            <MapPin size={13} /> {item.location}
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <Clock size={13} /> Reported: {item.time}
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <Tag size={13} /> Category: {item.category}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 border-t pt-3" style={{ borderColor: t.border }}>
+                        {item.status === 'Unclaimed' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleClaimLostItem(item.id)}
+                            className="w-full rounded-xl bg-[#2f4336] py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                          >
+                            Claim this Item
+                          </button>
+                        ) : (
+                          <div className="text-center text-xs font-semibold text-emerald-600">
+                            Claimed &amp; Returned
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : activeTab === 'events' ? (
+              /* ------------------------------------------------------------- */
+              /* VIEW D: DEDICATED EVENTS HUB */
+              /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div>
@@ -620,7 +1482,6 @@ const StudentDashboard = () => {
                     </p>
                   </div>
 
-                  {/* Filter Pills */}
                   <div
                     className="flex items-center gap-1 rounded-xl border p-1 shadow-xs self-start"
                     style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
@@ -634,7 +1495,7 @@ const StudentDashboard = () => {
                           : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
                       }`}
                     >
-                      All Events ({collegeEvents.length + communityEvents.length})
+                      All Events
                     </button>
                     <button
                       type="button"
@@ -645,7 +1506,7 @@ const StudentDashboard = () => {
                           : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
                       }`}
                     >
-                      College Events ({collegeEvents.length})
+                      College Events
                     </button>
                     <button
                       type="button"
@@ -656,73 +1517,51 @@ const StudentDashboard = () => {
                           : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
                       }`}
                     >
-                      Community Events ({communityEvents.length})
+                      Community Events
                     </button>
                   </div>
                 </div>
 
-                {/* College Events Section in Events Hub */}
+                {/* College Events */}
                 {(eventsFilter === 'all' || eventsFilter === 'college') && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: t.border }}>
-                      <div className="flex items-center gap-2">
-                        <Trophy size={18} className="text-amber-600" />
-                        <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                          Official College Events
-                        </h3>
-                      </div>
-                      <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
-                        Institution-organized
-                      </span>
-                    </div>
-
+                    <h3 className="text-base font-bold border-b pb-2" style={{ color: t.textPrimary, borderColor: t.border }}>
+                      Official College Events
+                    </h3>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {collegeEvents.map((ev) => (
                         <div
                           key={ev.id}
                           className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
-                          style={{
-                            backgroundColor: t.cardBg || '#ffffff',
-                            borderColor: t.border,
-                          }}
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
                         >
                           <div>
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40">
-                                  {renderEventIcon(ev.iconType)}
-                                </div>
-                                <div>
-                                  <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
-                                    {ev.name}
-                                  </h4>
-                                  <span className="text-[11px] font-semibold text-blue-600">
-                                    {ev.badge}
-                                  </span>
-                                </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40">
+                                {renderEventIcon(ev.iconType)}
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                                  {ev.name}
+                                </h4>
+                                <span className="text-[11px] font-semibold text-blue-600">{ev.badge}</span>
                               </div>
                             </div>
-
                             <p className="mt-3 text-xs leading-relaxed" style={{ color: t.textMuted }}>
                               {ev.desc}
                             </p>
-
                             <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
                               <div className="flex items-center gap-2">
-                                <Calendar size={13} className="text-gray-500" />
-                                <span className="font-semibold" style={{ color: t.textPrimary }}>{ev.date}</span>
+                                <Calendar size={13} /> <span className="font-semibold" style={{ color: t.textPrimary }}>{ev.date}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Clock size={13} className="text-gray-500" />
-                                <span>{ev.time}</span>
+                                <Clock size={13} /> <span>{ev.time}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <MapPin size={13} className="text-gray-500" />
-                                <span>{ev.venue}</span>
+                                <MapPin size={13} /> <span>{ev.venue}</span>
                               </div>
                             </div>
                           </div>
-
                           <div className="mt-5">
                             <button
                               type="button"
@@ -733,13 +1572,7 @@ const StudentDashboard = () => {
                                   : 'bg-[#2f4336] text-white hover:bg-[#25362b] shadow-xs'
                               }`}
                             >
-                              {ev.registered ? (
-                                <>
-                                  <Check size={14} /> Registered
-                                </>
-                              ) : (
-                                'Register for Event'
-                              )}
+                              {ev.registered ? 'Registered' : 'Register for Event'}
                             </button>
                           </div>
                         </div>
@@ -748,68 +1581,46 @@ const StudentDashboard = () => {
                   </div>
                 )}
 
-                {/* Community Events Section in Events Hub */}
+                {/* Community Events */}
                 {(eventsFilter === 'all' || eventsFilter === 'community') && (
                   <div className="space-y-4 pt-4">
-                    <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: t.border }}>
-                      <div className="flex items-center gap-2">
-                        <Users size={18} className="text-purple-600" />
-                        <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                          Student Community Events
-                        </h3>
-                      </div>
-                      <span className="text-xs font-semibold" style={{ color: t.textMuted }}>
-                        Clubs &amp; Guilds
-                      </span>
-                    </div>
-
+                    <h3 className="text-base font-bold border-b pb-2" style={{ color: t.textPrimary, borderColor: t.border }}>
+                      Student Community Events
+                    </h3>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {communityEvents.map((ev) => (
                         <div
                           key={ev.id}
                           className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
-                          style={{
-                            backgroundColor: t.cardBg || '#ffffff',
-                            borderColor: t.border,
-                          }}
+                          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
                         >
                           <div>
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/40">
-                                  {renderEventIcon(ev.iconType)}
-                                </div>
-                                <div>
-                                  <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
-                                    {ev.name}
-                                  </h4>
-                                  <span className="text-[11px] font-semibold text-purple-600">
-                                    by {ev.org}
-                                  </span>
-                                </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/40">
+                                {renderEventIcon(ev.iconType)}
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                                  {ev.name}
+                                </h4>
+                                <span className="text-[11px] font-semibold text-purple-600">by {ev.org}</span>
                               </div>
                             </div>
-
                             <p className="mt-3 text-xs leading-relaxed" style={{ color: t.textMuted }}>
                               {ev.desc}
                             </p>
-
                             <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
                               <div className="flex items-center gap-2">
-                                <Calendar size={13} className="text-gray-500" />
-                                <span className="font-semibold" style={{ color: t.textPrimary }}>{ev.date}</span>
+                                <Calendar size={13} /> <span className="font-semibold" style={{ color: t.textPrimary }}>{ev.date}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Clock size={13} className="text-gray-500" />
-                                <span>{ev.time}</span>
+                                <Clock size={13} /> <span>{ev.time}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <MapPin size={13} className="text-gray-500" />
-                                <span>{ev.venue}</span>
+                                <MapPin size={13} /> <span>{ev.venue}</span>
                               </div>
                             </div>
                           </div>
-
                           <div className="mt-5">
                             <button
                               type="button"
@@ -820,13 +1631,7 @@ const StudentDashboard = () => {
                                   : 'bg-[#2f4336] text-white hover:bg-[#25362b] shadow-xs'
                               }`}
                             >
-                              {ev.joined ? (
-                                <>
-                                  <Check size={14} /> Joined Session
-                                </>
-                              ) : (
-                                'Join Event'
-                              )}
+                              {ev.joined ? 'Joined Session' : 'Join Event'}
                             </button>
                           </div>
                         </div>
@@ -837,43 +1642,34 @@ const StudentDashboard = () => {
               </div>
             ) : activeTab === 'vacant-classes' ? (
               /* ------------------------------------------------------------- */
-              /* VIEW B: DEDICATED VACANT CLASSES SECTION */
+              /* VIEW E: DEDICATED VACANT CLASSES */
               /* ------------------------------------------------------------- */
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <School className="text-emerald-600" size={24} />
-                      <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-                        Vacant Classrooms
-                      </h2>
-                    </div>
-                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
-                      Real-time availability of classrooms for study sessions, club meetings, and rehearsals.
-                    </p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <School className="text-emerald-600" size={24} />
+                    <h2 className="text-2xl font-bold" style={{ color: t.textPrimary }}>
+                      Vacant Classrooms
+                    </h2>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveTab('dashboard')}
-                    className="flex items-center gap-1.5 self-start rounded-xl border px-3.5 py-2 text-xs font-semibold shadow-xs transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    className="rounded-xl border px-3.5 py-2 text-xs font-semibold"
                     style={{ borderColor: t.border, color: t.textPrimary }}
                   >
                     ← Back to Dashboard
                   </button>
                 </div>
 
-                {/* Classrooms Grid */}
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                   {CLASSROOM_POOL.map((room) => {
                     const status = classPermissions[room.id] || 'vacant';
                     return (
                       <div
                         key={room.id}
-                        className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
-                        style={{
-                          backgroundColor: t.cardBg || '#ffffff',
-                          borderColor: t.border,
-                        }}
+                        className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs"
+                        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
                       >
                         <div>
                           <div className="flex items-start justify-between">
@@ -881,40 +1677,26 @@ const StudentDashboard = () => {
                               <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
                                 {room.name}
                               </h3>
-                              <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>
+                              <p className="text-xs" style={{ color: t.textMuted }}>
                                 {room.block}
                               </p>
                             </div>
-                            {status === 'vacant' && (
-                              <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                                <span className="h-2 w-2 rounded-full bg-emerald-500"></span> Vacant
-                              </span>
-                            )}
-                            {status === 'pending' && (
-                              <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 animate-pulse">
-                                <span className="h-2 w-2 rounded-full bg-amber-500"></span> Pending
-                              </span>
-                            )}
-                            {status === 'approved' && (
-                              <span className="flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
-                                <span className="h-2 w-2 rounded-full bg-blue-600"></span> Approved
-                              </span>
-                            )}
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                                status === 'vacant'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : status === 'pending'
+                                  ? 'bg-amber-100 text-amber-800 animate-pulse'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {status === 'vacant' ? 'Vacant' : status === 'pending' ? 'Pending' : 'Approved'}
+                            </span>
                           </div>
 
-                          <div className="mt-4 space-y-2 border-t pt-3" style={{ borderColor: t.border }}>
-                            <div className="flex items-center justify-between text-xs" style={{ color: t.textMuted }}>
-                              <span>Capacity:</span>
-                              <span className="font-semibold" style={{ color: t.textPrimary }}>
-                                {room.capacity} seats
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs" style={{ color: t.textMuted }}>
-                              <span>Amenities:</span>
-                              <span className="font-semibold" style={{ color: t.textPrimary }}>
-                                {room.facilities}
-                              </span>
-                            </div>
+                          <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                            <p>Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
+                            <p>Amenities: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.facilities}</span></p>
                           </div>
                         </div>
 
@@ -922,17 +1704,15 @@ const StudentDashboard = () => {
                           <button
                             type="button"
                             onClick={() => handleTakePermission(room.id)}
-                            className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all ${
+                            className={`w-full rounded-xl py-2.5 text-xs font-bold text-white transition-all ${
                               status === 'vacant'
-                                ? 'bg-[#2f4336] text-white hover:bg-[#25362b] shadow-xs'
+                                ? 'bg-[#2f4336] hover:bg-[#25362b]'
                                 : status === 'pending'
-                                ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                ? 'bg-amber-500 hover:bg-amber-600'
+                                : 'bg-emerald-600 hover:bg-emerald-700'
                             }`}
                           >
-                            {status === 'vacant' && 'Take Permission'}
-                            {status === 'pending' && 'Permission Pending (Click to Approve)'}
-                            {status === 'approved' && 'Approved (Release Room)'}
+                            {status === 'vacant' ? 'Take Permission' : status === 'pending' ? 'Permission Pending' : 'Approved (Release)'}
                           </button>
                         </div>
                       </div>
@@ -940,65 +1720,16 @@ const StudentDashboard = () => {
                   })}
                 </div>
               </div>
-            ) : activeTab !== 'dashboard' ? (
-              /* ------------------------------------------------------------- */
-              /* VIEW C: GENERIC TAB PLACEHOLDER */
-              /* ------------------------------------------------------------- */
-              <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold capitalize" style={{ color: t.textPrimary }}>
-                      {activeTab.replace('-', ' ')}
-                    </h2>
-                    <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
-                      Explore campus updates and records for {activeTab.replace('-', ' ')}.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('dashboard')}
-                    className="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold shadow-xs transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                    style={{ borderColor: t.border, color: t.textPrimary }}
-                  >
-                    ← Back to Dashboard
-                  </button>
-                </div>
-
-                <div
-                  className="rounded-2xl border p-8 text-center shadow-xs"
-                  style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-                >
-                  <div
-                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl shadow-xs"
-                    style={{ backgroundColor: t.hoverBg }}
-                  >
-                    <Package size={28} className="text-[#2f4336]" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-bold" style={{ color: t.textPrimary }}>
-                    {activeTab.replace('-', ' ').toUpperCase()} Portal
-                  </h3>
-                  <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: t.textMuted }}>
-                    All services are seamlessly connected with live data on your main Dashboard.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('dashboard')}
-                    className="mt-6 rounded-xl bg-[#2f4336] px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#25362b]"
-                  >
-                    Go to Main Dashboard
-                  </button>
-                </div>
-              </div>
             ) : (
               /* ------------------------------------------------------------- */
-              /* VIEW D: MAIN DASHBOARD VIEW */
+              /* VIEW F: MAIN DASHBOARD VIEW */
               /* ------------------------------------------------------------- */
               <>
-                {/* 1. Header Section */}
+                {/* 1. Header Section with Real-Time Greeting */}
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-baseline">
                   <div>
                     <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl" style={{ color: t.textPrimary }}>
-                      {greeting}, {studentName}
+                      {greeting}, {studentName} 👋
                     </h2>
                     <p className="mt-1 text-sm font-medium italic" style={{ color: t.textMuted }}>
                       Here’s what’s happening on campus
@@ -1008,9 +1739,13 @@ const StudentDashboard = () => {
 
                 {/* 2. Quick Overview Cards (Three Compact Cards) */}
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                  {/* Attendance Card */}
+                  {/* Attendance Card -> Connected to SSD Help */}
                   <div
-                    className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md"
+                    className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md cursor-pointer"
+                    onClick={() => {
+                      setActiveTab('ssd-help');
+                      setSsdActiveSubTab('attendance');
+                    }}
                     style={{
                       backgroundColor: t.cardBg || '#ffffff',
                       borderColor: t.border,
@@ -1019,17 +1754,11 @@ const StudentDashboard = () => {
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
-                          Attendance
+                          Attendance (SSD)
                         </span>
-                        {87 < 75 ? (
-                          <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
-                            <ShieldAlert size={12} /> Low Alert
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> On Track
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span> On Track
+                        </span>
                       </div>
 
                       <div className="mt-3 flex items-baseline gap-3">
@@ -1042,7 +1771,6 @@ const StudentDashboard = () => {
                         </div>
                       </div>
 
-                      {/* Progress Bar */}
                       <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
                         <div
                           className="h-full rounded-full bg-emerald-600 transition-all duration-500"
@@ -1053,10 +1781,14 @@ const StudentDashboard = () => {
 
                     <button
                       type="button"
-                      onClick={() => setShowAttendanceModal(true)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTab('ssd-help');
+                        setSsdActiveSubTab('attendance');
+                      }}
                       className="mt-5 flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                     >
-                      View Attendance →
+                      View Attendance in SSD →
                     </button>
                   </div>
 
@@ -1109,9 +1841,10 @@ const StudentDashboard = () => {
                     </button>
                   </div>
 
-                  {/* Canteen Overview Card */}
+                  {/* Canteen Overview Card -> Navigates to Canteen Ordering */}
                   <div
-                    className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md"
+                    className="group relative flex flex-col justify-between rounded-2xl border p-6 shadow-xs transition-all hover:shadow-md cursor-pointer"
+                    onClick={() => setActiveTab('canteen')}
                     style={{
                       backgroundColor: t.cardBg || '#ffffff',
                       borderColor: t.border,
@@ -1120,7 +1853,7 @@ const StudentDashboard = () => {
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
-                          Canteen
+                          Canteen &amp; Menu
                         </span>
                         <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
                           <Flame size={12} className="text-amber-600" /> Featured
@@ -1129,7 +1862,7 @@ const StudentDashboard = () => {
 
                       <div className="mt-3">
                         <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
-                          Today&apos;s Specials:
+                          Today&apos;s Featured Items:
                         </p>
                         <p className="mt-1 text-sm font-bold leading-snug" style={{ color: t.textPrimary }}>
                           {CANTEEN_SPECIALS.join(' · ')}
@@ -1137,17 +1870,21 @@ const StudentDashboard = () => {
                       </div>
 
                       <div className="mt-2.5 flex items-baseline justify-between rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5 text-xs">
-                        <span className="font-semibold text-emerald-600">Diya Ko Royal Biryani</span>
-                        <span className="font-extrabold" style={{ color: t.textPrimary }}>NPR 220</span>
+                        <span className="font-semibold text-emerald-600">Chicken Momo</span>
+                        <span className="font-extrabold" style={{ color: t.textPrimary }}>NPR 120</span>
                       </div>
                     </div>
 
-                    <a
-                      href="#canteen-section"
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTab('canteen');
+                      }}
                       className="mt-4 flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                     >
-                      Check Menu →
-                    </a>
+                      Order Food in Canteen →
+                    </button>
                   </div>
                 </div>
 
@@ -1319,7 +2056,7 @@ const StudentDashboard = () => {
                   </div>
                 </div>
 
-                {/* 4. Row: Important Announcements (Left) | Today's Canteen (Right) */}
+                {/* 4. Row: Important Announcements (Left) | Canteen Quick Overview (Right) */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   {/* Important Announcements Card */}
                   <div
@@ -1383,7 +2120,7 @@ const StudentDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Today's Canteen Detailed Card with Serially Point-Wise Top 3 */}
+                  {/* Today's Canteen Dashboard Section */}
                   <div
                     id="canteen-section"
                     className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs"
@@ -1401,7 +2138,7 @@ const StudentDashboard = () => {
                               Today&apos;s Canteen
                             </h3>
                             <p className="text-xs" style={{ color: t.textMuted }}>
-                              Fresh menu, availability &amp; crowd status
+                              Fresh menu, live ordering &amp; crowd status
                             </p>
                           </div>
                         </div>
@@ -1414,19 +2151,22 @@ const StudentDashboard = () => {
                       </div>
 
                       {/* Featured Special Banner */}
-                      <div className="mt-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300/40 p-3.5">
+                      <div className="mt-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300/40 p-4">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
-                              <Flame size={18} />
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                              <Flame size={20} />
                             </div>
                             <div>
                               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
                                 Today&apos;s Special
                               </span>
-                              <h4 className="text-sm font-extrabold" style={{ color: t.textPrimary }}>
+                              <h4 className="text-base font-extrabold" style={{ color: t.textPrimary }}>
                                 Chicken Momo
                               </h4>
+                              <p className="text-xs" style={{ color: t.textMuted }}>
+                                Fresh steamed dumplings with spicy tomato sesame chutney
+                              </p>
                             </div>
                           </div>
                           <span className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-extrabold text-white shadow-xs">
@@ -1435,55 +2175,25 @@ const StudentDashboard = () => {
                         </div>
                       </div>
 
-                      {/* Top 3 Menu Items (Point-Wise Serial List) */}
-                      <div className="mt-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
-                            Top 3 Today
-                          </p>
-                          <span className="text-[11px] font-medium" style={{ color: t.textMuted }}>
-                            Ranked by student orders
-                          </span>
+                      {/* Quick Ordering CTA with Credit Balance Status */}
+                      <div className="mt-4 rounded-xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
+                              Order Online &amp; Skip The Queue
+                            </p>
+                            <p className="text-[11px]" style={{ color: t.textMuted }}>
+                              11 fresh items available · Cash, Online QR or Credit Khata
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('canteen')}
+                            className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                          >
+                            Open Menu &amp; Order →
+                          </button>
                         </div>
-
-                        <ol className="space-y-2.5 list-none p-0 m-0">
-                          {TOP_FOOD_ITEMS.map((item) => (
-                            <li
-                              key={item.rank}
-                              className="flex items-center justify-between rounded-xl border px-3.5 py-2.5 transition-all hover:border-gray-300 dark:hover:border-gray-700"
-                              style={{ backgroundColor: t.pageBg, borderColor: t.border }}
-                            >
-                              <div className="flex items-center gap-3">
-                                {/* Serial Number Indicator */}
-                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2f4336] text-[11px] font-extrabold text-white">
-                                  {item.rank}
-                                </div>
-                                <div>
-                                  <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
-                                    {item.name}
-                                  </p>
-                                  <p className="text-[11px] font-semibold text-emerald-600">{item.price}</p>
-                                </div>
-                              </div>
-
-                              {/* Status Badge */}
-                              <span
-                                className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                                  item.statusType === 'available'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-amber-100 text-amber-800'
-                                }`}
-                              >
-                                <span
-                                  className={`h-1.5 w-1.5 rounded-full ${
-                                    item.statusType === 'available' ? 'bg-emerald-600' : 'bg-amber-600'
-                                  }`}
-                                ></span>
-                                {item.status}
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
                       </div>
                     </div>
                   </div>
@@ -1583,7 +2293,7 @@ const StudentDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Lost & Found Dashboard Section */}
+                  {/* Lost & Found Dashboard Section -> Connected to Lost & Found Portal */}
                   <div
                     className="flex flex-col justify-between rounded-2xl border p-6 shadow-xs"
                     style={{
@@ -1617,7 +2327,7 @@ const StudentDashboard = () => {
                             onClick={() => setActiveTab('lost-found')}
                             className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                           >
-                            View All →
+                            View All in Portal →
                           </button>
                         </div>
                       </div>
@@ -1757,7 +2467,119 @@ const StudentDashboard = () => {
       {/* MODALS */}
       {/* ========================================================================= */}
 
-      {/* 1. Report Lost Item Modal */}
+      {/* 1. Online QR Payment Modal (Displaying Attached QR) */}
+      {showOnlineQrModal && lastPlacedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div
+            className="w-full max-w-sm rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95 duration-150 text-center"
+            style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+          >
+            <div className="flex items-center justify-between border-b pb-3 mb-4" style={{ borderColor: t.border }}>
+              <div className="flex items-center gap-2 text-left">
+                <QrCode size={18} className="text-blue-600" />
+                <div>
+                  <h3 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                    Scan &amp; Pay Online
+                  </h3>
+                  <p className="text-[11px]" style={{ color: t.textMuted }}>
+                    Machhapuchchhre Bank / Fonepay
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOnlineQrModal(false)}
+                className="rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Attached QR Code Image */}
+            <div className="mx-auto overflow-hidden rounded-2xl border bg-white p-2 shadow-xs max-w-[260px]">
+              <img
+                src="/canteen-qr.jpg"
+                alt="Machhapuchchhre Bank Fonepay QR - Suraj Poddar"
+                className="h-auto w-full object-contain rounded-xl select-none"
+              />
+            </div>
+
+            {/* Total to pay */}
+            <div className="mt-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3">
+              <p className="text-xs font-bold text-blue-900 dark:text-blue-300">
+                Amount to Pay
+              </p>
+              <p className="text-2xl font-extrabold text-blue-700 dark:text-blue-400">
+                NPR {lastPlacedOrder.amount}
+              </p>
+              <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 mt-0.5">
+                Order: {lastPlacedOrder.item}
+              </p>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <button
+                type="button"
+                onClick={handleConfirmOnlinePayment}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2f4336] py-3 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+              >
+                <CheckCircle2 size={16} /> I Have Paid / Confirm Order
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowOnlineQrModal(false)}
+                className="w-full rounded-xl border py-2 text-xs font-bold hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ borderColor: t.border }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Cash Payment Counter Token Modal */}
+      {showCashTokenModal && lastPlacedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div
+            className="w-full max-w-sm rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95 duration-150 text-center"
+            style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 mb-3">
+              <Banknote size={28} />
+            </div>
+
+            <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
+              Cash Order Confirmed!
+            </h3>
+            <p className="mt-1 text-xs" style={{ color: t.textMuted }}>
+              Please go to the canteen counter to pay and collect your meal.
+            </p>
+
+            <div className="mt-4 rounded-2xl border p-4 bg-black/5 dark:bg-white/5 space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
+                Your Token Number
+              </p>
+              <p className="text-4xl font-extrabold text-[#2f4336] dark:text-emerald-400">
+                #{lastPlacedOrder.tokenNumber}
+              </p>
+              <p className="text-xs font-semibold text-emerald-600">
+                Amount to Pay: NPR {lastPlacedOrder.amount}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCashTokenModal(false)}
+              className="mt-5 w-full rounded-xl bg-[#2f4336] py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+            >
+              Done / Got It
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Report Lost Item Modal */}
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <div
@@ -1850,7 +2672,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 2. Ask Help Modal */}
+      {/* 4. Ask Help Modal */}
       {showAskHelpModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <div
@@ -1910,67 +2732,65 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 3. Attendance Details Modal */}
-      {showAttendanceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+      {/* 5. Pay Canteen Credit Modal */}
+      {showPayCreditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div
-            className="w-full max-w-lg rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-150"
             style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
           >
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
-              <div>
+              <div className="flex items-center gap-2">
+                <Wallet size={20} className="text-amber-600" />
                 <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>
-                  Attendance Breakdown
+                  Pay Credit Due (Khata)
                 </h3>
-                <p className="text-xs" style={{ color: t.textMuted }}>
-                  Semester attendance overview (Minimum required: 75%)
-                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAttendanceModal(false)}
+                onClick={() => setShowPayCreditModal(false)}
                 className="rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="mt-4 space-y-3">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="rounded-xl border p-3" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                  <p className="text-2xl font-extrabold text-emerald-600">87%</p>
-                  <p className="text-[11px] font-semibold" style={{ color: t.textMuted }}>Overall</p>
-                </div>
-                <div className="rounded-xl border p-3" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                  <p className="text-2xl font-extrabold text-blue-600">42</p>
-                  <p className="text-[11px] font-semibold" style={{ color: t.textMuted }}>Present Days</p>
-                </div>
-                <div className="rounded-xl border p-3" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                  <p className="text-2xl font-extrabold text-red-500">6</p>
-                  <p className="text-[11px] font-semibold" style={{ color: t.textMuted }}>Absent Days</p>
-                </div>
+            <div className="mt-4 space-y-4">
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 text-center">
+                <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                  Total Pending Balance
+                </p>
+                <p className="text-3xl font-extrabold text-amber-700 dark:text-amber-400 mt-1">
+                  NPR {canteenCreditBalance}
+                </p>
+                <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-1">
+                  Account: {studentName} ({user?.email || 'Student Portal'})
+                </p>
               </div>
 
-              <div className="space-y-2 pt-2">
-                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: t.textMuted }}>
-                  Subject-Wise Breakdown
+              <div className="space-y-2">
+                <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
+                  Select Settlement Option:
                 </p>
-                <div className="space-y-2 text-xs">
-                  {[
-                    { subject: 'Database Management Systems', pct: 92, status: 'Safe' },
-                    { subject: 'Operating Systems', pct: 88, status: 'Safe' },
-                    { subject: 'Artificial Intelligence', pct: 84, status: 'Safe' },
-                    { subject: 'Computer Networks', pct: 82, status: 'Safe' },
-                  ].map((sub, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between rounded-lg border p-2.5"
-                      style={{ backgroundColor: t.pageBg, borderColor: t.border }}
-                    >
-                      <span className="font-semibold" style={{ color: t.textPrimary }}>{sub.subject}</span>
-                      <span className="font-bold text-emerald-600">{sub.pct}%</span>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPayCreditModal(false);
+                      setLastPlacedOrder({ amount: canteenCreditBalance, item: 'Credit Khata Balance Settlement' });
+                      setShowOnlineQrModal(true);
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white shadow-xs hover:bg-blue-700"
+                  >
+                    <QrCode size={16} /> Pay via Fonepay QR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearCredit}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#2f4336] py-3 font-bold text-white shadow-xs hover:bg-[#25362b]"
+                  >
+                    <Banknote size={16} /> Pay Cash at Counter
+                  </button>
                 </div>
               </div>
             </div>
@@ -1978,8 +2798,9 @@ const StudentDashboard = () => {
             <div className="mt-5 flex justify-end">
               <button
                 type="button"
-                onClick={() => setShowAttendanceModal(false)}
-                className="rounded-xl bg-[#2f4336] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+                onClick={() => setShowPayCreditModal(false)}
+                className="rounded-xl border px-4 py-2 text-xs font-bold"
+                style={{ borderColor: t.border }}
               >
                 Close
               </button>
@@ -1988,7 +2809,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* 4. Announcements Modal */}
+      {/* 6. Announcements Modal */}
       {showAnnouncementsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <div
