@@ -1,26 +1,77 @@
-import React, { useState } from 'react'
-import { useTheme } from './context/ThemeContext'
-import { themes } from './data/themes';
-import Sidebar from './components/common/Sidebar';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import ProtectedRoute from './auth/ProtectedRoute';
+import RoleRoute from './auth/RoleRoute';
+import { getDashboardPath, useAuth } from './context/AuthContext';
+import AdminDashboard from './pages/AdminDashboard';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import StaffDashboard from './pages/StaffDashboard';
+import StudentDashboard from './pages/StudentDashBoard';
+import TeacherDashboard from './pages/TeacherDashboard';
 
+const RootRedirect = () => {
+  const { isAuthenticated, user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0c0c10] text-sm text-[#8b8894]">
+        Loading...
+      </div>
+    );
+  }
+
+  if (isAuthenticated && user) {
+    return <Navigate to={getDashboardPath(user.role)} replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+};
 
 const App = () => {
-
-  const {theme, toggleTheme} = useTheme();
-
- const t = themes[theme];
-
- console.log(theme);
   return (
-    
+    <Routes>
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
 
-    <div  className="flex min-h-screen w-full"
-  style={{ backgroundColor: t.pageBg }}
->
-        <Sidebar />
+      <Route element={<ProtectedRoute />}>
+        <Route
+          path="/student/dashboard"
+          element={
+            <RoleRoute allowedRoles={['student']}>
+              <StudentDashboard />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/teacher/dashboard"
+          element={
+            <RoleRoute allowedRoles={['teacher']}>
+              <TeacherDashboard />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/staff/dashboard"
+          element={
+            <RoleRoute allowedRoles={['staff']}>
+              <StaffDashboard />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <RoleRoute allowedRoles={['admin']}>
+              <AdminDashboard />
+            </RoleRoute>
+          }
+        />
+      </Route>
 
-    </div>
-  )
-}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
-export default App
+export default App;
