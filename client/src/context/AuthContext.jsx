@@ -1,5 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
+import { isBackendAvailable } from '../utils/apiHealth';
+import {
+  DevAuthError,
+  buildDevLoginResponse,
+  createDemoDevUser,
+  createDevUserFromSignup,
+  isDevEnvironment,
+  isNetworkError,
+  matchesDevCredentials,
+} from '../utils/devAuth';
 
 const AuthContext = createContext(null);
 
@@ -57,16 +67,87 @@ const AuthProvider = ({ children }) => {
     setUser(null);
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const { data } = await axiosInstance.post('/auth/login', { email, password });
-    persistAuth(data.token, data.user);
-    return data;
-  }, [persistAuth]);
+  const loginWithDevFallback = useCallback(
+    (email, password) => {
+      if (!isDevEnvironment()) {
+        throw new DevAuthError('Unable to reach the server. Please check your connection and try again.');
+      }
 
-  const register = useCallback(async (payload) => {
-    const { data } = await axiosInstance.post('/auth/register', payload);
-    return data;
-  }, []);
+      if (matchesDevCredentials(email, password)) {
+        const devUser = createDemoDevUser();
+        const data = buildDevLoginResponse(devUser);
+        persistAuth(data.token, data.user);
+        return data;
+      }
+
+      throw new DevAuthError('Invalid development credentials.');
+    },
+    [persistAuth]
+  );
+
+  const registerWithDevFallback = useCallback(
+    (payload) => {
+      if (!isDevEnvironment()) {
+        throw new DevAuthError('Unable to reach the server. Please check your connection and try again.');
+      }
+
+      const devUser = createDevUserFromSignup({
+        username: payload.username,
+        email: payload.email,
+        role: payload.role,
+      });
+      const data = buildDevLoginResponse(
+        devUser,
+        'Development account created locally. Signed in for this session.'
+      );
+      persistAuth(data.token, data.user);
+      return data;
+    },
+    [persistAuth]
+  );
+
+  const login = useCallback(
+    async (email, password) => {
+      const backendOnline = await isBackendAvailable();
+
+      if (!backendOnline && isDevEnvironment()) {
+        return loginWithDevFallback(email, password);
+      }
+
+      try {
+        const { data } = await axiosInstance.post('/auth/login', { email, password });
+        persistAuth(data.token, data.user);
+        return data;
+      } catch (error) {
+        if (isDevEnvironment() && isNetworkError(error)) {
+          return loginWithDevFallback(email, password);
+        }
+        throw error;
+      }
+    },
+    [persistAuth, loginWithDevFallback]
+  );
+
+  const register = useCallback(
+    async (payload) => {
+      const backendOnline = await isBackendAvailable();
+
+      if (!backendOnline && isDevEnvironment()) {
+        return registerWithDevFallback(payload);
+      }
+
+      try {
+        const { data } = await axiosInstance.post('/auth/register', payload);
+        return data;
+      } catch (error) {
+        if (isDevEnvironment() && isNetworkError(error)) {
+          return registerWithDevFallback(payload);
+        }
+        throw error;
+      }
+    },
+    [registerWithDevFallback]
+  );
 
   const logout = useCallback(() => {
     clearAuth();

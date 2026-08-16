@@ -3,9 +3,10 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AuthLayout from '../components/auth/AuthLayout';
-import { useAuth } from '../context/AuthContext';
+import { getDashboardPath, useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { themes } from '../data/themes';
+import { DevAuthError } from '../utils/devAuth';
 
 const ROLES = [
   { value: 'student', label: 'Student' },
@@ -14,7 +15,7 @@ const ROLES = [
 ];
 
 const Signup = () => {
-  const { register, isAuthenticated, user, loading: authLoading } = useAuth();
+  const { register, login, isAuthenticated, user, loading: authLoading } = useAuth();
   const { theme } = useTheme();
   const t = themes[theme];
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ const Signup = () => {
   }
 
   if (isAuthenticated && user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={getDashboardPath(user.role)} replace />;
   }
 
   const updateField = (field, value) => {
@@ -81,6 +82,9 @@ const Signup = () => {
   };
 
   const getErrorMessage = (error) => {
+    if (error instanceof DevAuthError) {
+      return error.message;
+    }
     const message = error?.response?.data?.message;
     if (message) return message;
     if (error?.message === 'Network Error') {
@@ -113,7 +117,20 @@ const Signup = () => {
     try {
       const data = await register(payload);
       toast.success(data.message || 'Account created successfully');
-      navigate('/login', { replace: true });
+
+      if (data.devMode && data.user) {
+        navigate(getDashboardPath(data.user.role), { replace: true });
+        return;
+      }
+
+      try {
+        const loginData = await login(formData.email.trim(), formData.password);
+        navigate(getDashboardPath(loginData.user.role), { replace: true });
+      } catch (loginError) {
+        const loginMessage = getErrorMessage(loginError);
+        toast.error(loginMessage);
+        navigate('/login', { replace: true });
+      }
     } catch (error) {
       const message = getErrorMessage(error);
       setErrors({ form: message });

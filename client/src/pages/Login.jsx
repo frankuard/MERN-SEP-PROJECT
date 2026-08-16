@@ -6,6 +6,7 @@ import AuthLayout from '../components/auth/AuthLayout';
 import { getDashboardPath, useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { themes } from '../data/themes';
+import { DevAuthError } from '../utils/devAuth';
 
 const Login = () => {
   const { login, isAuthenticated, user, loading: authLoading } = useAuth();
@@ -50,6 +51,9 @@ const Login = () => {
   };
 
   const getErrorMessage = (error) => {
+    if (error instanceof DevAuthError) {
+      return error.message;
+    }
     const message = error?.response?.data?.message;
     if (message) return message;
     if (error?.message === 'Network Error') {
