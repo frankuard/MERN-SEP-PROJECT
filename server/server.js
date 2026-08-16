@@ -9,6 +9,8 @@ const {notFound, errorHandler} = require("./middleware/errorHandler");
 
 const uploadRoutes = require('./routes/upload.routes')
 const authRoutes = require('./routes/auth.routes');
+const authMiddleware = require('./middleware/authMiddleware');
+
 
 const app = express();
 
@@ -19,6 +21,13 @@ app.get('/', (req,res) => {
     res.json({message: 'Chautari API is running'})
 });
 
+// auth middleware part
+app.get('/api/test-protected', authMiddleware, (req, res) => {
+  res.status(200).json({
+    message: 'Protected route accessed',
+    user: req.user,
+  });
+});
 
 app.use('/api/upload', uploadRoutes);
 app.use('/api/auth', authRoutes);
