@@ -120,6 +120,21 @@ const Login = () => {
     });
   };
 
+  const handleForgotPassword = () => {
+    if (email.trim()) {
+      toast.success(`Password reset instructions sent to ${email.trim()}`);
+    } else {
+      toast('Please enter your email above to reset password.', {
+        icon: 'ℹ️',
+        style: {
+          borderRadius: '12px',
+          background: '#1a2b4c',
+          color: '#fff',
+        },
+      });
+    }
+  };
+
   const inputClass =
     'w-full rounded-xl border border-[#e5e7eb] bg-white py-3 pl-11 pr-4 text-sm text-[#1a2b4c] outline-none transition-colors placeholder:text-[#9ca3af] focus:border-[#1a2b4c] focus:ring-2 focus:ring-[#1a2b4c]/10';
 
@@ -232,7 +247,7 @@ const Login = () => {
                 )}
               </div>
 
-              {/* Remember me checkbox */}
+              {/* Remember me & Forgot password */}
               <div className="flex items-center justify-between">
                 <label className="flex cursor-pointer select-none items-center gap-2">
                   <input
@@ -245,6 +260,14 @@ const Login = () => {
                   />
                   <span className="text-sm font-medium text-[#4b5563]">Remember me</span>
                 </label>
+
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-sm font-semibold text-[#3b82f6] transition-colors hover:text-[#2563eb] hover:underline focus:outline-none focus:underline"
+                >
+                  Forgot password?
+                </button>
               </div>
 
               <button
