@@ -6,9 +6,6 @@ const {notFound, errorHandler} = require("./middleware/errorHandler");
 
 // ROUTE IMPORTS
 
-const authRoutes = require('./routes/auth.routes');
-const adminRoutes = require('./routes/admin.routes');
-const lostFoundRoutes = require('./routes/lostFound.routes');
 const uploadRoutes = require('./routes/upload.routes')
 
 
@@ -22,6 +19,7 @@ app.get('/', (req,res) => {
     res.json({message: 'Chautari API is running'})
 });
 
+app.use('/api/upload', uploadRoutes);
 
 connectDB();
 
