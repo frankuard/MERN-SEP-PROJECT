@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     department: {
       type: String,
     },
-    year: {
+    semester: {
       type: String,
     },
     profileImage: {
