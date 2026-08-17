@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Calendar, Clock, MapPin, Search, School, HelpCircle,
   UtensilsCrossed, Users, Trophy, Megaphone, Flame, RefreshCw,
   Phone, Mic2, Cpu, BrainCircuit, Code, Palette
 } from 'lucide-react';
 import { CANTEEN_SPECIALS_LIST } from '../../data/studentDashboardData';
+import AnnouncementsModal from './modals/AnnouncementsModal';
 
 const DashboardHome = ({
   t,
@@ -22,11 +23,10 @@ const DashboardHome = ({
   onToggleCollegeEvent,
   onToggleCommunityEvent,
   onNavigateTab,
-  onOpenReportModal,
-  onOpenAskHelpModal,
-  onOpenAnnouncementsModal,
   renderEventIcon,
 }) => {
+  const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
+
   return (
     <>
       {/* 1. Header Section with Real-Time Greeting */}
@@ -393,7 +393,7 @@ const DashboardHome = ({
               </div>
               <button
                 type="button"
-                onClick={onOpenAnnouncementsModal}
+                onClick={() => setShowAnnouncementsModal(true)}
                 className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
               >
                 View All →
@@ -626,22 +626,13 @@ const DashboardHome = ({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onOpenReportModal}
-                  className="rounded-lg bg-[#2f4336] px-3 py-1 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
-                >
-                  + Report Item
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('lost-found')}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
-                >
-                  View All in Portal →
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => onNavigateTab('lost-found')}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                View All in Portal →
+              </button>
             </div>
 
             <div className="mt-4 space-y-3">
@@ -706,13 +697,6 @@ const DashboardHome = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onOpenAskHelpModal}
-              className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
-            >
-              + Ask Help
-            </button>
             <button
               type="button"
               onClick={() => onNavigateTab('campus-help')}
@@ -786,7 +770,7 @@ const DashboardHome = ({
                 </span>
                 <button
                   type="button"
-                  onClick={() => alert(`Replying to ${req.author}...`)}
+                  onClick={() => onNavigateTab('campus-help')}
                   className="rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                   style={{ borderColor: t.border, color: t.textPrimary }}
                 >
@@ -797,6 +781,14 @@ const DashboardHome = ({
           ))}
         </div>
       </div>
+
+      {/* Announcements Modal */}
+      <AnnouncementsModal
+        isOpen={showAnnouncementsModal}
+        onClose={() => setShowAnnouncementsModal(false)}
+        t={t}
+        announcements={announcements}
+      />
     </>
   );
 };

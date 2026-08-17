@@ -9,7 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { themes } from '../data/themes';
 import toast from 'react-hot-toast';
 
-// Initial Data Constants
+// Initial Data Constants & Endpoints
 import {
   CLASSROOM_POOL,
   INITIAL_COLLEGE_EVENTS,
@@ -36,15 +36,6 @@ import CampusPostsSection from '../components/student/CampusPostsSection';
 import LocationSection from '../components/student/LocationSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 
-// Shared Modals
-import CctvRequestModal from '../components/student/modals/CctvRequestModal';
-import OnlineQrModal from '../components/student/modals/OnlineQrModal';
-import CashTokenModal from '../components/student/modals/CashTokenModal';
-import ReportLostItemModal from '../components/student/modals/ReportLostItemModal';
-import AskHelpModal from '../components/student/modals/AskHelpModal';
-import PayCreditModal from '../components/student/modals/PayCreditModal';
-import AnnouncementsModal from '../components/student/modals/AnnouncementsModal';
-
 const StudentDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -53,7 +44,7 @@ const StudentDashboard = () => {
   // Active section tab
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Interactive core states
+  // Shared state variables
   const [collegeEvents, setCollegeEvents] = useState(INITIAL_COLLEGE_EVENTS);
   const [communityEvents, setCommunityEvents] = useState(INITIAL_COMMUNITY_EVENTS);
   const [announcements] = useState(INITIAL_ANNOUNCEMENTS);
@@ -75,22 +66,16 @@ const StudentDashboard = () => {
     },
   ]);
 
-  // Resources State: 1. Library Books & Bimala Mam 5-sec Approval Tracking
+  // Resources State
   const [libraryBooks, setLibraryBooks] = useState(INITIAL_LIBRARY_BOOKS);
   const [pendingBookApprovals, setPendingBookApprovals] = useState({});
-
-  // Resources State: 2. Sports Item Requisition
   const [sportsGearRequests, setSportsGearRequests] = useState([
     { id: 'sp_1', item: 'Cricket Bat', qty: 2, slot: 'Lunch Break (01:00 PM)', status: 'Approved' },
     { id: 'sp_2', item: 'Table Tennis (Rackets & Balls)', qty: 1, slot: 'Sports Hour (04:00 PM)', status: 'Ready for Pickup' },
   ]);
-
-  // Resources State: 3. Budget Claims
   const [budgetClaims, setBudgetClaims] = useState([
     { id: 'bc_1', title: 'XPERIA Hackathon Refreshments & Banner', amount: 3500, category: 'Club Event & Project', status: 'Approved by SSD' },
   ]);
-
-  // Resources State: 4. Complaining / Facility Maintenance
   const [complaintTickets, setComplaintTickets] = useState([
     {
       id: 'cmp_101',
@@ -112,13 +97,8 @@ const StudentDashboard = () => {
     },
   ]);
 
-  // Canteen ordering system states
-  const [cart, setCart] = useState({});
-  const [orderPreference, setOrderPreference] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('online');
+  // Canteen balance state
   const [canteenCreditBalance, setCanteenCreditBalance] = useState(150);
-  const [isCheckingByOwner, setIsCheckingByOwner] = useState(false);
-  const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
 
   // SSD Department States
   const [attendanceRecords, setAttendanceRecords] = useState(INITIAL_ATTENDANCE_RECORDS);
@@ -139,18 +119,10 @@ const StudentDashboard = () => {
   // Random vacant room on dashboard
   const [randomRoomIndex, setRandomRoomIndex] = useState(0);
 
-  // General Modals state
-  const [showCctvModal, setShowCctvModal] = useState(false);
-  const [showOnlineQrModal, setShowOnlineQrModal] = useState(false);
-  const [showCashTokenModal, setShowCashTokenModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [showAskHelpModal, setShowAskHelpModal] = useState(false);
-  const [showPayCreditModal, setShowPayCreditModal] = useState(false);
-  const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
+  // Header Dropdowns
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  // Random room selection on mount
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * CLASSROOM_POOL.length);
     setRandomRoomIndex(randomIndex);
@@ -233,41 +205,6 @@ const StudentDashboard = () => {
         return p;
       })
     );
-  };
-
-  const handleAddLostItem = (itemData) => {
-    const item = {
-      id: `lf_${Date.now()}`,
-      title: itemData.title.trim(),
-      location: itemData.location.trim(),
-      time: 'Just now',
-      category: itemData.category,
-      status: 'Unclaimed',
-    };
-    setLostFoundItems((prev) => [item, ...prev]);
-    toast.success('Lost item report posted successfully!');
-  };
-
-  const handleClaimLostItem = (id) => {
-    setLostFoundItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: 'Claimed' } : item))
-    );
-    toast.success('Item status marked as Claimed!');
-  };
-
-  const handleCctvRequestSubmit = (formData) => {
-    const req = {
-      id: `cctv_${Date.now()}`,
-      location: formData.location,
-      date: formData.date,
-      timeFrom: formData.timeFrom,
-      timeTo: formData.timeTo,
-      reason: formData.reason.trim(),
-      status: 'In Review',
-      submittedAt: 'Just now',
-    };
-    setCctvRequests((prev) => [req, ...prev]);
-    toast.success(`CCTV Footage Request #${req.id} submitted to Campus Security!`, { icon: '📹' });
   };
 
   // Library Book Borrow / Return Workflow with 5-sec Bimala Mam Approval
@@ -362,112 +299,6 @@ const StudentDashboard = () => {
     };
     setComplaintTickets((prev) => [newTicket, ...prev]);
     toast.success(`Complaint Ticket #${newTicket.id} logged for ${newTicket.issue}!`, { icon: '🔧' });
-  };
-
-  const handleAddHelpRequest = (text) => {
-    const req = {
-      id: `ch_${Date.now()}`,
-      request: text.trim(),
-      author: user?.username || 'Suraj Poddar',
-      sem: 'Current Student',
-      replies: 0,
-      time: 'Just now',
-    };
-    setHelpRequests((prev) => [req, ...prev]);
-    toast.success('Help request shared with campus!');
-  };
-
-  // Canteen cart actions
-  const updateCartQuantity = (itemId, delta) => {
-    setCart((prev) => {
-      const currentQty = prev[itemId] || 0;
-      const newQty = currentQty + delta;
-      if (newQty <= 0) {
-        const next = { ...prev };
-        delete next[itemId];
-        return next;
-      }
-      return { ...prev, [itemId]: newQty };
-    });
-  };
-
-  const handleProcessOrder = (e) => {
-    e.preventDefault();
-    const cartItems = Object.entries(cart)
-      .map(([id, qty]) => {
-        const item = CLASSROOM_POOL.find((m) => m.id === id);
-        return item ? { ...item, qty, total: item.price * qty } : null;
-      });
-
-    const subtotal = Object.entries(cart).reduce((acc, [id, qty]) => {
-      const priceMap = {
-        cm0: 220, cm1: 50, cm2: 50, cm3: 100, cm4: 100,
-        cm5: 100, cm6: 60, cm7: 50, cm8: 80, cm9: 80, cm10: 80, cm11: 120
-      };
-      return acc + (priceMap[id] || 100) * qty;
-    }, 0);
-
-    const orderDescription = Object.entries(cart).map(([id, qty]) => `Item × ${qty}`).join(', ');
-    const orderData = {
-      id: `ord_${Date.now()}`,
-      item: orderDescription,
-      amount: subtotal,
-      preference: orderPreference,
-      tokenNumber: Math.floor(100 + Math.random() * 900),
-    };
-    setLastPlacedOrder(orderData);
-
-    if (paymentMethod === 'cash') {
-      setShowCashTokenModal(true);
-      toast('Please go to counter to pay cash & collect your token.', {
-        icon: '💵',
-        duration: 4000,
-      });
-      setCart({});
-      setOrderPreference('');
-    } else if (paymentMethod === 'online') {
-      setShowOnlineQrModal(true);
-    } else if (paymentMethod === 'canteen_credit') {
-      setCanteenCreditBalance((prev) => prev + subtotal);
-      toast.success(
-        `Order placed! NPR ${subtotal} added to your Credit Due (Khata). Total due: NPR ${canteenCreditBalance + subtotal}`,
-        { icon: '💳', duration: 4500 }
-      );
-      setCart({});
-      setOrderPreference('');
-    }
-  };
-
-  const handleConfirmOnlinePayment = () => {
-    if (!lastPlacedOrder) return;
-    toast.success(`Online payment of NPR ${lastPlacedOrder.amount} verified! Order sent to kitchen.`, { icon: '✅' });
-    setShowOnlineQrModal(false);
-    setCart({});
-    setOrderPreference('');
-  };
-
-  const handleClearCreditCash = () => {
-    if (canteenCreditBalance <= 0) {
-      toast('You have no pending balance to clear.', { icon: 'ℹ️' });
-      return;
-    }
-    setIsCheckingByOwner(true);
-    const amountToClear = canteenCreditBalance;
-
-    toast.loading('Cash submitted at counter! (Checking by owner... ⏳)', {
-      id: 'canteen_cash_settle',
-      duration: 3000,
-    });
-
-    setTimeout(() => {
-      setIsCheckingByOwner(false);
-      setCanteenCreditBalance(0);
-      setShowPayCreditModal(false);
-      toast.success(`✅ Canteen Owner approved payment of NPR ${amountToClear}! Credit Due is now NPR 0.`, {
-        id: 'canteen_cash_settle',
-        duration: 4000,
-      });
-    }, 3000);
   };
 
   const handleTrackAttendanceToday = () => {
@@ -592,17 +423,14 @@ const StudentDashboard = () => {
 
           {/* Right Controls */}
           <div className="flex items-center gap-3">
-            {/* Credit Due Option -> Shown ONLY after clicking Canteen section */}
+            {/* Credit Due Option -> Shown ONLY when in Canteen section */}
             {activeTab === 'canteen' && (
-              <button
-                type="button"
-                onClick={() => setShowPayCreditModal(true)}
-                className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 shadow-xs transition-transform hover:scale-105 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                title="Click to view & pay your Credit Due (Khata)"
+              <div
+                className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 shadow-xs dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
               >
                 <CreditCard size={14} className="text-amber-600" />
                 <span>Credit Due: NPR {canteenCreditBalance}</span>
-              </button>
+              </div>
             )}
 
             {/* Live Date Pill */}
@@ -768,10 +596,9 @@ const StudentDashboard = () => {
               <LostFoundSection
                 t={t}
                 lostFoundItems={lostFoundItems}
+                setLostFoundItems={setLostFoundItems}
                 cctvRequests={cctvRequests}
-                onOpenCctvModal={() => setShowCctvModal(true)}
-                onOpenReportModal={() => setShowReportModal(true)}
-                onClaimItem={handleClaimLostItem}
+                setCctvRequests={setCctvRequests}
               />
             )}
 
@@ -789,19 +616,14 @@ const StudentDashboard = () => {
             {activeTab === 'canteen' && (
               <CanteenSection
                 t={t}
-                cart={cart}
-                orderPreference={orderPreference}
-                setOrderPreference={setOrderPreference}
-                paymentMethod={paymentMethod}
-                setPaymentMethod={setPaymentMethod}
+                user={user}
+                studentName={studentName}
                 canteenCreditBalance={canteenCreditBalance}
-                onUpdateCartQuantity={updateCartQuantity}
-                onProcessOrder={handleProcessOrder}
-                onOpenPayCreditModal={() => setShowPayCreditModal(true)}
+                setCanteenCreditBalance={setCanteenCreditBalance}
               />
             )}
 
-            {/* 5. SSD Help Section (Updated: Attendance % & Report Request, Volunteering, Upcoming Volunteer Requests) */}
+            {/* 5. SSD Help Section */}
             {activeTab === 'ssd-help' && (
               <SSDHelpSection
                 t={t}
@@ -850,8 +672,9 @@ const StudentDashboard = () => {
             {activeTab === 'campus-help' && (
               <CampusHelpSection
                 t={t}
+                user={user}
                 helpRequests={helpRequests}
-                onOpenAskHelpModal={() => setShowAskHelpModal(true)}
+                setHelpRequests={setHelpRequests}
               />
             )}
 
@@ -873,77 +696,12 @@ const StudentDashboard = () => {
                 onToggleCollegeEvent={toggleCollegeEvent}
                 onToggleCommunityEvent={toggleCommunityEvent}
                 onNavigateTab={setActiveTab}
-                onOpenReportModal={() => setShowReportModal(true)}
-                onOpenAskHelpModal={() => setShowAskHelpModal(true)}
-                onOpenAnnouncementsModal={() => setShowAnnouncementsModal(true)}
                 renderEventIcon={renderEventIcon}
               />
             )}
           </div>
         </main>
       </div>
-
-      {/* ========================================================================= */}
-      {/* MODALS */}
-      {/* ========================================================================= */}
-      <CctvRequestModal
-        isOpen={showCctvModal}
-        onClose={() => setShowCctvModal(false)}
-        t={t}
-        onSubmit={handleCctvRequestSubmit}
-      />
-
-      <OnlineQrModal
-        isOpen={showOnlineQrModal}
-        onClose={() => setShowOnlineQrModal(false)}
-        t={t}
-        lastPlacedOrder={lastPlacedOrder}
-        onConfirm={handleConfirmOnlinePayment}
-      />
-
-      <CashTokenModal
-        isOpen={showCashTokenModal}
-        onClose={() => setShowCashTokenModal(false)}
-        t={t}
-        lastPlacedOrder={lastPlacedOrder}
-      />
-
-      <ReportLostItemModal
-        isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        t={t}
-        onSubmit={handleAddLostItem}
-      />
-
-      <AskHelpModal
-        isOpen={showAskHelpModal}
-        onClose={() => setShowAskHelpModal(false)}
-        t={t}
-        onSubmit={handleAddHelpRequest}
-      />
-
-      <PayCreditModal
-        isOpen={showPayCreditModal}
-        onClose={() => setShowPayCreditModal(false)}
-        t={t}
-        canteenCreditBalance={canteenCreditBalance}
-        studentName={studentName}
-        userEmail={user?.email}
-        isCheckingByOwner={isCheckingByOwner}
-        onPayOnline={() => {
-          setShowPayCreditModal(false);
-          setLastPlacedOrder({ amount: canteenCreditBalance, item: 'Credit Khata Balance Settlement' });
-          setShowOnlineQrModal(true);
-        }}
-        onPayCash={handleClearCreditCash}
-      />
-
-      <AnnouncementsModal
-        isOpen={showAnnouncementsModal}
-        onClose={() => setShowAnnouncementsModal(false)}
-        t={t}
-        announcements={announcements}
-      />
     </div>
   );
 };
