@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import {
-  GraduationCap, CheckCircle2, HeartHandshake, Calendar, Clock,
-  FileText, CheckCheck, Users, Plus, Sparkles, MapPin, Award
+  GraduationCap, Calendar, Clock,
+  FileText, Users, Award
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import RequestAttendanceReportModal from './modals/RequestAttendanceReportModal';
 
 const SSDHelpSection = ({
@@ -11,8 +10,6 @@ const SSDHelpSection = ({
   user,
   studentName,
   attendanceRecords,
-  isLoggedToday,
-  onTrackAttendanceToday,
   volunteeringHistory,
   volunteerRequests,
   onToggleApplyVolunteer,
@@ -50,7 +47,7 @@ const SSDHelpSection = ({
                 : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
             }`}
           >
-            Attendance Tracker
+            Attendance Records
           </button>
           <button
             type="button"
@@ -78,12 +75,12 @@ const SSDHelpSection = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* SUBTAB 1: ATTENDANCE TRACKER & ATTENDANCE PERCENTAGE */}
+      {/* SUBTAB 1: ATTENDANCE RECORDS & ATTENDANCE PERCENTAGE */}
       {/* ========================================================================= */}
       {ssdActiveSubTab === 'attendance' && (
         <div className="space-y-6">
-          {/* Quick Metrics Bar with Attendance Percentage */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          {/* Quick Metrics Bar with Attendance Percentage (3-Column Grid) */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* Main Attendance Percentage */}
             <div
               className="rounded-2xl border p-5 shadow-xs text-center relative overflow-hidden"
@@ -123,28 +120,6 @@ const SSDHelpSection = ({
                 Absent Days
               </p>
               <p className="text-[10px]" style={{ color: t.textMuted }}>Excused/Unexcused</p>
-            </div>
-
-            {/* Daily Check-In & Action */}
-            <div
-              className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs"
-              style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-            >
-              <div>
-                <p className="text-xs font-bold" style={{ color: t.textPrimary }}>
-                  Daily Attendance Check-In
-                </p>
-                <p className="text-[11px]" style={{ color: t.textMuted }}>
-                  {isLoggedToday ? 'Verified Present Today 🟢' : 'Pending Check-In'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onTrackAttendanceToday}
-                className="mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-[#2f4336] py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
-              >
-                <CheckCircle2 size={14} /> Click to Track Attendance
-              </button>
             </div>
           </div>
 
