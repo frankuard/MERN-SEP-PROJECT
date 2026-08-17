@@ -1,15 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   HelpCircle, Building2, Phone, Mail, MapPin,
   GraduationCap, Clock, MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import campusHelpApi from '../../api/campusHelpApi';
+import AskHelpModal from './modals/AskHelpModal';
 
 const CampusHelpSection = ({
   t,
+  user,
   helpRequests,
-  onOpenAskHelpModal,
+  setHelpRequests,
 }) => {
+  const [showAskHelpModal, setShowAskHelpModal] = useState(false);
+
+  const handleAddHelpRequest = async (requestText) => {
+    const newReq = await campusHelpApi.submitHelpRequest(requestText, user?.username || 'Suraj Poddar');
+    setHelpRequests((prev) => [newReq, ...prev]);
+    toast.success('Help request shared with campus!');
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* 1. Official College Header Card with Logo at First */}
@@ -206,7 +217,7 @@ const CampusHelpSection = ({
 
           <button
             type="button"
-            onClick={onOpenAskHelpModal}
+            onClick={() => setShowAskHelpModal(true)}
             className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b] self-start"
           >
             + Ask Campus Help
@@ -256,6 +267,14 @@ const CampusHelpSection = ({
           ))}
         </div>
       </div>
+
+      {/* Ask Help Modal */}
+      <AskHelpModal
+        isOpen={showAskHelpModal}
+        onClose={() => setShowAskHelpModal(false)}
+        t={t}
+        onSubmit={handleAddHelpRequest}
+      />
     </div>
   );
 };

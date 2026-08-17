@@ -1,22 +1,46 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   UtensilsCrossed, Wallet, ShoppingBag, Plus, Minus,
   Banknote, QrCode, CreditCard
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { CANTEEN_MENU } from '../../data/studentDashboardData';
+import canteenApi from '../../api/canteenApi';
+import OnlineQrModal from './modals/OnlineQrModal';
+import CashTokenModal from './modals/CashTokenModal';
+import PayCreditModal from './modals/PayCreditModal';
 
 const CanteenSection = ({
   t,
-  cart,
-  orderPreference,
-  setOrderPreference,
-  paymentMethod,
-  setPaymentMethod,
+  user,
+  studentName,
   canteenCreditBalance,
-  onUpdateCartQuantity,
-  onProcessOrder,
-  onOpenPayCreditModal,
+  setCanteenCreditBalance,
 }) => {
+  const [cart, setCart] = useState({});
+  const [orderPreference, setOrderPreference] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('online');
+  const [isCheckingByOwner, setIsCheckingByOwner] = useState(false);
+  const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
+
+  // Modals inside Canteen Section
+  const [showOnlineQrModal, setShowOnlineQrModal] = useState(false);
+  const [showCashTokenModal, setShowCashTokenModal] = useState(false);
+  const [showPayCreditModal, setShowPayCreditModal] = useState(false);
+
+  const updateCartQuantity = (itemId, delta) => {
+    setCart((prev) => {
+      const currentQty = prev[itemId] || 0;
+      const newQty = currentQty + delta;
+      if (newQty <= 0) {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      }
+      return { ...prev, [itemId]: newQty };
+    });
+  };
+
   const cartItems = useMemo(() => {
     return Object.entries(cart)
       .map(([id, qty]) => {
@@ -29,6 +53,78 @@ const CanteenSection = ({
   const cartSubtotal = useMemo(() => {
     return cartItems.reduce((acc, item) => acc + item.total, 0);
   }, [cartItems]);
+
+  const handleProcessOrder = async (e) => {
+    e.preventDefault();
+    if (cartItems.length === 0) {
+      toast.error('Please add at least one food item to your order.');
+      return;
+    }
+
+    const orderDescription = cartItems.map((i) => `${i.name} × ${i.qty}`).join(', ');
+    const orderPayload = {
+      item: orderDescription,
+      amount: cartSubtotal,
+      preference: orderPreference,
+      paymentMethod,
+    };
+
+    const orderResult = await canteenApi.placeOrder(orderPayload);
+    setLastPlacedOrder(orderResult);
+
+    if (paymentMethod === 'cash') {
+      setShowCashTokenModal(true);
+      toast('Please go to counter to pay cash & collect your token.', {
+        icon: '💵',
+        duration: 4000,
+      });
+      setCart({});
+      setOrderPreference('');
+    } else if (paymentMethod === 'online') {
+      setShowOnlineQrModal(true);
+    } else if (paymentMethod === 'canteen_credit') {
+      setCanteenCreditBalance((prev) => prev + cartSubtotal);
+      toast.success(
+        `Order placed! NPR ${cartSubtotal} added to your Credit Due (Khata). Total due: NPR ${canteenCreditBalance + cartSubtotal}`,
+        { icon: '💳', duration: 4500 }
+      );
+      setCart({});
+      setOrderPreference('');
+    }
+  };
+
+  const handleConfirmOnlinePayment = () => {
+    if (!lastPlacedOrder) return;
+    toast.success(`Online payment of NPR ${lastPlacedOrder.amount} verified! Order sent to kitchen.`, { icon: '✅' });
+    setShowOnlineQrModal(false);
+    setCart({});
+    setOrderPreference('');
+  };
+
+  const handleClearCreditCash = async () => {
+    if (canteenCreditBalance <= 0) {
+      toast('You have no pending balance to clear.', { icon: 'ℹ️' });
+      return;
+    }
+    setIsCheckingByOwner(true);
+    const amountToClear = canteenCreditBalance;
+
+    toast.loading('Cash submitted at counter! (Checking by owner... ⏳)', {
+      id: 'canteen_cash_settle',
+      duration: 3000,
+    });
+
+    setTimeout(async () => {
+      await canteenApi.clearCreditCash(amountToClear);
+      setIsCheckingByOwner(false);
+      setCanteenCreditBalance(0);
+      setShowPayCreditModal(false);
+      toast.success(`✅ Canteen Owner approved payment of NPR ${amountToClear}! Credit Due is now NPR 0.`, {
+        id: 'canteen_cash_settle',
+        duration: 4000,
+      });
+    }, 3000);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -65,7 +161,7 @@ const CanteenSection = ({
             {canteenCreditBalance > 0 && (
               <button
                 type="button"
-                onClick={onOpenPayCreditModal}
+                onClick={() => setShowPayCreditModal(true)}
                 className="ml-2 rounded-xl bg-[#2f4336] px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
               >
                 Pay Khata
@@ -122,7 +218,7 @@ const CanteenSection = ({
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => onUpdateCartQuantity(item.id, -1)}
+                          onClick={() => updateCartQuantity(item.id, -1)}
                           className="flex h-7 w-7 items-center justify-center rounded-lg border hover:bg-black/5 dark:hover:bg-white/5"
                           style={{ borderColor: t.border }}
                         >
@@ -133,7 +229,7 @@ const CanteenSection = ({
                         </span>
                         <button
                           type="button"
-                          onClick={() => onUpdateCartQuantity(item.id, 1)}
+                          onClick={() => updateCartQuantity(item.id, 1)}
                           className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2f4336] text-white hover:bg-[#25362b]"
                         >
                           <Plus size={13} />
@@ -142,7 +238,7 @@ const CanteenSection = ({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => onUpdateCartQuantity(item.id, 1)}
+                        onClick={() => updateCartQuantity(item.id, 1)}
                         className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                         style={{ borderColor: t.border, color: t.textPrimary }}
                       >
@@ -184,7 +280,7 @@ const CanteenSection = ({
                 <p className="text-[11px]">Click &quot;Add to Cart&quot; on any menu dish to order</p>
               </div>
             ) : (
-              <form onSubmit={onProcessOrder} className="mt-4 space-y-4">
+              <form onSubmit={handleProcessOrder} className="mt-4 space-y-4">
                 {/* Itemized List */}
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {cartItems.map((item) => (
@@ -320,6 +416,38 @@ const CanteenSection = ({
           </div>
         </div>
       </div>
+
+      {/* Modals for Canteen */}
+      <OnlineQrModal
+        isOpen={showOnlineQrModal}
+        onClose={() => setShowOnlineQrModal(false)}
+        t={t}
+        lastPlacedOrder={lastPlacedOrder}
+        onConfirm={handleConfirmOnlinePayment}
+      />
+
+      <CashTokenModal
+        isOpen={showCashTokenModal}
+        onClose={() => setShowCashTokenModal(false)}
+        t={t}
+        lastPlacedOrder={lastPlacedOrder}
+      />
+
+      <PayCreditModal
+        isOpen={showPayCreditModal}
+        onClose={() => setShowPayCreditModal(false)}
+        t={t}
+        canteenCreditBalance={canteenCreditBalance}
+        studentName={studentName}
+        userEmail={user?.email}
+        isCheckingByOwner={isCheckingByOwner}
+        onPayOnline={() => {
+          setShowPayCreditModal(false);
+          setLastPlacedOrder({ amount: canteenCreditBalance, item: 'Credit Khata Balance Settlement' });
+          setShowOnlineQrModal(true);
+        }}
+        onPayCash={handleClearCreditCash}
+      />
     </div>
   );
 };
