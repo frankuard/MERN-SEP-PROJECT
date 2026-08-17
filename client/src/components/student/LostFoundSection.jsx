@@ -1,14 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Video, MapPin, Clock, Tag } from 'lucide-react';
+import toast from 'react-hot-toast';
+import lostFoundApi from '../../api/lostFoundApi';
+import CctvRequestModal from './modals/CctvRequestModal';
+import ReportLostItemModal from './modals/ReportLostItemModal';
 
 const LostFoundSection = ({
   t,
   lostFoundItems,
+  setLostFoundItems,
   cctvRequests,
-  onOpenCctvModal,
-  onOpenReportModal,
-  onClaimItem,
+  setCctvRequests,
 }) => {
+  const [showCctvModal, setShowCctvModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  const handleAddLostItem = async (form) => {
+    const newItem = await lostFoundApi.reportItem(form);
+    setLostFoundItems((prev) => [newItem, ...prev]);
+    toast.success('Lost item report posted successfully!');
+  };
+
+  const handleClaimItem = async (itemId) => {
+    await lostFoundApi.claimItem(itemId);
+    setLostFoundItems((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, status: 'Claimed' } : item))
+    );
+    toast.success('Item status marked as Claimed!');
+  };
+
+  const handleCctvSubmit = async (formData) => {
+    const newReq = await lostFoundApi.submitCctvRequest(formData);
+    setCctvRequests((prev) => [newReq, ...prev]);
+    toast.success(`CCTV Footage Request #${newReq.id} submitted to Campus Security!`, { icon: '📹' });
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -27,7 +53,7 @@ const LostFoundSection = ({
         <div className="flex flex-wrap items-center gap-2.5 self-start">
           <button
             type="button"
-            onClick={onOpenCctvModal}
+            onClick={() => setShowCctvModal(true)}
             className="flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 dark:bg-red-950/40 px-3.5 py-2 text-xs font-bold text-red-700 dark:text-red-300 shadow-xs hover:bg-red-100 transition-all"
           >
             <Video size={14} className="text-red-600" />
@@ -35,7 +61,7 @@ const LostFoundSection = ({
           </button>
           <button
             type="button"
-            onClick={onOpenReportModal}
+            onClick={() => setShowReportModal(true)}
             className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
           >
             + Report Lost Item
@@ -138,7 +164,7 @@ const LostFoundSection = ({
               {item.status === 'Unclaimed' ? (
                 <button
                   type="button"
-                  onClick={() => onClaimItem(item.id)}
+                  onClick={() => handleClaimItem(item.id)}
                   className="w-full rounded-xl bg-[#2f4336] py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
                 >
                   Claim this Item
@@ -152,6 +178,21 @@ const LostFoundSection = ({
           </div>
         ))}
       </div>
+
+      {/* Lost & Found Modals */}
+      <CctvRequestModal
+        isOpen={showCctvModal}
+        onClose={() => setShowCctvModal(false)}
+        t={t}
+        onSubmit={handleCctvSubmit}
+      />
+
+      <ReportLostItemModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        t={t}
+        onSubmit={handleAddLostItem}
+      />
     </div>
   );
 };
