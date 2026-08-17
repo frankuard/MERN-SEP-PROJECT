@@ -328,3 +328,169 @@ export const INITIAL_ATTENDANCE_RECORDS = [
   { date: 'Aug 14', status: 'Absent', time: '-', room: '-' },
   { date: 'Aug 13', status: 'Present', time: '10:05 AM', room: 'Baraha' },
 ];
+
+// =========================================================================
+// L4CG3 OFFICIAL WEEKLY TIMETABLE ROUTINE
+// =========================================================================
+export const L4CG3_TIMETABLE_ROUTINE = [
+  {
+    day: 'Sunday',
+    isOffDay: false,
+    periods: [
+      {
+        id: 'sun_p1',
+        time: '11:00 AM – 1:00 PM',
+        classType: 'Lecture',
+        moduleCode: '4CS001',
+        moduleName: 'Introductory Programming and Problem Solving',
+        lecturer: 'Mr. Basanta Singh',
+        group: 'L4CG3 + L4CG5 + L4CG6',
+        room: 'LT-01 Wulfurna',
+      },
+    ],
+  },
+  {
+    day: 'Monday',
+    isOffDay: false,
+    periods: [
+      {
+        id: 'mon_p1',
+        time: '8:00 AM – 10:00 AM',
+        classType: 'Lecture',
+        moduleCode: '4CS017',
+        moduleName: 'Internet Software Architecture and Database',
+        lecturer: 'Mr. Arvind Nepal',
+        group: 'L4CG1 + L4CG2 + L4CG3',
+        room: 'LT-01 Wulfurna',
+      },
+      {
+        id: 'mon_p2',
+        time: '12:00 PM – 2:30 PM',
+        classType: 'Workshop',
+        moduleCode: '4CS015',
+        moduleName: 'Fundamentals of Computing',
+        lecturer: 'Ms. Sandhya Tiwari',
+        group: 'L4CG3',
+        room: 'TR-04 Mechi',
+      },
+    ],
+  },
+  {
+    day: 'Tuesday',
+    isOffDay: false,
+    periods: [
+      {
+        id: 'tue_p1',
+        time: '8:00 AM – 10:00 AM',
+        classType: 'Lecture',
+        moduleCode: '4CS015',
+        moduleName: 'Fundamentals of Computing',
+        lecturer: 'Mr. Sanjeev Chamling',
+        group: 'L4CG1 + L4CG3 + L4CG6',
+        room: 'LT-01 Wulfurna',
+      },
+      {
+        id: 'tue_p2',
+        time: '11:00 AM – 1:00 PM',
+        classType: 'Tutorial',
+        moduleCode: '4CS001',
+        moduleName: 'Introductory Programming and Problem Solving',
+        lecturer: 'Mr. Bhisma Raj Koirala',
+        group: 'L4CG3',
+        room: 'TR-05 Kankai',
+      },
+    ],
+  },
+  {
+    day: 'Wednesday',
+    isOffDay: false,
+    periods: [
+      {
+        id: 'wed_p1',
+        time: '10:00 AM – 12:00 PM',
+        classType: 'Tutorial',
+        moduleCode: '4CS017',
+        moduleName: 'Internet Software Architecture and Database',
+        lecturer: 'Mr. Pankaj Shah',
+        group: 'L4CG3 + L4CG4',
+        room: 'SR-02 Compton',
+      },
+    ],
+  },
+  {
+    day: 'Thursday',
+    isOffDay: true,
+    notice: 'FULL DAY OFF',
+    periods: [],
+  },
+  {
+    day: 'Friday',
+    isOffDay: false,
+    periods: [
+      {
+        id: 'fri_p1',
+        time: '8:00 AM – 10:30 AM',
+        classType: 'Workshop',
+        moduleCode: '4CS001',
+        moduleName: 'Introductory Programming and Problem Solving',
+        lecturer: 'Mr. Basanta Singh',
+        group: 'L4CG3 + L4CG6',
+        room: 'SR-01 Wolves',
+      },
+    ],
+  },
+  {
+    day: 'Saturday',
+    isOffDay: true,
+    notice: 'FULL DAY OFF',
+    periods: [],
+  },
+];
+
+// =========================================================================
+// OFFICIAL SCHEDULE CHANGES PUBLISHED BY RTE DEPARTMENT (VIEW-ONLY)
+// =========================================================================
+export const INITIAL_RTE_SCHEDULE_CHANGES = [
+  {
+    id: 'rte_chg_01',
+    moduleCode: '4CS001',
+    moduleName: 'Introductory Programming and Problem Solving (Workshop)',
+    classType: 'Workshop',
+    group: 'L4CG3 + L4CG6',
+    originalSchedule: 'Friday 8:00 AM – 10:30 AM (SR-01 Wolves)',
+    newSchedule: 'Friday 8:30 AM – 11:00 AM (SR-01 Wolves)',
+    reason: 'RTE routine adjustment due to morning faculty research synchronization',
+    effectiveDate: 'Aug 21, 2026',
+    publishedBy: 'RTE Department (Registry & Timetabling)',
+    status: 'Time Changed',
+    badgeColor: 'amber',
+  },
+  {
+    id: 'rte_chg_02',
+    moduleCode: '4CS015',
+    moduleName: 'Fundamentals of Computing (Workshop)',
+    classType: 'Workshop',
+    group: 'L4CG3',
+    originalSchedule: 'Monday 12:00 PM – 2:30 PM (TR-04 Mechi)',
+    newSchedule: 'Monday 12:00 PM – 2:30 PM (Lab 2, Block B 2nd Floor)',
+    reason: 'Special Linux CLI & virtualization virtual machine practical lab setup',
+    effectiveDate: 'Aug 24, 2026',
+    publishedBy: 'RTE Department (Registry & Timetabling)',
+    status: 'Room Changed',
+    badgeColor: 'blue',
+  },
+  {
+    id: 'rte_chg_03',
+    moduleCode: '4CS015',
+    moduleName: 'Fundamentals of Computing (Lecture)',
+    classType: 'Lecture',
+    group: 'L4CG1 + L4CG3 + L4CG6',
+    originalSchedule: 'Tuesday 8:00 AM – 10:00 AM (LT-01 Wulfurna)',
+    newSchedule: 'Devfest 2026 Keynote Session (Main Auditorium)',
+    reason: 'Compulsory student symposium attendance for annual Devfest 2026 Keynote',
+    effectiveDate: 'Aug 26, 2026',
+    publishedBy: 'RTE Department (Registry & Timetabling)',
+    status: 'Rescheduled',
+    badgeColor: 'purple',
+  },
+];

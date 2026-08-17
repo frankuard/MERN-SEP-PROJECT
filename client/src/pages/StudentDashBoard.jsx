@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Bell, Calendar, User, CreditCard, Mic2, Cpu, Trophy,
-  BrainCircuit, Code, Palette, CheckCircle2
+  BrainCircuit, Code, Palette, CheckCircle2, Clock
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,7 @@ import {
 // Modular Sidebar Section Components
 import DashboardHome from '../components/student/DashboardHome';
 import EventsSection from '../components/student/EventsSection';
+import TimetableSection from '../components/student/TimetableSection';
 import SSDHelpSection from '../components/student/SSDHelpSection';
 import LostFoundSection from '../components/student/LostFoundSection';
 import ResourcesSection from '../components/student/ResourcesSection';
@@ -101,8 +102,7 @@ const StudentDashboard = () => {
   const [canteenCreditBalance, setCanteenCreditBalance] = useState(150);
 
   // SSD Department States
-  const [attendanceRecords, setAttendanceRecords] = useState(INITIAL_ATTENDANCE_RECORDS);
-  const [isLoggedToday, setIsLoggedToday] = useState(true);
+  const [attendanceRecords] = useState(INITIAL_ATTENDANCE_RECORDS);
   const [volunteeringHistory] = useState(INITIAL_VOLUNTEERING_HISTORY);
   const [volunteerRequests, setVolunteerRequests] = useState(INITIAL_VOLUNTEER_REQUESTS);
 
@@ -301,19 +301,6 @@ const StudentDashboard = () => {
     toast.success(`Complaint Ticket #${newTicket.id} logged for ${newTicket.issue}!`, { icon: '🔧' });
   };
 
-  const handleTrackAttendanceToday = () => {
-    if (isLoggedToday) {
-      toast.success('Today’s attendance is already tracked & verified! 🟢');
-      return;
-    }
-    setIsLoggedToday(true);
-    setAttendanceRecords((prev) => [
-      { date: 'Today (Aug 17)', status: 'Present', time: '09:45 AM', room: 'SR01 Wolves' },
-      ...prev,
-    ]);
-    toast.success('Attendance recorded for today! Present at SR01 Wolves.', { icon: '✅' });
-  };
-
   const handleToggleApplyVolunteer = (reqId) => {
     setVolunteerRequests((prev) =>
       prev.map((r) => {
@@ -351,8 +338,9 @@ const StudentDashboard = () => {
   const notificationsList = [
     { id: 1, text: 'Devfest registration is now open', time: '10m ago', unread: true },
     { id: 2, text: 'Class SR01 Wolves permission granted', time: '1h ago', unread: true },
-    { id: 3, text: 'Canteen Credit balance updated', time: '2h ago', unread: false },
-    { id: 4, text: 'SSD Attendance verified for Spring Semester', time: '3h ago', unread: false },
+    { id: 3, text: 'RTE: Friday Workshop time adjusted to 8:30 AM', time: '2h ago', unread: true },
+    { id: 4, text: 'Canteen Credit balance updated', time: '3h ago', unread: false },
+    { id: 5, text: 'SSD Attendance verified for Spring Semester', time: '4h ago', unread: false },
   ];
 
   const renderEventIcon = (type) => {
@@ -400,10 +388,11 @@ const StudentDashboard = () => {
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
               {activeTab === 'dashboard' && 'Dashboard'}
               {activeTab === 'events' && 'Campus Events Hub'}
-              {activeTab === 'ssd-help' && 'SSD Help & Records'}
               {activeTab === 'lost-found' && 'Lost & Found Portal'}
               {activeTab === 'resources' && 'Campus Resources & Services'}
               {activeTab === 'canteen' && 'Campus Canteen & Ordering'}
+              {activeTab === 'timetable' && 'Academic Timetable (L4CG3)'}
+              {activeTab === 'ssd-help' && 'SSD Help & Records'}
               {activeTab === 'vacant-classes' && 'Vacant Classrooms'}
               {activeTab === 'campus-posts' && 'Campus Social Posts'}
               {activeTab === 'location' && 'Campus Locations & Map'}
@@ -480,7 +469,7 @@ const StudentDashboard = () => {
                       </h3>
                     </div>
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                      2 new
+                      3 new
                     </span>
                   </div>
                   <div className="mt-2.5 flex flex-col gap-2 max-h-64 overflow-y-auto">
@@ -557,12 +546,22 @@ const StudentDashboard = () => {
                     <button
                       type="button"
                       onClick={() => {
+                        setActiveTab('timetable');
+                        setShowProfileMenu(false);
+                      }}
+                      className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    >
+                      <Clock size={14} /> View Class Timetable
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
                         setActiveTab('ssd-help');
                         setShowProfileMenu(false);
                       }}
                       className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                     >
-                      <CheckCircle2 size={14} /> Track Attendance in SSD
+                      <CheckCircle2 size={14} /> View Attendance in SSD
                     </button>
                   </div>
                 </div>
@@ -623,22 +622,28 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 5. SSD Help Section */}
+            {/* 5. Timetable Section (Position: Canteen -> Timetable -> SSD Help) */}
+            {activeTab === 'timetable' && (
+              <TimetableSection
+                t={t}
+                onNavigateTab={setActiveTab}
+              />
+            )}
+
+            {/* 6. SSD Help Section */}
             {activeTab === 'ssd-help' && (
               <SSDHelpSection
                 t={t}
                 user={user}
                 studentName={studentName}
                 attendanceRecords={attendanceRecords}
-                isLoggedToday={isLoggedToday}
-                onTrackAttendanceToday={handleTrackAttendanceToday}
                 volunteeringHistory={volunteeringHistory}
                 volunteerRequests={volunteerRequests}
                 onToggleApplyVolunteer={handleToggleApplyVolunteer}
               />
             )}
 
-            {/* 6. Events Section */}
+            {/* 7. Events Section */}
             {activeTab === 'events' && (
               <EventsSection
                 t={t}
@@ -650,7 +655,7 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 7. Vacant Classes Section */}
+            {/* 8. Vacant Classes Section */}
             {activeTab === 'vacant-classes' && (
               <VacantClassesSection
                 t={t}
@@ -660,7 +665,7 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 8. Locations Section */}
+            {/* 9. Locations Section */}
             {activeTab === 'location' && (
               <LocationSection
                 t={t}
@@ -668,7 +673,7 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 9. Campus Help Section */}
+            {/* 10. Campus Help Section */}
             {activeTab === 'campus-help' && (
               <CampusHelpSection
                 t={t}
@@ -678,7 +683,7 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 10. Dashboard Home View */}
+            {/* 11. Dashboard Home View */}
             {activeTab === 'dashboard' && (
               <DashboardHome
                 t={t}

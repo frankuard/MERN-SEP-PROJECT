@@ -3,17 +3,18 @@ import {
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
   AlertTriangle, ClipboardList, CheckSquare, Settings, LogOut,
   ChevronLeft, ChevronRight, Menu, X, Sun, Moon, PlusCircle, TrendingUp, Bell,
-  Building2, School, GraduationCap,
+  Building2, School, GraduationCap, Clock
 } from "lucide-react";
 
 const navConfig = {
   student: [
     { id: "dashboard", label: "Dashboard", icon: Home },
     { id: "events", label: "Events", icon: Calendar },
-    { id: "ssd-help", label: "SSD Help", icon: GraduationCap },
     { id: "lost-found", label: "Lost & Found", icon: Search },
     { id: "resources", label: "Resources", icon: BookOpen },
     { id: "canteen", label: "Canteen", icon: Coffee },
+    { id: "timetable", label: "Timetable", icon: Clock },
+    { id: "ssd-help", label: "SSD Help", icon: GraduationCap },
     { id: "vacant-classes", label: "Vacant Classes", icon: School },
     { id: "campus-posts", label: "Posts", icon: FileText },
     { id: "location", label: "Locations", icon: MapPin },
