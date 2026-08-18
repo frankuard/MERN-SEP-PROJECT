@@ -30,29 +30,18 @@ const Sidebar = ({ activeTab: controlledActiveTab, onTabChange }) => {
   const role = user?.role || 'student';
   const items = navConfig[role] || navConfig.student;
   const username = user?.username || 'Suraj Poddar';
+  const handle = `@${username.toLowerCase().replace(/\s+/g, '')}`;
   const initials = username.charAt(0).toUpperCase() || 'S';
 
-  // Fixed accent for the scroll hint — reuses the same accent already used
-  // for the active nav highlight, so it's a color proven to read well in
-  // both light and dark mode, rather than a muted theme-gray nobody notices.
-  const scrollAccent = t.activeBorder || '#168899';
-
-  // Detect whether the nav list has content hidden below the fold, so we can
-  // show a "scroll for more" hint instead of relying on users to notice a
-  // thin scrollbar on their own.
   useEffect(() => {
     const el = navRef.current;
     if (!el) return;
-
     const checkOverflow = () => {
-      const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
-      setHasMoreBelow(remaining > 4);
+      setHasMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
     };
-
     checkOverflow();
     el.addEventListener('scroll', checkOverflow, { passive: true });
     window.addEventListener('resize', checkOverflow);
-
     return () => {
       el.removeEventListener('scroll', checkOverflow);
       window.removeEventListener('resize', checkOverflow);
@@ -60,12 +49,8 @@ const Sidebar = ({ activeTab: controlledActiveTab, onTabChange }) => {
   }, [items, collapsed]);
 
   const handleItemClick = (id) => {
-    if (controlledActiveTab === undefined) {
-      setInternalActiveId(id);
-    }
-    if (onTabChange) {
-      onTabChange(id);
-    }
+    if (controlledActiveTab === undefined) setInternalActiveId(id);
+    onTabChange?.(id);
   };
 
   const handleLogout = () => {
@@ -76,257 +61,165 @@ const Sidebar = ({ activeTab: controlledActiveTab, onTabChange }) => {
 
   return (
     <aside
-      className={`sticky top-0 flex h-screen shrink-0 flex-col self-start border-r transition-all duration-300 select-none ${
-        collapsed ? 'w-20' : 'w-64'
+      className={`sticky top-0 flex h-screen shrink-0 flex-col self-start transition-all duration-300 select-none ${
+        collapsed ? 'w-[4.5rem]' : 'w-[260px]'
       }`}
       style={{
         backgroundColor: t.sidebarBg,
-        borderColor: t.border,
-        color: t.textPrimary,
+        borderRight: `1px solid ${t.sidebarBorder || t.border}`,
+        color: t.sidebarText,
       }}
     >
-      <style>{`
-        .sidebar-nav-scroll::-webkit-scrollbar { width: 6px; }
-        .sidebar-nav-scroll::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-nav-scroll::-webkit-scrollbar-thumb { background-color: ${scrollAccent}; border-radius: 999px; }
-        .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover { background-color: ${scrollAccent}; opacity: 0.85; }
-      `}</style>
-
-      {/* Sidebar controls toolbar */}
-      <div
-        className={`flex items-center border-b px-3 py-2.5 ${
-          collapsed ? 'justify-center' : 'justify-between'
-        }`}
-        style={{ borderColor: t.border, backgroundColor: t.hoverBg }}
-      >
-        {!collapsed && (
-          <span
-            className="text-[10px] font-bold uppercase tracking-widest"
-            style={{ color: t.textMuted }}
+      {/* Profile header */}
+      <div className={`px-4 pt-5 pb-4 ${collapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`flex items-center ${collapsed ? 'flex-col gap-2' : 'gap-3'}`}>
+          {/* Colorful avatar ring */}
+          <div
+            className="relative shrink-0 rounded-full p-[3px]"
+            style={{
+              background: 'linear-gradient(135deg, #f472b6, #a78bfa, #38bdf8, #fbbf24)',
+            }}
           >
-            Menu
-          </span>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-sm transition-transform hover:scale-110"
-          style={{
-            backgroundColor: scrollAccent,
-            borderColor: '#ffffff',
-            color: '#ffffff',
-          }}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
-        </button>
-      </div>
-
-      {/* User Header */}
-      <div
-        className={`flex items-center border-b px-4 py-4 ${
-          collapsed ? 'justify-center' : 'gap-3'
-        }`}
-        style={{ borderColor: t.border }}
-      >
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-bold shadow-sm"
-          style={{
-            backgroundColor: theme === 'dark' ? '#3b82f6' : '#2f4336',
-            color: '#ffffff',
-          }}
-        >
-          {initials}
-        </div>
-
-        {!collapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: t.textMuted }}>
-              {role}
-            </p>
-            <h2 className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>
-              {roleLabels[role] || 'Student Portal'}
-            </h2>
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-full text-base font-extrabold"
+              style={{ backgroundColor: t.sidebarBg, color: t.sidebarText }}
+            >
+              {initials}
+            </div>
           </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-extrabold" style={{ color: t.sidebarText }}>
+                {username}
+              </p>
+              <p className="truncate text-xs font-medium" style={{ color: t.sidebarMuted }}>
+                {handle}
+              </p>
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: t.sidebarMuted }}>
+                {roleLabels[role]}
+              </p>
+            </div>
+          )}
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors"
+              style={{ color: t.sidebarMuted, backgroundColor: t.sidebarHover }}
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          )}
+        </div>
+        {collapsed && (
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            className="mt-2 flex h-7 w-7 items-center justify-center rounded-full"
+            style={{ color: t.sidebarMuted, backgroundColor: t.sidebarHover }}
+            aria-label="Expand sidebar"
+          >
+            <ChevronRight size={14} />
+          </button>
         )}
       </div>
 
-      {/* Theme Toggle Pill */}
-      <div className="px-4 pt-4">
+      {/* Theme toggle */}
+      <div className={`px-4 pb-3 ${collapsed ? 'flex justify-center' : ''}`}>
         <button
           type="button"
           onClick={toggleTheme}
-          className="flex h-7 w-12 items-center rounded-full border p-0.5 transition-colors"
-          style={{
-            backgroundColor: t.hoverBg,
-            borderColor: t.border,
-          }}
-          aria-label="Toggle dark/light mode"
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          className="flex h-7 w-12 items-center rounded-full p-0.5"
+          style={{ backgroundColor: t.sidebarHover }}
+          aria-label="Toggle theme"
         >
           <div
             className="flex h-5.5 w-5.5 items-center justify-center rounded-full shadow-sm transition-transform duration-200"
             style={{
-              backgroundColor: t.cardBg || '#ffffff',
-              color: t.textPrimary,
+              backgroundColor: theme === 'dark' ? '#333' : '#111',
+              color: '#fff',
               transform: theme === 'dark' ? 'translateX(20px)' : 'translateX(0px)',
             }}
           >
-            {theme === 'dark' ? <Moon size={12} /> : <Sun size={12} />}
+            {theme === 'dark' ? <Moon size={11} /> : <Sun size={11} />}
           </div>
         </button>
       </div>
 
-      {/* Main Nav Items */}
+      {/* Nav */}
       <div className="relative min-h-0 flex-1">
-        <div
-          ref={navRef}
-          className="sidebar-nav-scroll h-full overflow-y-auto px-3 pt-5 pb-2"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: `${scrollAccent} transparent` }}
-        >
+        <div ref={navRef} className="h-full overflow-y-auto px-3 pb-2">
           {!collapsed && (
-            <p
-              className="px-2.5 pb-2 text-[11px] font-bold uppercase tracking-widest"
-              style={{ color: t.textMuted }}
-            >
-              Main
+            <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: t.sidebarMuted }}>
+              Menu
             </p>
           )}
-
-          <nav className="flex flex-col gap-1.5" aria-label="Sidebar Navigation">
+          <nav className="flex flex-col gap-1" aria-label="Sidebar Navigation">
             {items.map((item) => {
               const Icon = item.icon;
               const isActive = activeId === item.id;
-
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => handleItemClick(item.id)}
-                  className={`flex items-center rounded-xl px-3 py-2.5 text-left font-medium transition-all duration-200 ${
-                    collapsed ? 'justify-center' : 'gap-3'
-                  } ${
-                    isActive
-                      ? 'shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
-                      : 'hover:bg-black/5 dark:hover:bg-white/5'
+                  title={collapsed ? item.label : undefined}
+                  className={`flex items-center text-left text-[13px] font-bold transition-all duration-200 ${
+                    collapsed ? 'justify-center rounded-xl px-2 py-2.5' : 'gap-3 rounded-full px-4 py-2.5'
                   }`}
                   style={{
-                    backgroundColor: isActive ? t.activeBg : 'transparent',
-                    color: isActive ? t.activeText : t.textPrimary,
-                    border: isActive
-                      ? `1px solid ${t.activeBorder}`
-                      : '1px solid transparent',
+                    backgroundColor: isActive ? t.sidebarActiveBg : 'transparent',
+                    color: isActive ? t.sidebarActiveText : t.sidebarText,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.backgroundColor = t.sidebarHover;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
                   <Icon
-                    size={19}
+                    size={18}
                     className="shrink-0"
-                    style={{
-                      color: isActive ? t.activeText : t.textMuted,
-                    }}
-                    aria-hidden="true"
+                    style={{ color: isActive ? t.sidebarActiveText : t.sidebarMuted }}
                   />
-                  {!collapsed && (
-                    <span className="truncate text-[13.5px] tracking-tight">
-                      {item.label}
-                    </span>
-                  )}
+                  {!collapsed && <span className="truncate">{item.label}</span>}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Scroll-for-more hint — only shown while there's hidden content below */}
         {hasMoreBelow && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-1.5 pt-8">
-            <div
-              className="absolute inset-x-0 bottom-0 h-16"
-              style={{
-                background: `linear-gradient(to top, ${t.sidebarBg}, transparent)`,
-              }}
-            />
-            <div className="relative flex items-center justify-center">
-              <span
-                className="absolute h-9 w-9 animate-ping rounded-full opacity-40"
-                style={{ backgroundColor: scrollAccent }}
-              />
-              <span
-                className="relative flex h-9 w-9 animate-bounce items-center justify-center rounded-full shadow-md"
-                style={{ backgroundColor: scrollAccent }}
-              >
-                <ChevronDown size={20} color="#ffffff" strokeWidth={3} />
-              </span>
-            </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-1 pt-8">
+            <div className="absolute inset-x-0 bottom-0 h-12" style={{ background: `linear-gradient(to top, ${t.sidebarBg}, transparent)` }} />
+            <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-black text-white">
+              <ChevronDown size={14} strokeWidth={2.5} />
+            </span>
           </div>
         )}
       </div>
 
-      {/* Footer: signed-in-as + logout */}
-      <div className="space-y-2 border-t p-3" style={{ borderColor: t.border }}>
-        {/* Signed in as */}
-        {!collapsed ? (
-          <div
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5"
-            style={{ backgroundColor: t.hoverBg }}
-          >
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-              style={{
-                backgroundColor: theme === 'dark' ? '#3b82f6' : '#2f4336',
-                color: '#ffffff',
-              }}
-            >
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p
-                className="truncate text-[13px] font-semibold"
-                style={{ color: t.textPrimary }}
-              >
-                {username}
-              </p>
-              <p
-                className="text-[10.5px] font-semibold uppercase tracking-wider"
-                style={{ color: t.textMuted }}
-              >
-                Signed in as {role}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex justify-center" title={`Signed in as ${role}`}>
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-              style={{
-                backgroundColor: theme === 'dark' ? '#3b82f6' : '#2f4336',
-                color: '#ffffff',
-              }}
-            >
-              {initials}
-            </div>
-          </div>
-        )}
-
-        {/* Logout */}
+      {/* Logout */}
+      <div className="border-t p-3" style={{ borderColor: t.sidebarBorder || t.border }}>
         <button
           type="button"
           onClick={handleLogout}
-          className={`flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex w-full items-center rounded-full px-4 py-2.5 text-sm font-bold transition-colors ${
             collapsed ? 'justify-center' : 'gap-3'
           }`}
-          style={{ color: t.textMuted }}
-          onMouseEnter={(event) => {
-            event.currentTarget.style.backgroundColor = t.hoverBg;
-            event.currentTarget.style.color = '#ef4444';
+          style={{ color: t.sidebarMuted }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = t.sidebarHover;
+            e.currentTarget.style.color = '#ef4444';
           }}
-          onMouseLeave={(event) => {
-            event.currentTarget.style.backgroundColor = 'transparent';
-            event.currentTarget.style.color = t.textMuted;
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = t.sidebarMuted;
           }}
         >
-          <LogOut size={18} aria-hidden="true" />
+          <LogOut size={17} />
           {!collapsed && <span>Log out</span>}
         </button>
       </div>
