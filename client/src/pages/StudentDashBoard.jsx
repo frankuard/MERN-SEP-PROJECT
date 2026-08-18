@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Bell, Calendar, User, CreditCard, Mic2, Cpu, Trophy,
+  Calendar, User, CreditCard, Mic2, Cpu, Trophy,
   BrainCircuit, Code, Palette, CheckCircle2, Clock
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
@@ -36,6 +36,7 @@ import VacantClassesSection from '../components/student/VacantClassesSection';
 import CampusPostsSection from '../components/student/CampusPostsSection';
 import LocationSection from '../components/student/LocationSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
+import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
@@ -319,21 +320,12 @@ const StudentDashboard = () => {
   // Dynamic greeting based on real local time
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return 'Good Morning';
-    if (hour >= 12 && hour < 17) return 'Good Afternoon';
-    if (hour >= 17 && hour < 22) return 'Good Evening';
-    return 'Good Evening';
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 18) return 'Good afternoon';
+    return 'Good evening';
   }, []);
 
   const studentName = user?.username ? user.username.split(' ')[0] : 'Suraj';
-
-  const todayFormatted = useMemo(() => {
-    return new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
-  }, []);
 
   const notificationsList = [
     { id: 1, text: 'Devfest registration is now open', time: '10m ago', unread: true },
@@ -375,204 +367,70 @@ const StudentDashboard = () => {
 
       {/* Main Content View */}
       <div className="flex flex-1 flex-col overflow-x-hidden">
-        {/* Top Navbar */}
-        <header
-          className="sticky top-0 z-30 flex h-18 w-full items-center justify-between border-b px-6 backdrop-blur-md sm:px-8 lg:px-10"
-          style={{
-            backgroundColor: `${t.pageBg}e6`,
-            borderColor: t.border,
-          }}
-        >
-          {/* Section Heading & Breadcrumb */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
-              {activeTab === 'dashboard' && 'Dashboard'}
-              {activeTab === 'events' && 'Campus Events Hub'}
-              {activeTab === 'lost-found' && 'Lost & Found Portal'}
-              {activeTab === 'resources' && 'Campus Resources & Services'}
-              {activeTab === 'canteen' && 'Campus Canteen & Ordering'}
-              {activeTab === 'timetable' && 'Academic Timetable (L4CG3)'}
-              {activeTab === 'ssd-help' && 'SSD Help & Records'}
-              {activeTab === 'vacant-classes' && 'Vacant Classrooms'}
-              {activeTab === 'campus-posts' && 'Campus Social Posts'}
-              {activeTab === 'location' && 'Campus Locations & Map'}
-              {activeTab === 'campus-help' && 'Campus Help & Contact Directory'}
-            </h1>
-            {activeTab !== 'dashboard' && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('dashboard')}
-                className="hidden rounded-lg px-2.5 py-1 text-xs font-medium transition-colors hover:underline sm:inline-block"
-                style={{ color: t.textMuted }}
-              >
-                ← Back to Dashboard
-              </button>
-            )}
-          </div>
-
-          {/* Right Controls */}
-          <div className="flex items-center gap-3">
-            {/* Credit Due Option -> Shown ONLY when in Canteen section */}
-            {activeTab === 'canteen' && (
-              <div
-                className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 shadow-xs dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-              >
+        <StudentNavbar
+          t={t}
+          activeTab={activeTab}
+          onNavigateHome={() => setActiveTab('dashboard')}
+          studentName={studentName}
+          username={user?.username || 'Suraj Poddar'}
+          showNotifications={showNotifications}
+          onToggleNotifications={() => setShowNotifications(!showNotifications)}
+          showProfileMenu={showProfileMenu}
+          onToggleProfileMenu={() => setShowProfileMenu(!showProfileMenu)}
+          notificationsList={notificationsList}
+          creditDue={
+            activeTab === 'canteen' ? (
+              <div className="hidden items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 sm:flex dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                 <CreditCard size={14} className="text-amber-600" />
                 <span>Credit Due: NPR {canteenCreditBalance}</span>
               </div>
-            )}
-
-            {/* Live Date Pill */}
-            <div
-              className="hidden items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold shadow-xs sm:flex"
-              style={{
-                backgroundColor: t.cardBg || '#ffffff',
-                borderColor: t.border,
-                color: t.textPrimary,
-              }}
-            >
-              <Calendar size={13} style={{ color: t.textMuted }} />
-              <span>{todayFormatted}</span>
-            </div>
-
-            {/* Notification Center */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full border shadow-xs transition-transform hover:scale-105"
-                style={{
-                  backgroundColor: t.cardBg || '#ffffff',
-                  borderColor: t.border,
-                  color: t.textPrimary,
-                }}
-                aria-label="Notifications"
+            ) : null
+          }
+          profileMenuContent={
+            showProfileMenu && (
+              <div
+                className="absolute right-0 mt-2 w-56 rounded-2xl border p-3 shadow-xl z-50"
+                style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowCard }}
               >
-                <Bell size={18} />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-              </button>
-
-              {/* Notifications Popover */}
-              {showNotifications && (
-                <div
-                  className="absolute right-0 mt-2 w-80 rounded-2xl border p-4 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-                  style={{
-                    backgroundColor: t.cardBg || '#ffffff',
-                    borderColor: t.border,
-                  }}
-                >
-                  <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: t.border }}>
-                    <div className="flex items-center gap-1.5">
-                      <Bell size={15} className="text-blue-600" />
-                      <h3 className="text-sm font-bold" style={{ color: t.textPrimary }}>
-                        Notifications
-                      </h3>
-                    </div>
-                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                      3 new
-                    </span>
-                  </div>
-                  <div className="mt-2.5 flex flex-col gap-2 max-h-64 overflow-y-auto">
-                    {notificationsList.map((n) => (
-                      <div
-                        key={n.id}
-                        className="flex flex-col rounded-xl p-2.5 text-xs transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                        style={{
-                          backgroundColor: n.unread ? (theme === 'dark' ? '#232934' : '#f4f6fb') : 'transparent',
-                        }}
-                      >
-                        <p className="font-medium" style={{ color: t.textPrimary }}>
-                          {n.text}
-                        </p>
-                        <span className="mt-1 text-[10px]" style={{ color: t.textMuted }}>
-                          {n.time}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="border-b pb-2 px-2" style={{ borderColor: t.border }}>
+                  <p className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                    {user?.username || 'Suraj Poddar'}
+                  </p>
+                  <p className="text-xs capitalize" style={{ color: t.textMuted }}>
+                    {user?.email || 'suraj.student@campus.edu'}
+                  </p>
                 </div>
-              )}
-            </div>
-
-            {/* Profile Dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2 rounded-full border p-1 pr-3 shadow-xs transition-transform hover:scale-105"
-                style={{
-                  backgroundColor: t.cardBg || '#ffffff',
-                  borderColor: t.border,
-                }}
-              >
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white shadow-xs"
-                  style={{ backgroundColor: theme === 'dark' ? '#3b82f6' : '#2f4336' }}
-                >
-                  {studentName.charAt(0).toUpperCase()}
+                <div className="mt-2 flex flex-col gap-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('dashboard'); setShowProfileMenu(false); }}
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <User size={14} /> My Profile &amp; Bio
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('timetable'); setShowProfileMenu(false); }}
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <Clock size={14} /> View Class Timetable
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('ssd-help'); setShowProfileMenu(false); }}
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <CheckCircle2 size={14} /> View Attendance in SSD
+                  </button>
                 </div>
-                <span className="hidden text-xs font-bold sm:inline-block" style={{ color: t.textPrimary }}>
-                  {user?.username || 'Suraj Poddar'}
-                </span>
-              </button>
-
-              {showProfileMenu && (
-                <div
-                  className="absolute right-0 mt-2 w-56 rounded-2xl border p-3 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-                  style={{
-                    backgroundColor: t.cardBg || '#ffffff',
-                    borderColor: t.border,
-                  }}
-                >
-                  <div className="border-b pb-2 px-2" style={{ borderColor: t.border }}>
-                    <p className="text-sm font-bold" style={{ color: t.textPrimary }}>
-                      {user?.username || 'Suraj Poddar'}
-                    </p>
-                    <p className="text-xs capitalize" style={{ color: t.textMuted }}>
-                      {user?.email || 'suraj.student@campus.edu'}
-                    </p>
-                  </div>
-                  <div className="mt-2 flex flex-col gap-1 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('dashboard');
-                        setShowProfileMenu(false);
-                      }}
-                      className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                    >
-                      <User size={14} /> My Profile &amp; Bio
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('timetable');
-                        setShowProfileMenu(false);
-                      }}
-                      className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                    >
-                      <Clock size={14} /> View Class Timetable
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('ssd-help');
-                        setShowProfileMenu(false);
-                      }}
-                      className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                    >
-                      <CheckCircle2 size={14} /> View Attendance in SSD
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+              </div>
+            )
+          }
+        />
 
         {/* Scrollable Main Body */}
         <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
-          <div className="mx-auto max-w-6xl space-y-8">
+          <div className={`mx-auto space-y-8 ${activeTab === 'dashboard' ? 'max-w-5xl' : 'max-w-6xl'}`} style={activeTab === 'dashboard' ? { fontFamily: '"Nunito", sans-serif' } : undefined}>
             {/* 1. Resources Section */}
             {activeTab === 'resources' && (
               <ResourcesSection
@@ -692,16 +550,7 @@ const StudentDashboard = () => {
                 collegeEvents={collegeEvents}
                 communityEvents={communityEvents}
                 announcements={announcements}
-                lostFoundItems={lostFoundItems}
-                helpRequests={helpRequests}
-                currentRandomRoom={currentRandomRoom}
-                currentRandomStatus={currentRandomStatus}
-                onShuffleRandomRoom={shuffleRandomRoom}
-                onTakeClassPermission={handleTakePermission}
-                onToggleCollegeEvent={toggleCollegeEvent}
-                onToggleCommunityEvent={toggleCommunityEvent}
                 onNavigateTab={setActiveTab}
-                renderEventIcon={renderEventIcon}
               />
             )}
           </div>

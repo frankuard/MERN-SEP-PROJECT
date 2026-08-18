@@ -89,32 +89,36 @@ export const INITIAL_COMMUNITY_EVENTS = [
 export const INITIAL_ANNOUNCEMENTS = [
   {
     id: 'a1',
-    title: 'Semester project submission',
-    date: 'Aug 25',
+    title: 'Assignment submission deadline',
+    date: 'Aug 19',
+    source: 'Academic Office',
     tag: 'Academic',
     urgent: true,
     desc: 'Submit all final phase documentation along with GitHub repository links to your respective advisors.',
   },
   {
     id: 'a2',
-    title: "Tomorrow's classes start at 10 AM",
-    date: 'Aug 17',
-    tag: 'Schedule',
+    title: 'Semester event registration',
+    date: 'Aug 21',
+    source: 'Student Affairs',
+    tag: 'Events',
     urgent: false,
-    desc: 'Due to scheduled morning faculty meeting, periods 1 and 2 will be adjusted into the afternoon schedule.',
+    desc: 'Register for inter-department cultural programs and sports week events before the deadline.',
   },
   {
     id: 'a3',
-    title: 'Library closed after 4 PM today',
-    date: 'Today',
+    title: 'Library schedule update',
+    date: 'Aug 22',
+    source: 'Library',
     tag: 'Notice',
     urgent: false,
-    desc: 'Routine server maintenance and quarterly inventory stock check taking place in central library.',
+    desc: 'Central library will close at 4 PM for routine maintenance and inventory check.',
   },
   {
     id: 'a4',
     title: 'Scholarship renewal verification deadline',
     date: 'Aug 28',
+    source: 'Administration',
     tag: 'Admin',
     urgent: true,
     desc: 'Submit renewed grade sheets and recommendation letters at Room 102 before 3:00 PM.',
@@ -194,10 +198,53 @@ export const CANTEEN_MENU = [
 ];
 
 export const CANTEEN_SPECIALS_LIST = [
-  { id: 1, name: 'Diya Ko Royal Biryani', price: 220, isBold: true },
-  { id: 2, name: 'Chicken Momo', price: 120, isBold: false },
-  { id: 3, name: 'Aalu Nimki', price: 50, isBold: false },
+  {
+    id: 1,
+    name: 'Royal Biryani',
+    price: 220,
+    subtitle: 'Special of the day',
+    category: 'Meals',
+    featured: true,
+    image: '/canteen/biryani.png',
+    cardColor: 'primary',
+  },
+  {
+    id: 2,
+    name: 'Momo',
+    price: 140,
+    subtitle: 'Steamed · Available',
+    category: 'Snacks',
+    featured: false,
+    image: '/canteen/momo.png',
+    cardColor: 'sky',
+  },
+  {
+    id: 3,
+    name: 'Chowmein',
+    price: 130,
+    subtitle: 'Vegetarian',
+    category: 'Noodles',
+    featured: false,
+    image: '/canteen/chowmein.png',
+    cardColor: 'teal',
+  },
+  {
+    id: 4,
+    name: 'Lassi',
+    price: 80,
+    subtitle: 'Cold drinks',
+    category: 'Beverages',
+    featured: false,
+    image: '/canteen/lassi.png',
+    cardColor: 'slate',
+  },
 ];
+
+export const DASHBOARD_ATTENDANCE = {
+  percentage: 87,
+  present: 42,
+  absent: 6,
+};
 
 // Official Campus Social Media Posts Feed
 export const INITIAL_CAMPUS_POSTS = [

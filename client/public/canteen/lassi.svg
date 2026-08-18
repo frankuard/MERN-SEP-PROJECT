@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" role="img" aria-label="Lassi">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef9ef"/>
+      <stop offset="100%" stop-color="#f0e0c8"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="280" fill="url(#bg)"/>
+  <rect x="165" y="90" width="70" height="120" rx="8" fill="#faf5eb" stroke="#d4c4a8" stroke-width="2"/>
+  <rect x="172" y="98" width="56" height="90" rx="4" fill="#fff8ee"/>
+  <ellipse cx="200" cy="100" rx="30" ry="8" fill="#f5ead8"/>
+  <path d="M185 60 L200 90 L215 60" fill="#d4c4a8"/>
+  <ellipse cx="200" cy="215" rx="45" ry="10" fill="#c4b498" opacity="0.3"/>
+  <circle cx="188" cy="130" r="3" fill="#f0c878" opacity="0.6"/>
+  <circle cx="210" cy="145" r="2.5" fill="#f0c878" opacity="0.5"/>
+</svg>

@@ -44,6 +44,9 @@ const AnnouncementsModal = ({ isOpen, onClose, t, announcements }) => {
               <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
                 {a.title}
               </h4>
+              <p className="text-[11px]" style={{ color: t.textMuted }}>
+                {a.source || a.tag} · {a.date}
+              </p>
               <p className="text-xs leading-relaxed" style={{ color: t.textMuted }}>
                 {a.desc}
               </p>
@@ -55,7 +58,8 @@ const AnnouncementsModal = ({ isOpen, onClose, t, announcements }) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-[#2f4336] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b]"
+            className="rounded-lg px-5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: t.accentPrimary || '#111' }}
           >
             Close
           </button>
