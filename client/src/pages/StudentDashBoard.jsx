@@ -34,7 +34,6 @@ import ResourcesSection from '../components/student/ResourcesSection';
 import CanteenSection from '../components/student/CanteenSection';
 import VacantClassesSection from '../components/student/VacantClassesSection';
 import CampusPostsSection from '../components/student/CampusPostsSection';
-import LocationSection from '../components/student/LocationSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 
@@ -503,15 +502,8 @@ const StudentDashboard = () => {
 
             {/* 7. Events Section */}
             {activeTab === 'events' && (
-              <EventsSection
-                t={t}
-                collegeEvents={collegeEvents}
-                communityEvents={communityEvents}
-                onToggleCollegeEvent={toggleCollegeEvent}
-                onToggleCommunityEvent={toggleCommunityEvent}
-                renderEventIcon={renderEventIcon}
-              />
-            )}
+  <EventsSection t={t} />
+)}
 
             {/* 8. Vacant Classes Section */}
             {activeTab === 'vacant-classes' && (
@@ -523,15 +515,7 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 9. Locations Section */}
-            {activeTab === 'location' && (
-              <LocationSection
-                t={t}
-                onNavigateTab={setActiveTab}
-              />
-            )}
-
-            {/* 10. Campus Help Section */}
+            {/* 9. Campus Help Section */}
             {activeTab === 'campus-help' && (
               <CampusHelpSection
                 t={t}
@@ -541,7 +525,7 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 11. Dashboard Home View */}
+            {/* 10. Dashboard Home View */}
             {activeTab === 'dashboard' && (
               <DashboardHome
                 t={t}

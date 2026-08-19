@@ -35,7 +35,7 @@ const StudentNavbar = ({
 
   return (
     <header
-      className="sticky top-0 z-30 flex h-[76px] w-full shrink-0 items-center justify-between gap-4 px-5 sm:px-8 lg:px-10"
+      className="sticky top-0 z-30 flex h-19 w-full shrink-0 items-center justify-between gap-4 px-5 sm:px-8 lg:px-10"
       style={{
         backgroundColor: t.navbarBg,
         borderBottom: `1px solid ${t.border}`,
@@ -93,7 +93,7 @@ const StudentNavbar = ({
           >
             <Bell size={22} strokeWidth={2} />
             <span
-              className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold"
+              className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold"
               style={{
                 backgroundColor: t.navbarDateBg || '#111',
                 color: t.navbarDateText || '#fff',
@@ -153,7 +153,7 @@ const StudentNavbar = ({
               {initial}
             </div>
             <span
-              className="hidden max-w-[100px] truncate text-sm font-bold sm:inline sm:max-w-[120px]"
+              className="hidden max-w-25 truncate text-sm font-bold sm:inline sm:max-w-30"
               style={{ color: t.navbarChipText || t.textPrimary }}
             >
               {username}
