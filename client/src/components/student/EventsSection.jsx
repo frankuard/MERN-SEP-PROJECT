@@ -68,7 +68,7 @@ const EventBanner = ({ event }) => {
 
   if (event.eventImage) {
     return (
-      <div className="relative h-40 w-full overflow-hidden rounded-xl">
+      <div className="relative aspect-4/5 w-full overflow-hidden rounded-xl">
         <img
           src={event.eventImage}
           alt={event.title}
@@ -81,7 +81,7 @@ const EventBanner = ({ event }) => {
 
   return (
     <div
-      className="relative flex h-40 w-full flex-col items-center justify-center overflow-hidden rounded-xl"
+      className="relative flex aspect-4/5 w-full flex-col items-center justify-center overflow-hidden rounded-xl"
       style={{ backgroundColor: `${accent}0F` }}
     >
       <div className="pointer-events-none absolute -left-3 top-4 h-3 w-3 rounded-full bg-pink-400 opacity-40" />
@@ -110,25 +110,30 @@ const OrganizerRow = ({ organizer, t }) => {
   const logo = organizer?.logo;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       {logo ? (
         <img
           src={logo}
           alt={name}
-          className="h-6 w-6 shrink-0 rounded-full object-cover"
+          className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-black/5"
           loading="lazy"
         />
       ) : (
         <div
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
           style={{ backgroundColor: t.pageBg, color: t.textMuted }}
         >
           {name.charAt(0).toUpperCase()}
         </div>
       )}
-      <span className="truncate text-xs font-semibold" style={{ color: t.textPrimary }}>
-        {name}
-      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: t.textMuted }}>
+          Organized by
+        </p>
+        <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>
+          {name}
+        </p>
+      </div>
     </div>
   );
 };
@@ -146,25 +151,23 @@ const EventCard = ({ event, t }) => {
     >
       <EventBanner event={event} />
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+           <div className="mt-3 flex flex-wrap items-center gap-2">
         <span
-          className="rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide"
-          style={{ backgroundColor: `${accent}14`, color: accent }}
+          className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider"
+          style={{ backgroundColor: accent, color: '#ffffff' }}
         >
           {event.type === 'college' ? 'College' : 'Community'}
         </span>
         {event.registrationEnabled && (
-          <span
-            className="rounded-md px-2 py-0.5 text-xs font-semibold"
-            style={{ backgroundColor: `${ACCENT}12`, color: ACCENT }}
-          >
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: ACCENT }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ACCENT }} />
             Registration open
           </span>
         )}
       </div>
 
-      <h4 className="mt-3 text-base font-bold leading-snug sm:text-lg" style={{ color: t.textPrimary }}>
-        {event.title}
+      <h4 className="mt-3 text-lg font-extrabold leading-snug sm:text-xl" style={{ color: t.textPrimary }}>    
+            {event.title}
       </h4>
 
       {event.description && (
