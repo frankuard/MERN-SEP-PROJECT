@@ -36,6 +36,7 @@ import VacantClassesSection from '../components/student/VacantClassesSection';
 import CampusPostsSection from '../components/student/CampusPostsSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
+import lostFoundApi from '../api/lostFoundApi';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
@@ -126,6 +127,22 @@ const StudentDashboard = () => {
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * CLASSROOM_POOL.length);
     setRandomRoomIndex(randomIndex);
+  }, []);
+
+  useEffect(() => {
+    const loadLostFoundData = async () => {
+      try {
+        const [items, cctv] = await Promise.all([
+          lostFoundApi.getItems(),
+          lostFoundApi.getMyCctvRequests(),
+        ]);
+        if (items && items.length > 0) setLostFoundItems(items);
+        if (cctv && cctv.length > 0) setCctvRequests(cctv);
+      } catch (err) {
+        console.warn('Initial Lost & Found load from MongoDB:', err.message);
+      }
+    };
+    loadLostFoundData();
   }, []);
 
   const currentRandomRoom = CLASSROOM_POOL[randomRoomIndex] || CLASSROOM_POOL[0];
