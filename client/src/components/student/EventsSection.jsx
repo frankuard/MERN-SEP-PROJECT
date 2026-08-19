@@ -1,9 +1,23 @@
-import { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, Users, Building2, Check, CalendarOff } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Calendar, Clock, MapPin, Building2, Users,
+  CalendarOff, RefreshCw, AlertCircle, Loader2, ImageOff,
+} from 'lucide-react';
+import eventsApi from '../../api/eventsApi';
 
 const ACCENT = '#2f4336';
 const COLLEGE_ACCENT = '#2563eb';
 const COMMUNITY_ACCENT = '#9333ea';
+
+const accentFor = (type) => (type === 'college' ? COLLEGE_ACCENT : COMMUNITY_ACCENT);
+const iconFor = (type) => (type === 'college' ? Building2 : Users);
+
+const formatDate = (isoString) => {
+  if (!isoString) return 'Date TBA';
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return 'Date TBA';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
 
 /* ------------------------------------------------------------------ */
 /* Filter pills — polished segmented control                           */
@@ -46,234 +60,237 @@ const FilterTabs = ({ active, onChange, t }) => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Shared meta row: date / time / venue                                */
+/* Event image / themed fallback banner                                */
 /* ------------------------------------------------------------------ */
-const EventMeta = ({ date, time, venue, t, size = 'sm' }) => {
-  const iconSize = size === 'lg' ? 16 : 14;
-  const textClass = size === 'lg' ? 'text-sm' : 'text-sm';
+const EventBanner = ({ event }) => {
+  const accent = accentFor(event.type);
+  const Icon = iconFor(event.type);
+
+  if (event.eventImage) {
+    return (
+      <div className="relative h-40 w-full overflow-hidden rounded-xl">
+        <img
+          src={event.eventImage}
+          alt={event.title}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className={`space-y-1.5 ${textClass}`} style={{ color: t.textMuted }}>
-      <div className="flex items-center gap-2">
-        <Calendar size={iconSize} className="shrink-0" style={{ color: t.textMuted }} />
-        <span className="font-semibold" style={{ color: t.textPrimary }}>{date}</span>
+    <div
+      className="relative flex h-40 w-full flex-col items-center justify-center overflow-hidden rounded-xl"
+      style={{ backgroundColor: `${accent}0F` }}
+    >
+      <div className="pointer-events-none absolute -left-3 top-4 h-3 w-3 rounded-full bg-pink-400 opacity-40" />
+      <div className="pointer-events-none absolute right-6 top-8 h-4 w-4 rounded-full bg-yellow-400 opacity-40" />
+      <div className="pointer-events-none absolute bottom-5 left-1/3 h-2.5 w-2.5 rounded-full bg-purple-400 opacity-40" />
+      <div
+        className="flex h-12 w-12 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: `${accent}1A` }}
+      >
+        <Icon size={22} style={{ color: accent }} />
       </div>
-      <div className="flex items-center gap-2">
-        <Clock size={iconSize} className="shrink-0" />
-        <span>{time}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <MapPin size={iconSize} className="shrink-0" />
-        <span>{venue}</span>
-      </div>
+      {event.category && (
+        <span className="mt-2 text-xs font-semibold" style={{ color: accent }}>
+          {event.category}
+        </span>
+      )}
     </div>
   );
 };
 
 /* ------------------------------------------------------------------ */
-/* Featured event — hero panel above the grid                          */
+/* Organizer row                                                       */
 /* ------------------------------------------------------------------ */
-const FeaturedEvent = ({ event, kind, onToggle, renderEventIcon, t }) => {
-  const isJoined = kind === 'college' ? event.registered : event.joined;
-  const label = kind === 'college'
-    ? (event.registered ? 'Registered' : 'Register for Event')
-    : (event.joined ? 'Joined Session' : 'Join Event');
-  const badge = kind === 'college' ? event.badge : `by ${event.org}`;
-  const eyebrow = kind === 'college' ? 'Next Official Event' : 'Next Community Event';
-  const accent = kind === 'college' ? COLLEGE_ACCENT : COMMUNITY_ACCENT;
+const OrganizerRow = ({ organizer, t }) => {
+  const name = organizer?.name || 'Campus Organizer';
+  const logo = organizer?.logo;
 
   return (
-    <div
-      className="overflow-hidden rounded-3xl border shadow-sm"
-      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-    >
-      <div className="flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex flex-1 gap-5">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: `${ACCENT}12` }}
-          >
-            {renderEventIcon(event.iconType)}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: ACCENT }}>
-              {eyebrow}
-            </span>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-extrabold tracking-tight sm:text-xl" style={{ color: t.textPrimary }}>
-                {event.name}
-              </h3>
-              <span
-                className="rounded-md px-2 py-0.5 text-xs font-bold"
-                style={{ backgroundColor: `${accent}14`, color: accent }}
-              >
-                {badge}
-              </span>
-            </div>
-
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed" style={{ color: t.textMuted }}>
-              {event.desc}
-            </p>
-
-            <div className="mt-5">
-              <EventMeta date={event.date} time={event.time} venue={event.venue} t={t} size="lg" />
-            </div>
-          </div>
-        </div>
-
-        <div className="shrink-0 lg:pt-9">
-          <button
-            type="button"
-            onClick={() => onToggle(event.id)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition-all duration-200 hover:opacity-90 lg:w-auto"
-            style={
-              isJoined
-                ? { backgroundColor: t.pageBg, color: t.textPrimary, border: `1px solid ${t.border}` }
-                : { backgroundColor: ACCENT, color: '#ffffff' }
-            }
-          >
-            {isJoined && <Check size={15} />}
-            {label}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/* Event card — used inside the responsive grid                       */
-/* ------------------------------------------------------------------ */
-const EventCard = ({ event, kind, onToggle, renderEventIcon, t }) => {
-  const isJoined = kind === 'college' ? event.registered : event.joined;
-  const label = kind === 'college'
-    ? (event.registered ? 'Registered' : 'Register for Event')
-    : (event.joined ? 'Joined Session' : 'Join Event');
-  const badge = kind === 'college' ? event.badge : `by ${event.org}`;
-  const accent = kind === 'college' ? COLLEGE_ACCENT : COMMUNITY_ACCENT;
-
-  return (
-    <div
-      className="flex h-full flex-col rounded-2xl border p-5 transition-all duration-200 hover:shadow-md"
-      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-    >
-      <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
+      {logo ? (
+        <img
+          src={logo}
+          alt={name}
+          className="h-6 w-6 shrink-0 rounded-full object-cover"
+          loading="lazy"
+        />
+      ) : (
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${accent}12` }}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+          style={{ backgroundColor: t.pageBg, color: t.textMuted }}
         >
-          {renderEventIcon(event.iconType)}
+          {name.charAt(0).toUpperCase()}
         </div>
+      )}
+      <span className="truncate text-xs font-semibold" style={{ color: t.textPrimary }}>
+        {name}
+      </span>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Event card                                                          */
+/* ------------------------------------------------------------------ */
+const EventCard = ({ event, t }) => {
+  const accent = accentFor(event.type);
+
+  return (
+    <div
+      className="flex h-full flex-col rounded-2xl border p-4 transition-all duration-200 hover:shadow-md"
+      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+    >
+      <EventBanner event={event} />
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <span
-          className="rounded-md px-2 py-0.5 text-xs font-bold"
+          className="rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide"
           style={{ backgroundColor: `${accent}14`, color: accent }}
         >
-          {badge}
+          {event.type === 'college' ? 'College' : 'Community'}
         </span>
+        {event.registrationEnabled && (
+          <span
+            className="rounded-md px-2 py-0.5 text-xs font-semibold"
+            style={{ backgroundColor: `${ACCENT}12`, color: ACCENT }}
+          >
+            Registration open
+          </span>
+        )}
       </div>
 
-      <h4 className="mt-4 text-base font-bold leading-snug sm:text-lg" style={{ color: t.textPrimary }}>
-        {event.name}
+      <h4 className="mt-3 text-base font-bold leading-snug sm:text-lg" style={{ color: t.textPrimary }}>
+        {event.title}
       </h4>
 
-      <p className="mt-2 text-sm leading-relaxed" style={{ color: t.textMuted }}>
-        {event.desc}
-      </p>
+      {event.description && (
+        <p className="mt-2 line-clamp-2 text-sm leading-relaxed" style={{ color: t.textMuted }}>
+          {event.description}
+        </p>
+      )}
 
       <div className="my-4 border-t" style={{ borderColor: t.border }} />
 
-      <EventMeta date={event.date} time={event.time} venue={event.venue} t={t} />
+      <div className="space-y-1.5 text-sm" style={{ color: t.textMuted }}>
+        <div className="flex items-center gap-2">
+          <Calendar size={14} className="shrink-0" />
+          <span className="font-semibold" style={{ color: t.textPrimary }}>{formatDate(event.date)}</span>
+        </div>
+        {event.startTime && (
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="shrink-0" />
+            <span>{event.startTime}</span>
+          </div>
+        )}
+        {event.venue && (
+          <div className="flex items-center gap-2">
+            <MapPin size={14} className="shrink-0" />
+            <span className="truncate">{event.venue}</span>
+          </div>
+        )}
+      </div>
 
-      <button
-        type="button"
-        onClick={() => onToggle(event.id)}
-        className="mt-5 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition-all duration-200 hover:opacity-90"
-        style={
-          isJoined
-            ? { backgroundColor: t.pageBg, color: t.textPrimary, border: `1px solid ${t.border}` }
-            : { backgroundColor: ACCENT, color: '#ffffff' }
-        }
-      >
-        {isJoined && <Check size={14} />}
-        {label}
-      </button>
+      <div className="mt-4 pt-3 border-t" style={{ borderColor: t.border }}>
+        <OrganizerRow organizer={event.organizer} t={t} />
+      </div>
     </div>
   );
 };
 
 /* ------------------------------------------------------------------ */
-/* Section header                                                       */
+/* Loading / error / empty states                                      */
 /* ------------------------------------------------------------------ */
-const SectionHeader = ({ icon, title, subtitle, count, t }) => (
-  <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: t.border }}>
-    <div className="flex items-center gap-2.5">
-      {icon}
-      <div>
-        <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-          {title}
-        </h3>
-        {subtitle && (
-          <p className="text-sm" style={{ color: t.textMuted }}>
-            {subtitle}
-          </p>
-        )}
+const LoadingGrid = ({ t }) => (
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    {[...Array(3)].map((_, i) => (
+      <div
+        key={i}
+        className="animate-pulse rounded-2xl border p-4"
+        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+      >
+        <div className="h-40 w-full rounded-xl" style={{ backgroundColor: t.pageBg }} />
+        <div className="mt-4 h-4 w-2/3 rounded" style={{ backgroundColor: t.pageBg }} />
+        <div className="mt-2 h-3 w-full rounded" style={{ backgroundColor: t.pageBg }} />
+        <div className="mt-2 h-3 w-4/5 rounded" style={{ backgroundColor: t.pageBg }} />
       </div>
-    </div>
-    <span className="text-sm font-semibold" style={{ color: t.textMuted }}>
-      {count}
-    </span>
+    ))}
   </div>
 );
 
-/* ------------------------------------------------------------------ */
-/* Empty state                                                          */
-/* ------------------------------------------------------------------ */
+const ErrorState = ({ onRetry, t }) => (
+  <div
+    className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-12 text-center"
+    style={{ borderColor: t.border }}
+  >
+    <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: t.pageBg }}>
+      <AlertCircle size={20} style={{ color: t.textMuted }} />
+    </div>
+    <div>
+      <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Unable to load events</p>
+      <p className="text-sm" style={{ color: t.textMuted }}>Please try again.</p>
+    </div>
+    <button
+      type="button"
+      onClick={onRetry}
+      className="mt-1 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-all duration-200 hover:opacity-90"
+      style={{ backgroundColor: ACCENT }}
+    >
+      <RefreshCw size={14} />
+      Retry
+    </button>
+  </div>
+);
+
 const EmptyState = ({ message, t }) => (
   <div
     className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-12 text-center"
     style={{ borderColor: t.border }}
   >
-    <div
-      className="flex h-11 w-11 items-center justify-center rounded-xl"
-      style={{ backgroundColor: t.pageBg }}
-    >
+    <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: t.pageBg }}>
       <CalendarOff size={20} style={{ color: t.textMuted }} />
     </div>
-    <p className="text-sm font-medium" style={{ color: t.textMuted }}>
-      {message}
-    </p>
+    <p className="text-sm font-medium" style={{ color: t.textMuted }}>{message}</p>
   </div>
 );
 
 /* ------------------------------------------------------------------ */
 /* Main component                                                      */
 /* ------------------------------------------------------------------ */
-const EventsSection = ({
-  t,
-  collegeEvents,
-  communityEvents,
-  onToggleCollegeEvent,
-  onToggleCommunityEvent,
-  renderEventIcon,
-}) => {
+const EventsSection = ({ t }) => {
   const [activeFilter, setActiveFilter] = useState('all');
+  const [events, setEvents] = useState([]);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
 
-  const showCollege = activeFilter !== 'community';
-  const showCommunity = activeFilter !== 'college';
+  const fetchEvents = useCallback(async (filter) => {
+    setStatus('loading');
+    try {
+      const type = filter === 'all' ? null : filter;
+      const data = await eventsApi.getEvents(type);
+      setEvents(Array.isArray(data) ? data : []);
+      setStatus('success');
+    } catch {
+      setStatus('error');
+    }
+  }, []);
 
-  const featured = useMemo(() => {
-    if (activeFilter === 'college') {
-      return collegeEvents[0] ? { event: collegeEvents[0], kind: 'college' } : null;
-    }
-    if (activeFilter === 'community') {
-      return communityEvents[0] ? { event: communityEvents[0], kind: 'community' } : null;
-    }
-    if (collegeEvents[0]) return { event: collegeEvents[0], kind: 'college' };
-    if (communityEvents[0]) return { event: communityEvents[0], kind: 'community' };
-    return null;
-  }, [activeFilter, collegeEvents, communityEvents]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await fetchEvents(activeFilter);
+      if (cancelled) return;
+    })();
+    return () => { cancelled = true; };
+  }, [activeFilter, fetchEvents]);
+
+  const emptyMessage = activeFilter === 'college'
+    ? 'No college events scheduled right now.'
+    : activeFilter === 'community'
+      ? 'No community events scheduled right now.'
+      : 'No events available right now.';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -281,82 +298,31 @@ const EventsSection = ({
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
-            Campus Events Hub
+            Events
           </h2>
           <p className="mt-1.5 text-base leading-relaxed" style={{ color: t.textMuted }}>
-            Browse upcoming college programs, workshops, community activities, and student events.
+            Discover what's happening around campus.
           </p>
         </div>
         <FilterTabs active={activeFilter} onChange={setActiveFilter} t={t} />
       </div>
 
-      {/* Featured event */}
-      {featured && (
-        <FeaturedEvent
-          event={featured.event}
-          kind={featured.kind}
-          onToggle={featured.kind === 'college' ? onToggleCollegeEvent : onToggleCommunityEvent}
-          renderEventIcon={renderEventIcon}
-          t={t}
-        />
+      {status === 'loading' && <LoadingGrid t={t} />}
+
+      {status === 'error' && (
+        <ErrorState onRetry={() => fetchEvents(activeFilter)} t={t} />
       )}
 
-      {/* College Events */}
-      {showCollege && (
-        <div className="space-y-4">
-          <SectionHeader
-            icon={<Building2 size={18} style={{ color: COLLEGE_ACCENT }} />}
-            title="Official College Events"
-            subtitle="Ceremonies, fests and institutional programs"
-            count={`${collegeEvents.length} event${collegeEvents.length === 1 ? '' : 's'}`}
-            t={t}
-          />
-          {collegeEvents.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {collegeEvents.map((ev) => (
-                <EventCard
-                  key={ev.id}
-                  event={ev}
-                  kind="college"
-                  onToggle={onToggleCollegeEvent}
-                  renderEventIcon={renderEventIcon}
-                  t={t}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message="No college events scheduled right now." t={t} />
-          )}
-        </div>
-      )}
-
-      {/* Community Events */}
-      {showCommunity && (
-        <div className="space-y-4">
-          <SectionHeader
-            icon={<Users size={18} style={{ color: COMMUNITY_ACCENT }} />}
-            title="Student Community Events"
-            subtitle="Organized by clubs and student-led groups"
-            count={`${communityEvents.length} event${communityEvents.length === 1 ? '' : 's'}`}
-            t={t}
-          />
-          {communityEvents.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {communityEvents.map((ev) => (
-                <EventCard
-                  key={ev.id}
-                  event={ev}
-                  kind="community"
-                  onToggle={onToggleCommunityEvent}
-                  renderEventIcon={renderEventIcon}
-                  t={t}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message="No community events scheduled right now." t={t} />
-          )}
-        </div>
+      {status === 'success' && (
+        events.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {events.map((ev) => (
+              <EventCard key={ev._id} event={ev} t={t} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState message={emptyMessage} t={t} />
+        )
       )}
     </div>
   );
