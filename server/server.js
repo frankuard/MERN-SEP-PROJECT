@@ -17,6 +17,8 @@ const roleMiddleware = require('./middleware/roleMiddleware');
 const testPostRoutes = require('./routes/testPost.routes');
 const lostFoundRoutes = require('./routes/lostFound.routes');
 const eventRoutes = require('./routes/event.routes');
+const canteenRoutes = require('./routes/canteen.routes');
+const timetableRoutes = require('./routes/timetable.routes');
 
 
 const app = express();
@@ -69,6 +71,10 @@ app.use('/api/lost-found', lostFoundRoutes);
 app.use('/api/test-posts', testPostRoutes);
 
 app.use('/api/events', eventRoutes);
+
+app.use('/api/canteen', canteenRoutes);
+
+app.use('/api/timetable', timetableRoutes);
 
 connectDB();
 
