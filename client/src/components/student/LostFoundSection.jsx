@@ -73,9 +73,9 @@ const LostFoundSection = ({
       const newItem = await lostFoundApi.reportItem(form);
       setItems((prev) => [newItem, ...prev]);
       if (setParentItems) setParentItems((prev) => [newItem, ...prev]);
-      toast.success('Lost item report saved to MongoDB successfully!', { icon: '📦' });
+      toast.success('Lost item report added successfully!', { icon: '📦' });
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to save item to database';
+      const msg = err.response?.data?.message || 'Failed to save item report';
       toast.error(msg);
     }
   };
@@ -95,7 +95,7 @@ const LostFoundSection = ({
           prev.map((item) => (item.id === itemId || item._id === itemId ? updatedItem : item))
         );
       }
-      toast.success('Item claimed successfully! Claim recorded in MongoDB.', { icon: '✅' });
+      toast.success('Item claimed successfully! Claim recorded.', { icon: '✅' });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to claim item';
       toast.error(msg);
@@ -108,7 +108,7 @@ const LostFoundSection = ({
       const newReq = await lostFoundApi.submitCctvRequest(formData);
       setCctvList((prev) => [newReq, ...prev]);
       if (setParentCctv) setParentCctv((prev) => [newReq, ...prev]);
-      toast.success(`CCTV Footage Request #${newReq.id?.slice(-4) || 'New'} saved to MongoDB!`, { icon: '📹' });
+      toast.success(`CCTV Footage Request #${newReq.id?.slice(-4) || 'New'} saved`, { icon: '📹' });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to submit CCTV request';
       toast.error(msg);
@@ -164,7 +164,7 @@ const LostFoundSection = ({
             }}
             className="flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold hover:bg-black/5 dark:hover:bg-white/5 transition-all"
             style={{ borderColor: t.border, color: t.textPrimary }}
-            title="Refresh MongoDB Data"
+            title="Refresh  Data"
           >
             <RefreshCw size={13} className={loading || cctvLoading ? 'animate-spin' : ''} />
             Refresh
