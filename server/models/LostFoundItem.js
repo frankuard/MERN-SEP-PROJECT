@@ -85,10 +85,6 @@ const lostFoundItemSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    time: {
-      type: String,
-      default: 'Just now',
-    },
     claimedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

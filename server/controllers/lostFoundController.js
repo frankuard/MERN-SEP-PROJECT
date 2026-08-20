@@ -93,7 +93,6 @@ const createLostFoundItem = async (req, res) => {
       status: 'Unclaimed',
       createdBy: userId,
       authorName,
-      time: 'Just now',
     });
 
     const populatedItem = await LostFoundItem.findById(item._id)
