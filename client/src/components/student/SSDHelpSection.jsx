@@ -19,29 +19,16 @@ const SSDHelpSection = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <div className="flex items-center gap-2">
-            <GraduationCap className="text-blue-600" size={24} />
-            <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-              Student Services Department (SSD) Help
-            </h2>
-          </div>
-          <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
-            Official attendance records &amp; reports, volunteering service history, and event volunteer opportunities.
-          </p>
-        </div>
-
-        {/* Sub-Tabs Selector */}
+      {/* Sub-Tabs Selector */}
+      <div className="flex items-center justify-start">
         <div
-          className="flex items-center gap-1 rounded-xl border p-1 shadow-xs self-start"
+          className="flex items-center gap-1 rounded-2xl border p-1.5 shadow-xs overflow-x-auto"
           style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
         >
           <button
             type="button"
             onClick={() => setSsdActiveSubTab('attendance')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+            className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-colors shrink-0 ${
               ssdActiveSubTab === 'attendance'
                 ? 'bg-[#2f4336] text-white shadow-xs'
                 : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
@@ -52,7 +39,7 @@ const SSDHelpSection = ({
           <button
             type="button"
             onClick={() => setSsdActiveSubTab('volunteering')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+            className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-colors shrink-0 ${
               ssdActiveSubTab === 'volunteering'
                 ? 'bg-[#2f4336] text-white shadow-xs'
                 : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
@@ -63,7 +50,7 @@ const SSDHelpSection = ({
           <button
             type="button"
             onClick={() => setSsdActiveSubTab('volunteer-requests')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+            className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-colors shrink-0 ${
               ssdActiveSubTab === 'volunteer-requests'
                 ? 'bg-[#2f4336] text-white shadow-xs'
                 : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
