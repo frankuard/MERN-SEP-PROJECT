@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wallet, UtensilsCrossed } from 'lucide-react';
+import canteenApi from '../../api/canteenApi';
 import { CANTEEN_MENU } from '../../data/studentDashboardData';
 
 const CanteenSection = ({
@@ -7,12 +8,37 @@ const CanteenSection = ({
   canteenCreditBalance = 150,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [menuItems, setMenuItems] = useState(CANTEEN_MENU);
+  const [creditBalance, setCreditBalance] = useState(canteenCreditBalance);
+
+  useEffect(() => {
+    let isMounted = true;
+    canteenApi.getMenu()
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setMenuItems(data);
+        }
+      })
+      .catch(() => {});
+
+    canteenApi.getCreditBalance()
+      .then((res) => {
+        if (isMounted && res && res.remainingBalance !== undefined) {
+          setCreditBalance(res.remainingBalance);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [canteenCreditBalance]);
 
   const categories = ['All', 'Meals', 'Snacks', 'Momo & Noodles', 'Beverages'];
 
   const filteredItems = selectedCategory === 'All'
-    ? CANTEEN_MENU
-    : CANTEEN_MENU.filter((item) => item.category === selectedCategory);
+    ? menuItems
+    : menuItems.filter((item) => item.category === selectedCategory);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -45,7 +71,7 @@ const CanteenSection = ({
                 Credit Due (Khata)
               </p>
               <p className="text-base font-black text-amber-700 dark:text-amber-400">
-                NPR {canteenCreditBalance} Pending
+                NPR {creditBalance} Pending
               </p>
             </div>
           </div>

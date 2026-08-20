@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Timer, MapPin, User, BookOpen, Terminal, Database, Cpu, CheckCircle2
 } from 'lucide-react';
+import timetableApi from '../../api/timetableApi';
 import { TIMETABLE_ROUTINE } from '../../data/studentDashboardData';
 
 const PythonIcon = ({ className = "h-4 w-4" }) => (
@@ -12,6 +13,22 @@ const PythonIcon = ({ className = "h-4 w-4" }) => (
 );
 
 const TimetableSection = ({ t }) => {
+  const [routine, setRoutine] = React.useState([]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    timetableApi.getTimetable({ format: 'grouped' })
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setRoutine(data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const getClassTypeBadge = (type) => {
     switch (type?.toLowerCase()) {
       case 'lecture':
@@ -73,7 +90,7 @@ const TimetableSection = ({ t }) => {
 
       {/* Grid of Medium Blocks for all days (Sunday to Saturday) */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 items-stretch">
-        {TIMETABLE_ROUTINE.map((dayData) => {
+        {(routine.length > 0 ? routine : TIMETABLE_ROUTINE).map((dayData) => {
           const isOff = dayData.isOffDay;
           const classCount = dayData.periods.length;
           const countLabel = isOff ? '0 Classes' : `${classCount} Class${classCount > 1 ? 'es' : ''}`;
