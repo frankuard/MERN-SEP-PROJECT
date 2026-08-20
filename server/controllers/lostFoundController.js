@@ -2,97 +2,25 @@ const LostFoundItem = require('../models/LostFoundItem');
 const CctvRequest = require('../models/CctvRequest');
 const User = require('../models/User');
 
-// Helper to seed initial sample data if MongoDB collection is empty
-const seedInitialDataIfNeeded = async (userId) => {
-  try {
-    const itemCount = await LostFoundItem.countDocuments();
-    if (itemCount === 0 && userId) {
-      const user = await User.findById(userId);
-      const authorName = user?.username || 'Suraj Poddar';
-
-      await LostFoundItem.create([
-        {
-          title: 'Rojika ko bag',
-          description: 'Black laptop bag with notebooks and water bottle left near study table.',
-          type: 'lost',
-          category: 'Bags',
-          location: 'Library, 2nd Floor Table 4',
-          status: 'Unclaimed',
-          createdBy: userId,
-          authorName,
-          time: '2 hours ago',
-        },
-        {
-          title: 'Keychain with blue tag',
-          description: 'Set of 3 keys with blue plastic tag found on the second row bench.',
-          type: 'found',
-          category: 'Keys',
-          location: 'Block A, Room 204',
-          status: 'Unclaimed',
-          createdBy: userId,
-          authorName,
-          time: '4 hours ago',
-        },
-        {
-          title: 'Phone (Samsung black case)',
-          description: 'Samsung smartphone with black protective case handed over to cafeteria desk.',
-          type: 'found',
-          category: 'Electronics',
-          location: 'Cafeteria counter',
-          status: 'Claimed',
-          createdBy: userId,
-          authorName,
-          claimedBy: userId,
-          claimantName: authorName,
-          time: 'Yesterday',
-        },
-      ]);
-    }
-
-    const cctvCount = await CctvRequest.countDocuments();
-    if (cctvCount === 0 && userId) {
-      const user = await User.findById(userId);
-      await CctvRequest.create({
-        user: userId,
-        userName: user?.username || 'Suraj Poddar',
-        userEmail: user?.email || 'suraj.student@bicnepal.edu.np',
-        location: 'Library 2nd Floor, Table 4',
-        date: '2026-08-16',
-        timeFrom: '01:30 PM',
-        timeTo: '03:00 PM',
-        reason: 'Black laptop bag misplaced near window counter',
-        status: 'In Review',
-        submittedAt: 'Yesterday',
-      });
-    }
-  } catch (err) {
-    console.warn('Initial Lost & Found seeding notice:', err.message);
-  }
-};
+// Resolves the logged-in user's ID regardless of which field name the JWT payload uses
+const resolveUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 
 /**
- * 1. Get all Lost & Found items (with search, category, status filters)
+ * 1. Get all Lost & Found items (search, category, status, type, mine)
  * GET /api/lost-found
  */
 const getLostFoundItems = async (req, res) => {
   try {
-    if (req.user?.userId) {
-      await seedInitialDataIfNeeded(req.user.userId);
-    }
-
-    const { search, category, status, type } = req.query;
+    const { search, category, status, type, mine } = req.query;
     const filter = {};
 
-    if (category && category !== 'All') {
-      filter.category = category;
-    }
+    if (category && category !== 'All') filter.category = category;
+    if (status && status !== 'All') filter.status = status;
+    if (type && type !== 'All') filter.type = type;
 
-    if (status && status !== 'All') {
-      filter.status = status;
-    }
-
-    if (type && type !== 'All') {
-      filter.type = type;
+    if (mine === 'true') {
+      const userId = resolveUserId(req);
+      if (userId) filter.createdBy = userId;
     }
 
     if (search && search.trim()) {
@@ -129,15 +57,11 @@ const getLostFoundItem = async (req, res) => {
       .populate('claimedBy', 'username email role')
       .populate('claims.user', 'username email role');
 
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
+    if (!item) return res.status(404).json({ message: 'Item not found' });
 
     res.status(200).json(item);
   } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Invalid item ID' });
-    }
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
     res.status(500).json({ message: err.message });
   }
 };
@@ -154,7 +78,8 @@ const createLostFoundItem = async (req, res) => {
       return res.status(400).json({ message: 'Item title and location are required' });
     }
 
-    const user = await User.findById(req.user.userId);
+    const userId = resolveUserId(req);
+    const user = await User.findById(userId);
     const authorName = user?.username || 'Student';
 
     const item = await LostFoundItem.create({
@@ -166,7 +91,7 @@ const createLostFoundItem = async (req, res) => {
       image: image || null,
       contactInfo: contactInfo || user?.email || '',
       status: 'Unclaimed',
-      createdBy: req.user.userId,
+      createdBy: userId,
       authorName,
       time: 'Just now',
     });
@@ -188,13 +113,10 @@ const updateLostFoundItem = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await LostFoundItem.findById(id);
+    if (!item) return res.status(404).json({ message: 'Item not found' });
 
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
-
-    // Permission check: item creator or admin/staff
-    const isOwner = item.createdBy.toString() === req.user.userId;
+    const userId = resolveUserId(req);
+    const isOwner = item.createdBy.toString() === userId;
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
 
     if (!isOwner && !isStaffOrAdmin) {
@@ -219,9 +141,7 @@ const updateLostFoundItem = async (req, res) => {
 
     res.status(200).json(updatedItem);
   } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Invalid item ID' });
-    }
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
     res.status(500).json({ message: err.message });
   }
 };
@@ -234,12 +154,10 @@ const deleteLostFoundItem = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await LostFoundItem.findById(id);
+    if (!item) return res.status(404).json({ message: 'Item not found' });
 
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
-
-    const isOwner = item.createdBy.toString() === req.user.userId;
+    const userId = resolveUserId(req);
+    const isOwner = item.createdBy.toString() === userId;
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
 
     if (!isOwner && !isStaffOrAdmin) {
@@ -247,51 +165,43 @@ const deleteLostFoundItem = async (req, res) => {
     }
 
     await LostFoundItem.findByIdAndDelete(id);
-
     res.status(200).json({ message: 'Item deleted successfully', id });
   } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Invalid item ID' });
-    }
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
     res.status(500).json({ message: err.message });
   }
 };
 
 /**
  * 6. Claim This Item
- * POST or PATCH /api/lost-found/:id/claim
+ * POST/PATCH /api/lost-found/:id/claim
  */
 const claimLostFoundItem = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await LostFoundItem.findById(id);
-
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
+    if (!item) return res.status(404).json({ message: 'Item not found' });
 
     if (item.status === 'Returned') {
       return res.status(400).json({ message: 'This item has already been marked as Returned.' });
     }
 
-    // Check duplicate claims by same student
-    const existingClaim = item.claims.find(
-      (c) => c.user && c.user.toString() === req.user.userId && c.status !== 'Rejected'
-    );
+    const userId = resolveUserId(req);
 
+    const existingClaim = item.claims.find(
+      (c) => c.user && c.user.toString() === userId && c.status !== 'Rejected'
+    );
     if (existingClaim) {
       return res.status(400).json({ message: 'You have already submitted a claim for this item.' });
     }
 
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(userId);
     const claimantName = user?.username || 'Student';
     const claimantEmail = user?.email || '';
-
     const claimDetails = req.body.details || req.body.reason || 'Claimed by student';
 
-    // Add to claims log
     item.claims.push({
-      user: req.user.userId,
+      user: userId,
       userName: claimantName,
       userEmail: claimantEmail,
       details: claimDetails,
@@ -299,9 +209,8 @@ const claimLostFoundItem = async (req, res) => {
       claimedAt: new Date(),
     });
 
-    // Update item status
     item.status = 'Claimed';
-    item.claimedBy = req.user.userId;
+    item.claimedBy = userId;
     item.claimantName = claimantName;
 
     await item.save();
@@ -313,9 +222,7 @@ const claimLostFoundItem = async (req, res) => {
 
     res.status(200).json(populated);
   } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Invalid item ID' });
-    }
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
     res.status(500).json({ message: err.message });
   }
 };
@@ -328,12 +235,10 @@ const markItemReturned = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await LostFoundItem.findById(id);
+    if (!item) return res.status(404).json({ message: 'Item not found' });
 
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
-
-    const isOwner = item.createdBy.toString() === req.user.userId;
+    const userId = resolveUserId(req);
+    const isOwner = item.createdBy.toString() === userId;
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
 
     if (!isOwner && !isStaffOrAdmin) {
@@ -342,7 +247,7 @@ const markItemReturned = async (req, res) => {
 
     item.status = 'Returned';
     item.returnedAt = new Date();
-    item.returnedBy = req.user.userId;
+    item.returnedBy = userId;
 
     await item.save();
 
@@ -352,9 +257,7 @@ const markItemReturned = async (req, res) => {
 
     res.status(200).json(populated);
   } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Invalid item ID' });
-    }
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
     res.status(500).json({ message: err.message });
   }
 };
@@ -373,10 +276,11 @@ const createCctvRequest = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.userId);
+    const userId = resolveUserId(req);
+    const user = await User.findById(userId);
 
     const cctvRequest = await CctvRequest.create({
-      user: req.user.userId,
+      user: userId,
       userName: user?.username || 'Student',
       userEmail: user?.email || '',
       location: location.trim(),
@@ -402,12 +306,8 @@ const createCctvRequest = async (req, res) => {
  */
 const getCctvRequests = async (req, res) => {
   try {
-    if (req.user?.userId) {
-      await seedInitialDataIfNeeded(req.user.userId);
-    }
-
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
-    const filter = isStaffOrAdmin ? {} : { user: req.user.userId };
+    const filter = isStaffOrAdmin ? {} : { user: resolveUserId(req) };
 
     const requests = await CctvRequest.find(filter)
       .populate('user', 'username email role department semester')
@@ -431,14 +331,11 @@ const updateCctvStatus = async (req, res) => {
     const { status, reviewNotes } = req.body;
 
     const request = await CctvRequest.findById(id);
-
-    if (!request) {
-      return res.status(404).json({ message: 'CCTV request not found' });
-    }
+    if (!request) return res.status(404).json({ message: 'CCTV request not found' });
 
     if (status) request.status = status;
     if (reviewNotes !== undefined) request.reviewNotes = reviewNotes;
-    request.reviewedBy = req.user.userId;
+    request.reviewedBy = resolveUserId(req);
 
     await request.save();
 
@@ -448,15 +345,13 @@ const updateCctvStatus = async (req, res) => {
 
     res.status(200).json(updated);
   } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Invalid request ID' });
-    }
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid request ID' });
     res.status(500).json({ message: err.message });
   }
 };
 
 /**
- * 11. Get Lost & Found Statistics
+ * 11. Get Lost & Found Statistics (kept for staff/admin views elsewhere, not used by student UI)
  * GET /api/lost-found/stats
  */
 const getLostFoundStats = async (req, res) => {
@@ -467,16 +362,10 @@ const getLostFoundStats = async (req, res) => {
     const returnedItems = await LostFoundItem.countDocuments({ status: { $in: ['Returned', 'resolved'] } });
 
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
-    const cctvFilter = isStaffOrAdmin ? {} : { user: req.user.userId };
+    const cctvFilter = isStaffOrAdmin ? {} : { user: resolveUserId(req) };
     const myCctvRequests = await CctvRequest.countDocuments(cctvFilter);
 
-    res.status(200).json({
-      totalItems,
-      unclaimedItems,
-      claimedItems,
-      returnedItems,
-      myCctvRequests,
-    });
+    res.status(200).json({ totalItems, unclaimedItems, claimedItems, returnedItems, myCctvRequests });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
