@@ -89,6 +89,20 @@ const ReportLostItemModal = ({ isOpen, onClose, t, onSubmit }) => {
             </select>
           </div>
 
+          <div>
+            <label className="block font-bold" style={{ color: t.textPrimary }}>
+              Image URL (Optional)
+            </label>
+            <input
+              type="url"
+              placeholder="e.g. https://images.unsplash.com/..."
+              value={form.image || ''}
+              onChange={(e) => setForm({ ...form, image: e.target.value })}
+              className="mt-1 w-full rounded-xl border px-3.5 py-2.5 outline-none"
+              style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+            />
+          </div>
+
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"

@@ -379,13 +379,27 @@ const LostFoundSection = ({
             return (
               <div
                 key={itemId}
-                className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
                 style={{
                   backgroundColor: t.cardBg || '#ffffff',
                   borderColor: t.border,
                 }}
               >
                 <div>
+                  {item.image && (
+                    <div className="relative -mx-5 -mt-5 mb-4 h-44 overflow-hidden bg-slate-100 dark:bg-zinc-900">
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.parentElement.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="text-base font-bold truncate" style={{ color: t.textPrimary }}>
                       {item.title}

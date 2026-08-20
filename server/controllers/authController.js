@@ -1,7 +1,6 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { getDbStatus } = require('../config/db');
-
 const generateToken = require('../utils/generateToken');
 
 const ensureDatabase = (res) => {
@@ -10,6 +9,20 @@ const ensureDatabase = (res) => {
     return false;
   }
   return true;
+};
+
+/**
+ * Sets a secure HttpOnly cookie for session token
+ */
+const setAuthCookie = (res, token) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/',
+  });
 };
 
 // REGISTER PART
@@ -66,6 +79,7 @@ const register = async (req, res) => {
 
     // 8. Build response without password
     const userResponse = {
+      id: user._id,
       _id: user._id,
       username: user.username,
       email: user.email,
@@ -77,6 +91,9 @@ const register = async (req, res) => {
     };
 
     if (status === 'approved') {
+      const token = generateToken(user._id, user.role);
+      setAuthCookie(res, token);
+
       return res.status(201).json({
         message: 'Account created and approved successfully',
         user: userResponse,
@@ -116,7 +133,7 @@ const loginUser = async (req, res) => {
     // 5. Compare password
     const isMatch = await bcrypt.compare(password, user.password);
 
-    // 6. Wrong password — same generic message as "user not found"
+    // 6. Wrong password
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -130,19 +147,23 @@ const loginUser = async (req, res) => {
       return res.status(403).json({ message: 'Your account request was rejected. Contact admin.' });
     }
 
-    // 8. Generate JWT
+    // 8. Generate JWT & set HttpOnly Cookie
     const token = generateToken(user._id, user.role);
+    setAuthCookie(res, token);
 
-    // 9. Success response
+    // 9. Success response with in-memory user data only
     res.status(200).json({
       message: 'Login successful',
-      token,
       user: {
         id: user._id,
+        _id: user._id,
         username: user.username,
         email: user.email,
         role: user.role,
         status: user.status,
+        department: user.department,
+        semester: user.semester,
+        profileImage: user.profileImage,
       },
     });
 
@@ -151,4 +172,51 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { register, loginUser };
+// LOGOUT PART
+const logoutUser = async (req, res) => {
+  try {
+    const isProd = process.env.NODE_ENV === 'production';
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+    });
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET CURRENT AUTHENTICATED USER (Hydration / Token Verification)
+const getMe = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    res.status(200).json({
+      user: {
+        id: req.user._id,
+        _id: req.user._id,
+        username: req.user.username,
+        email: req.user.email,
+        role: req.user.role,
+        status: req.user.status,
+        department: req.user.department,
+        semester: req.user.semester,
+        profileImage: req.user.profileImage,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = {
+  register,
+  loginUser,
+  logoutUser,
+  getMe,
+  setAuthCookie,
+};

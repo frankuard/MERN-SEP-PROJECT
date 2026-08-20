@@ -32,9 +32,9 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState(() => localStorage.getItem('chautari_remember_email') || '');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('chautari_remember_me') === 'true');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -90,14 +90,6 @@ const Login = () => {
 
     try {
       const data = await login(email.trim(), password);
-
-      if (rememberMe) {
-        localStorage.setItem('chautari_remember_me', 'true');
-        localStorage.setItem('chautari_remember_email', email.trim());
-      } else {
-        localStorage.removeItem('chautari_remember_me');
-        localStorage.removeItem('chautari_remember_email');
-      }
 
       toast.success(data.message || 'Login successful');
       const redirectTo = location.state?.from || getDashboardPath(data.user.role);
