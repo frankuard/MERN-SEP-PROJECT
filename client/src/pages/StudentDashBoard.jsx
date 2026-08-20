@@ -466,14 +466,8 @@ const StudentDashboard = () => {
 
             {/* 2. Lost & Found Section */}
             {activeTab === 'lost-found' && (
-              <LostFoundSection
-                t={t}
-                lostFoundItems={lostFoundItems}
-                setLostFoundItems={setLostFoundItems}
-                cctvRequests={cctvRequests}
-                setCctvRequests={setCctvRequests}
-              />
-            )}
+  <LostFoundSection t={t} />
+)}
 
             {/* 3. Campus Posts Section */}
             {activeTab === 'campus-posts' && (

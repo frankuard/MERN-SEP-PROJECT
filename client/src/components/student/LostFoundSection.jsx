@@ -61,6 +61,11 @@ const LostFoundSection = ({ t }) => {
   const { user } = useAuth();
 
   const [items, setItems] = useState([]);
+
+  const visibleItems = items.filter(
+  (it) => !['Claimed', 'Returned', 'resolved'].includes(it.status)
+);
+
   const [status, setStatus] = useState('loading');
   const [typeFilter, setTypeFilter] = useState('all');
   const [category, setCategory] = useState('All');
@@ -244,7 +249,7 @@ const LostFoundSection = ({ t }) => {
         <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>Recent Lost &amp; Found</h3>
         <LostFoundList
           status={status}
-          items={items}
+          items={visibleItems}
           currentUserEmail={currentUserEmail}
           claimingId={claimingId}
           onClaim={handleClaim}
