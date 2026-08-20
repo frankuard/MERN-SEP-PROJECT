@@ -17,7 +17,23 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === 'local' || (!this.googleId && this.authProvider !== 'google');
+      },
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
     },
     role: {
       type: String,
@@ -31,17 +47,24 @@ const userSchema = new mongoose.Schema(
     },
     department: {
       type: String,
+      default: '',
     },
     semester: {
       type: String,
+      default: '',
     },
     profileImage: {
       type: String,
+      default: '',
+    },
+    lastLogin: {
+      type: Date,
+      default: Date.now,
     },
   },
   { timestamps: true }
 );
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 module.exports = User;

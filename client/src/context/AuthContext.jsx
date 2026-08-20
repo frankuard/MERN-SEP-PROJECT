@@ -149,6 +149,15 @@ const AuthProvider = ({ children }) => {
     [registerWithDevFallback]
   );
 
+  const loginWithGoogle = useCallback(
+    async (googlePayload) => {
+      const { data } = await axiosInstance.post('/auth/google', googlePayload);
+      persistAuth(data.token, data.user);
+      return data;
+    },
+    [persistAuth]
+  );
+
   const logout = useCallback(() => {
     clearAuth();
   }, [clearAuth]);
@@ -161,9 +170,10 @@ const AuthProvider = ({ children }) => {
       isAuthenticated: Boolean(token && user),
       login,
       register,
+      loginWithGoogle,
       logout,
     }),
-    [user, token, loading, login, register, logout]
+    [user, token, loading, login, register, loginWithGoogle, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
