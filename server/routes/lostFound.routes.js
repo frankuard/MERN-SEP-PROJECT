@@ -2,14 +2,41 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
-const { createLostFoundItem, getLostFoundItem, getLostFoundItems, claimLostFoundItem, resolveLostFoundItem } = require('../controllers/lostFoundController');
+const {
+  getLostFoundItems,
+  getLostFoundItem,
+  createLostFoundItem,
+  updateLostFoundItem,
+  deleteLostFoundItem,
+  claimLostFoundItem,
+  markItemReturned,
+  createCctvRequest,
+  getCctvRequests,
+  updateCctvStatus,
+  getLostFoundStats,
+} = require('../controllers/lostFoundController');
 
-router.post('/', authMiddleware, roleMiddleware('student','teacher','staff','admin'), createLostFoundItem);
-router.get('/', authMiddleware, roleMiddleware('student','teacher','staff','admin'), getLostFoundItems);
-router.get('/:id', authMiddleware, roleMiddleware('student','teacher','staff','admin'), getLostFoundItem);
-router.patch('/:id/claim', authMiddleware, roleMiddleware('student', 'teacher', 'staff','admin'), claimLostFoundItem);
-router.patch('/:id/resolve', authMiddleware, roleMiddleware('student', 'teacher', 'staff','admin'), resolveLostFoundItem);
+const allRoles = roleMiddleware('student', 'teacher', 'staff', 'admin');
+const staffAndAdmin = roleMiddleware('staff', 'admin');
 
+// 1. Statistics & Overview
+router.get('/stats', authMiddleware, allRoles, getLostFoundStats);
 
+// 2. CCTV Footage Requests
+router.get('/cctv-requests', authMiddleware, allRoles, getCctvRequests);
+router.post('/cctv-request', authMiddleware, allRoles, createCctvRequest);
+router.patch('/cctv-request/:id/status', authMiddleware, staffAndAdmin, updateCctvStatus);
+
+// 3. Lost & Found Items CRUD
+router.get('/', authMiddleware, allRoles, getLostFoundItems);
+router.post('/', authMiddleware, allRoles, createLostFoundItem);
+router.get('/:id', authMiddleware, allRoles, getLostFoundItem);
+router.patch('/:id', authMiddleware, allRoles, updateLostFoundItem);
+router.delete('/:id', authMiddleware, allRoles, deleteLostFoundItem);
+
+// 4. Claims & Return Workflow
+router.post('/:id/claim', authMiddleware, allRoles, claimLostFoundItem);
+router.patch('/:id/claim', authMiddleware, allRoles, claimLostFoundItem);
+router.patch('/:id/return', authMiddleware, allRoles, markItemReturned);
 
 module.exports = router;
