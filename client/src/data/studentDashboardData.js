@@ -134,6 +134,7 @@ export const INITIAL_LOST_FOUND = [
     time: '2 hours ago',
     category: 'Bags',
     status: 'Unclaimed',
+    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80',
   },
   {
     id: 'lf2',
@@ -142,6 +143,7 @@ export const INITIAL_LOST_FOUND = [
     time: '4 hours ago',
     category: 'Keys',
     status: 'Unclaimed',
+    image: 'https://images.unsplash.com/photo-1582139329536-e7284fece509?w=600&auto=format&fit=crop&q=80',
   },
   {
     id: 'lf3',
@@ -150,6 +152,7 @@ export const INITIAL_LOST_FOUND = [
     time: 'Yesterday',
     category: 'Electronics',
     status: 'Claimed',
+    image: 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=600&auto=format&fit=crop&q=80',
   },
 ];
 
@@ -268,8 +271,8 @@ export const CANTEEN_MENU = [
     name: 'Lassi',
     price: 80,
     category: 'Beverages',
-    subtitle: 'Chilled sweet creamy curd yogurt drink',
-    image: 'https://images.unsplash.com/photo-1571006682893-ac91f9b3ec70?w=600&auto=format&fit=crop&q=80',
+    subtitle: 'Chilled sweet creamy curd yogurt drink with pistachios',
+    image: '/canteen/lassi.jpg',
     fallbackImage: '/canteen/lassi.svg',
     available: true,
   },
@@ -343,7 +346,7 @@ export const CANTEEN_SPECIALS_LIST = [
     subtitle: 'Cold drinks',
     category: 'Beverages',
     featured: false,
-    image: '/canteen/lassi.png',
+    image: '/canteen/lassi.jpg',
     cardColor: 'slate',
   },
 ];

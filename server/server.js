@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const { getDbStatus } = require('./config/db');
 const {notFound, errorHandler} = require("./middleware/errorHandler");
@@ -23,7 +24,30 @@ const timetableRoutes = require('./routes/timetable.routes');
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:5176',
+  'http://localhost:5177',
+  'http://localhost:5178',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5178',
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Permissive in local dev
+    },
+    credentials: true,
+  })
+);
+app.use(cookieParser());
 app.use(express.json());
 
 app.get('/', (req,res) => {

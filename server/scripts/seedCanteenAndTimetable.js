@@ -150,8 +150,8 @@ const CANTEEN_MENU_DATA = [
     name: 'Lassi',
     price: 80,
     category: 'Beverages',
-    description: 'Chilled sweet creamy curd yogurt drink',
-    image: 'https://images.unsplash.com/photo-1571006682893-ac91f9b3ec70?w=600&auto=format&fit=crop&q=80',
+    description: 'Chilled sweet creamy curd yogurt drink with pistachios',
+    image: '/canteen/lassi.jpg',
     availability: true,
   },
   {

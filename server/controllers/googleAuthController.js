@@ -268,15 +268,23 @@ const googleAuth = async (req, res) => {
       return res.status(403).json({ message: 'Your account request was rejected. Please contact support.' });
     }
 
-    // 8. Generate application JWT session token
+    // 8. Generate application JWT session token and set HttpOnly Cookie
     const token = generateToken(user._id, user.role);
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
 
-    // 9. Success response
+    // 9. Success response with in-memory user data only
     res.status(200).json({
       message: 'Google sign-in successful',
-      token,
       user: {
         id: user._id,
+        _id: user._id,
         username: user.username,
         email: user.email,
         role: user.role,
