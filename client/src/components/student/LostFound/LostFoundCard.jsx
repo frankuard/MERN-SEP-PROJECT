@@ -21,7 +21,7 @@ const LostFoundCard = ({ item, currentUserEmail, onClaim, claiming, t }) => {
       className="flex h-full flex-col rounded-2xl border p-4 transition-all duration-200 hover:shadow-md"
       style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl">
+      <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl">
         {item.image ? (
           <img src={item.image} alt={item.title} className="h-full w-full object-cover" loading="lazy" />
         ) : (
