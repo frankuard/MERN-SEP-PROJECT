@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
 import lostFoundApi from '../../api/lostFoundApi';
@@ -9,7 +9,6 @@ import CctvRequestModal from './modals/CctvRequestModal';
 
 const ACCENT = '#2f4336';
 const CATEGORIES = ['All', 'Bags', 'Electronics', 'Keys', 'Books', 'General'];
-const RESOLVED_STATUSES = ['Claimed', 'Returned', 'resolved'];
 
 const formatDate = (isoString) => {
   if (!isoString) return '';
@@ -62,6 +61,11 @@ const LostFoundSection = ({ t }) => {
   const { user } = useAuth();
 
   const [items, setItems] = useState([]);
+
+  const visibleItems = items.filter(
+  (it) => !['Claimed', 'Returned', 'resolved'].includes(it.status)
+);
+
   const [status, setStatus] = useState('loading');
   const [typeFilter, setTypeFilter] = useState('all');
   const [category, setCategory] = useState('All');
@@ -74,6 +78,7 @@ const LostFoundSection = ({ t }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showCctvModal, setShowCctvModal] = useState(false);
 
+  // Debounce search input -> search query
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 350);
     return () => clearTimeout(timer);
@@ -126,16 +131,13 @@ const LostFoundSection = ({ t }) => {
       );
       setActivity(merged);
     } catch {
-      // Activity is secondary; the main items grid reports its own errors separately.
+      // Activity is secondary; failing silently here just leaves the section empty,
+      // the main items grid above still reports its own errors.
     }
   }, []);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
-
-  // Resolved items stay in Mongo and in "Your Activity" forever,
-  // but drop out of the main browsing grid once claimed/returned.
-  const visibleItems = items.filter((it) => !RESOLVED_STATUSES.includes(it.status));
 
   const handleClaim = async (itemId) => {
     setClaimingId(itemId);

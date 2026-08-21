@@ -5,7 +5,7 @@ const LoadingGrid = ({ t }) => (
   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
     {[...Array(3)].map((_, i) => (
       <div key={i} className="animate-pulse rounded-2xl border p-4" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
-        <div className="aspect-[4/3] w-full rounded-xl" style={{ backgroundColor: t.pageBg }} />
+        <div className="aspect-4/3 w-full rounded-xl" style={{ backgroundColor: t.pageBg }} />
         <div className="mt-4 h-4 w-2/3 rounded" style={{ backgroundColor: t.pageBg }} />
         <div className="mt-2 h-3 w-full rounded" style={{ backgroundColor: t.pageBg }} />
       </div>
