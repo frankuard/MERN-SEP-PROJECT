@@ -1,15 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import axiosInstance from '../api/axiosInstance';
-import { isBackendAvailable } from '../utils/apiHealth';
 import {
-  DevAuthError,
-  buildDevLoginResponse,
-  createDemoDevUser,
-  createDevUserFromSignup,
-  isDevEnvironment,
-  isBackendUnavailableError,
-  matchesDevCredentials,
-} from '../utils/devAuth';
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+
+import axiosInstance from '../api/axiosInstance';
 
 const AuthContext = createContext(null);
 
@@ -20,160 +18,76 @@ export const getDashboardPath = (role) => {
     staff: '/staff/dashboard',
     admin: '/admin/dashboard',
   };
-  return routes[role] || '/login';
-};
 
-// Purge any legacy authentication keys that might have existed in localStorage
-const purgeLegacyStorage = () => {
-  try {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('role');
-    localStorage.removeItem('auth');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('email');
-    localStorage.removeItem('chautari_remember_email');
-    localStorage.removeItem('chautari_remember_me');
-  } catch {}
+  return routes[role] || '/login';
 };
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize session by verifying HttpOnly cookie with backend
+  // Restore the logged-in user from the backend session.
+  // The JWT is stored in an HttpOnly cookie, so JavaScript
+  // does not need to access or store the token.
   useEffect(() => {
-    purgeLegacyStorage();
+    let mounted = true;
 
-    let isMounted = true;
-    const initAuth = async () => {
+    const loadCurrentUser = async () => {
       try {
-        const { data } = await axiosInstance.get('/auth/me');
-        if (isMounted && data && data.user) {
-          setUser(data.user);
+        const response = await axiosInstance.get('/auth/me');
+
+        if (mounted && response.data?.user) {
+          setUser(response.data.user);
         }
-      } catch (err) {
-        if (isMounted) {
+      } catch (error) {
+        if (mounted) {
           setUser(null);
         }
       } finally {
-        if (isMounted) {
+        if (mounted) {
           setLoading(false);
         }
       }
     };
 
-    initAuth();
+    loadCurrentUser();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, []);
 
-  const loginWithDevFallback = useCallback(
-    (email, password) => {
-      if (!isDevEnvironment()) {
-        throw new DevAuthError('Unable to reach the server. Please check your connection and try again.');
-      }
+  const login = useCallback(async (email, password) => {
+    const response = await axiosInstance.post('/auth/login', {
+      email,
+      password,
+    });
 
-      if (matchesDevCredentials(email, password)) {
-        const devUser = createDemoDevUser();
-        const data = buildDevLoginResponse(devUser);
-        setUser(data.user);
-        return data;
-      }
+    if (response.data?.user) {
+      setUser(response.data.user);
+    }
 
-      throw new DevAuthError('Invalid development credentials.');
-    },
-    []
-  );
+    return response.data;
+  }, []);
 
-  const registerWithDevFallback = useCallback(
-    (payload) => {
-      if (!isDevEnvironment()) {
-        throw new DevAuthError('Unable to reach the server. Please check your connection and try again.');
-      }
+  const register = useCallback(async (payload) => {
+    const response = await axiosInstance.post('/auth/register', payload);
 
-      const devUser = createDevUserFromSignup({
-        username: payload.username,
-        email: payload.email,
-        role: payload.role,
-      });
-      const data = buildDevLoginResponse(
-        devUser,
-        'Development account created locally. Signed in for this session.'
-      );
-      setUser(data.user);
-      return data;
-    },
-    []
-  );
+    if (response.data?.user && response.data.user.status === 'approved') {
+      setUser(response.data.user);
+    }
 
-  const login = useCallback(
-    async (email, password) => {
-      const backendOnline = await isBackendAvailable();
-
-      if (!backendOnline && isDevEnvironment()) {
-        return loginWithDevFallback(email, password);
-      }
-
-      try {
-        const { data } = await axiosInstance.post('/auth/login', { email, password });
-        if (data.user) {
-          setUser(data.user);
-        }
-        return data;
-      } catch (error) {
-        if (isDevEnvironment() && isBackendUnavailableError(error)) {
-          return loginWithDevFallback(email, password);
-        }
-        throw error;
-      }
-    },
-    [loginWithDevFallback]
-  );
-
-  const register = useCallback(
-    async (payload) => {
-      const backendOnline = await isBackendAvailable();
-
-      if (!backendOnline && isDevEnvironment()) {
-        return registerWithDevFallback(payload);
-      }
-
-      try {
-        const { data } = await axiosInstance.post('/auth/register', payload);
-        if (data.user && data.user.status === 'approved') {
-          setUser(data.user);
-        }
-        return data;
-      } catch (error) {
-        if (isDevEnvironment() && isBackendUnavailableError(error)) {
-          return registerWithDevFallback(payload);
-        }
-        throw error;
-      }
-    },
-    [registerWithDevFallback]
-  );
-
-  const loginWithGoogle = useCallback(
-    async (googlePayload) => {
-      const { data } = await axiosInstance.post('/auth/google', googlePayload);
-      if (data.user) {
-        setUser(data.user);
-      }
-      return data;
-    },
-    []
-  );
+    return response.data;
+  }, []);
 
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post('/auth/logout');
-    } catch {}
-    purgeLegacyStorage();
-    setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const value = useMemo(
@@ -183,21 +97,26 @@ const AuthProvider = ({ children }) => {
       isAuthenticated: Boolean(user && (user.id || user._id)),
       login,
       register,
-      loginWithGoogle,
       logout,
     }),
-    [user, loading, login, register, loginWithGoogle, logout]
+    [user, loading, login, register, logout]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthProvider;
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');
   }
+
   return context;
 };

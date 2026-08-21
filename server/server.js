@@ -37,16 +37,12 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Permissive in local dev
-    },
+    origin: allowedOrigins,
     credentials: true,
   })
 );
+
+
 app.use(cookieParser());
 app.use(express.json());
 
