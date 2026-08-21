@@ -1,4 +1,4 @@
-import { Calendar, MapPin, User, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, User, CheckCircle2, Lock } from 'lucide-react';
 
 const ACCENT = '#2f4336';
 const LOST_ACCENT = '#dc2626';
@@ -21,7 +21,7 @@ const LostFoundCard = ({ item, currentUserEmail, onClaim, claiming, t }) => {
       className="flex h-full flex-col rounded-2xl border p-4 transition-all duration-200 hover:shadow-md"
       style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl">
+      <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl">
         {item.image ? (
           <img src={item.image} alt={item.title} className="h-full w-full object-cover" loading="lazy" />
         ) : (
@@ -60,9 +60,9 @@ const LostFoundCard = ({ item, currentUserEmail, onClaim, claiming, t }) => {
       </h4>
 
       {item.description && (
-        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed" style={{ color: t.textMuted }}>
+        <div className="mt-3 space-y-1.5 text-sm" style={{ color: t.textMuted }}>
           {item.description}
-        </p>
+        </div>
       )}
 
       <div className="mt-3 space-y-1.5 text-sm" style={{ color: t.textMuted }}>
@@ -72,7 +72,7 @@ const LostFoundCard = ({ item, currentUserEmail, onClaim, claiming, t }) => {
         </div>
         <div className="flex items-center gap-2">
           <Calendar size={14} className="shrink-0" />
-          <span>Added on {formatDate(item.createdAt)}</span>
+          <span>{formatDate(item.createdAt)}</span>
         </div>
         {item.authorName && (
           <div className="flex items-center gap-2">
