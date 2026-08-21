@@ -79,29 +79,6 @@ const ResourcesSection = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-        <div>
-          <div className="flex items-center gap-2">
-            <BookOpen className="text-blue-600" size={24} />
-            <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-              Campus Resources &amp; Student Services
-            </h2>
-          </div>
-          <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>
-            Central hub for library book borrowing, sports equipment requisition, budget claims, and facility maintenance.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onNavigateTab('dashboard')}
-          className="rounded-xl border px-3.5 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5 self-start"
-          style={{ borderColor: t.border, color: t.textPrimary }}
-        >
-          ← Dashboard
-        </button>
-      </div>
-
       {/* Prominent Horizontal Navbar for the 4 Sections in One Single Row with Big Text */}
       <nav
         className="flex w-full items-center justify-between overflow-x-auto rounded-2xl border p-2 shadow-xs"

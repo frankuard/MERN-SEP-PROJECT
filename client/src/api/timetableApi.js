@@ -1,17 +1,58 @@
 import axiosInstance from './axiosInstance';
-import { L4CG3_TIMETABLE_ROUTINE, INITIAL_RTE_SCHEDULE_CHANGES } from '../data/studentDashboardData';
+import { TIMETABLE_ROUTINE, INITIAL_RTE_SCHEDULE_CHANGES } from '../data/studentDashboardData';
 
 /**
  * Timetable & Official RTE Schedule Changes API Service
  */
 export const timetableApi = {
-  // GET /api/timetable or /api/timetable/l4cg3
-  getTimetable: async (group = 'L4CG3') => {
+  // GET /api/timetable
+  getTimetable: async (params = {}) => {
     try {
-      const res = await axiosInstance.get(`/timetable?group=${group}`);
+      const queryStr = typeof params === 'string' ? `?group=${params}` : `?format=grouped`;
+      const res = await axiosInstance.get(`/timetable${queryStr}`);
       return res.data;
     } catch {
-      return L4CG3_TIMETABLE_ROUTINE;
+      return TIMETABLE_ROUTINE;
+    }
+  },
+
+  // GET /api/timetable/:id
+  getClassById: async (id) => {
+    try {
+      const res = await axiosInstance.get(`/timetable/${id}`);
+      return res.data;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // POST /api/timetable (Admin/Staff)
+  createClass: async (payload) => {
+    try {
+      const res = await axiosInstance.post('/timetable', payload);
+      return res.data;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // PUT /api/timetable/:id (Admin/Staff)
+  updateClass: async (id, payload) => {
+    try {
+      const res = await axiosInstance.put(`/timetable/${id}`, payload);
+      return res.data;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // DELETE /api/timetable/:id (Admin/Staff)
+  deleteClass: async (id) => {
+    try {
+      const res = await axiosInstance.delete(`/timetable/${id}`);
+      return res.data;
+    } catch (err) {
+      throw err;
     }
   },
 
