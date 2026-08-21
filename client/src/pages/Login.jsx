@@ -4,6 +4,7 @@ import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getDashboardPath, useAuth } from '../context/AuthContext';
 import { DevAuthError } from '../utils/devAuth';
+import { triggerGoogleAuth } from '../utils/googleAuth';
 
 const GoogleIcon = () => (
   <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
@@ -27,15 +28,16 @@ const GoogleIcon = () => (
 );
 
 const Login = () => {
-  const { login, isAuthenticated, user, loading: authLoading } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState(() => localStorage.getItem('chautari_remember_email') || '');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('chautari_remember_me') === 'true');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   if (authLoading) {
@@ -89,14 +91,6 @@ const Login = () => {
     try {
       const data = await login(email.trim(), password);
 
-      if (rememberMe) {
-        localStorage.setItem('chautari_remember_me', 'true');
-        localStorage.setItem('chautari_remember_email', email.trim());
-      } else {
-        localStorage.removeItem('chautari_remember_me');
-        localStorage.removeItem('chautari_remember_email');
-      }
-
       toast.success(data.message || 'Login successful');
       const redirectTo = location.state?.from || getDashboardPath(data.user.role);
       navigate(redirectTo, { replace: true });
@@ -109,15 +103,34 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    toast('Google sign-in is coming soon!', {
-      icon: 'ℹ️',
-      style: {
-        borderRadius: '12px',
-        background: '#1a2b4c',
-        color: '#fff',
-      },
-    });
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      setErrors({});
+      const googleAuthPayload = await triggerGoogleAuth();
+      const data = await loginWithGoogle(googleAuthPayload);
+      toast.success(data.message || 'Google sign-in successful');
+      const redirectTo = location.state?.from || getDashboardPath(data.user.role);
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      console.error('Google Sign-In Error:', error);
+      if (error?.isCancelled) {
+        toast('Google sign-in was cancelled', {
+          icon: 'ℹ️',
+          style: {
+            borderRadius: '12px',
+            background: '#1a2b4c',
+            color: '#fff',
+          },
+        });
+        return;
+      }
+      const message = error.response?.data?.message || error.message || 'Google sign-in failed. Please try again.';
+      setErrors({ form: message });
+      toast.error(message, { duration: 6000 });
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -287,11 +300,16 @@ const Login = () => {
 
             <button
               type="button"
+              disabled={loading || googleLoading}
               onClick={handleGoogleSignIn}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 text-sm font-semibold text-[#374151] transition-colors hover:bg-[#f9fafb] hover:border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1a2b4c]/10"
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 text-sm font-semibold text-[#374151] transition-colors hover:bg-[#f9fafb] hover:border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1a2b4c]/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <GoogleIcon />
-              Continue with Google
+              {googleLoading ? (
+                <Loader2 size={18} className="animate-spin text-[#1a2b4c]" aria-hidden="true" />
+              ) : (
+                <GoogleIcon />
+              )}
+              {googleLoading ? 'Connecting to Google...' : 'Continue with Google'}
             </button>
 
             <p className="mt-8 text-center text-sm text-[#6b7280]">

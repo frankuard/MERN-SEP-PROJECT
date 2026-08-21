@@ -13,11 +13,6 @@ import {
 
 const AuthContext = createContext(null);
 
-const STORAGE_KEYS = {
-  token: 'token',
-  user: 'user',
-};
-
 export const getDashboardPath = (role) => {
   const routes = {
     student: '/student/dashboard',
@@ -28,43 +23,51 @@ export const getDashboardPath = (role) => {
   return routes[role] || '/login';
 };
 
-const readStoredAuth = () => {
+// Purge any legacy authentication keys that might have existed in localStorage
+const purgeLegacyStorage = () => {
   try {
-    const token = localStorage.getItem(STORAGE_KEYS.token);
-    const userRaw = localStorage.getItem(STORAGE_KEYS.user);
-    const user = userRaw ? JSON.parse(userRaw) : null;
-    return { token, user };
-  } catch {
-    return { token: null, user: null };
-  }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('role');
+    localStorage.removeItem('auth');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('email');
+    localStorage.removeItem('chautari_remember_email');
+    localStorage.removeItem('chautari_remember_me');
+  } catch {}
 };
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Initialize session by verifying HttpOnly cookie with backend
   useEffect(() => {
-    const { token: storedToken, user: storedUser } = readStoredAuth();
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(storedUser);
-    }
-    setLoading(false);
-  }, []);
+    purgeLegacyStorage();
 
-  const persistAuth = useCallback((nextToken, nextUser) => {
-    localStorage.setItem(STORAGE_KEYS.token, nextToken);
-    localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(nextUser));
-    setToken(nextToken);
-    setUser(nextUser);
-  }, []);
+    let isMounted = true;
+    const initAuth = async () => {
+      try {
+        const { data } = await axiosInstance.get('/auth/me');
+        if (isMounted && data && data.user) {
+          setUser(data.user);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-  const clearAuth = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEYS.token);
-    localStorage.removeItem(STORAGE_KEYS.user);
-    setToken(null);
-    setUser(null);
+    initAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loginWithDevFallback = useCallback(
@@ -76,13 +79,13 @@ const AuthProvider = ({ children }) => {
       if (matchesDevCredentials(email, password)) {
         const devUser = createDemoDevUser();
         const data = buildDevLoginResponse(devUser);
-        persistAuth(data.token, data.user);
+        setUser(data.user);
         return data;
       }
 
       throw new DevAuthError('Invalid development credentials.');
     },
-    [persistAuth]
+    []
   );
 
   const registerWithDevFallback = useCallback(
@@ -100,10 +103,10 @@ const AuthProvider = ({ children }) => {
         devUser,
         'Development account created locally. Signed in for this session.'
       );
-      persistAuth(data.token, data.user);
+      setUser(data.user);
       return data;
     },
-    [persistAuth]
+    []
   );
 
   const login = useCallback(
@@ -116,7 +119,9 @@ const AuthProvider = ({ children }) => {
 
       try {
         const { data } = await axiosInstance.post('/auth/login', { email, password });
-        persistAuth(data.token, data.user);
+        if (data.user) {
+          setUser(data.user);
+        }
         return data;
       } catch (error) {
         if (isDevEnvironment() && isBackendUnavailableError(error)) {
@@ -125,7 +130,7 @@ const AuthProvider = ({ children }) => {
         throw error;
       }
     },
-    [persistAuth, loginWithDevFallback]
+    [loginWithDevFallback]
   );
 
   const register = useCallback(
@@ -138,6 +143,9 @@ const AuthProvider = ({ children }) => {
 
       try {
         const { data } = await axiosInstance.post('/auth/register', payload);
+        if (data.user && data.user.status === 'approved') {
+          setUser(data.user);
+        }
         return data;
       } catch (error) {
         if (isDevEnvironment() && isBackendUnavailableError(error)) {
@@ -149,21 +157,36 @@ const AuthProvider = ({ children }) => {
     [registerWithDevFallback]
   );
 
-  const logout = useCallback(() => {
-    clearAuth();
-  }, [clearAuth]);
+  const loginWithGoogle = useCallback(
+    async (googlePayload) => {
+      const { data } = await axiosInstance.post('/auth/google', googlePayload);
+      if (data.user) {
+        setUser(data.user);
+      }
+      return data;
+    },
+    []
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await axiosInstance.post('/auth/logout');
+    } catch {}
+    purgeLegacyStorage();
+    setUser(null);
+  }, []);
 
   const value = useMemo(
     () => ({
       user,
-      token,
       loading,
-      isAuthenticated: Boolean(token && user),
+      isAuthenticated: Boolean(user && (user.id || user._id)),
       login,
       register,
+      loginWithGoogle,
       logout,
     }),
-    [user, token, loading, login, register, logout]
+    [user, loading, login, register, loginWithGoogle, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

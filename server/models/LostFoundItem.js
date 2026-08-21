@@ -110,7 +110,6 @@ const lostFoundItemSchema = new mongoose.Schema(
   }
 );
 
-// Index for search optimization
 lostFoundItemSchema.index({ title: 'text', description: 'text', location: 'text', category: 'text' });
 
 const LostFoundItem = mongoose.models.LostFoundItem || mongoose.model('LostFoundItem', lostFoundItemSchema);

@@ -134,6 +134,7 @@ export const INITIAL_LOST_FOUND = [
     time: '2 hours ago',
     category: 'Bags',
     status: 'Unclaimed',
+    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80',
   },
   {
     id: 'lf2',
@@ -142,6 +143,7 @@ export const INITIAL_LOST_FOUND = [
     time: '4 hours ago',
     category: 'Keys',
     status: 'Unclaimed',
+    image: 'https://images.unsplash.com/photo-1582139329536-e7284fece509?w=600&auto=format&fit=crop&q=80',
   },
   {
     id: 'lf3',
@@ -150,6 +152,7 @@ export const INITIAL_LOST_FOUND = [
     time: 'Yesterday',
     category: 'Electronics',
     status: 'Claimed',
+    image: 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=600&auto=format&fit=crop&q=80',
   },
 ];
 
@@ -183,24 +186,132 @@ export const INITIAL_CAMPUS_HELP = [
 
 // Full Canteen Menu Items
 export const CANTEEN_MENU = [
-  { id: 'cm0', name: 'Diya Ko Royal Biryani', price: 220, category: 'Meals', available: true },
-  { id: 'cm1', name: 'Aalu Nimki', price: 50, category: 'Snacks', available: true },
-  { id: 'cm2', name: 'Chatpatey', price: 50, category: 'Snacks', available: true },
-  { id: 'cm3', name: 'Chicken Chatpatey', price: 100, category: 'Snacks', available: true },
-  { id: 'cm4', name: 'Fried Rice', price: 100, category: 'Meals', available: true },
-  { id: 'cm5', name: 'Chicken Chowmein', price: 100, category: 'Momo & Noodles', available: true },
-  { id: 'cm6', name: 'Veg Chowmein', price: 60, category: 'Momo & Noodles', available: true },
-  { id: 'cm7', name: 'Samosa', price: 50, category: 'Snacks', available: true },
-  { id: 'cm8', name: 'Lassi', price: 80, category: 'Beverages', available: true },
-  { id: 'cm9', name: 'Thuppa', price: 80, category: 'Momo & Noodles', available: true },
-  { id: 'cm10', name: 'Veg Momo', price: 80, category: 'Momo & Noodles', available: true },
-  { id: 'cm11', name: 'Chicken Momo', price: 120, category: 'Momo & Noodles', available: true },
+  {
+    id: 'cm0',
+    name: 'Chicken Biryani',
+    price: 220,
+    category: 'Meals',
+    subtitle: 'Aromatic layered basmati rice with tender spiced chicken',
+    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/biryani.svg',
+    available: true,
+  },
+  {
+    id: 'cm1',
+    name: 'Aalu Nimki',
+    price: 50,
+    category: 'Snacks',
+    subtitle: 'Crispy diamond nimki with spicy potato gravy',
+    image: 'https://images.unsplash.com/photo-1605333396915-47ed6b68a00e?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/samosa.svg',
+    available: true,
+  },
+  {
+    id: 'cm2',
+    name: 'Chatpatey',
+    price: 50,
+    category: 'Snacks',
+    subtitle: 'Tangy spicy Nepali puffed rice street mix with lemon & spices',
+    image: '/canteen/chatpatey.jpg',
+    fallbackImage: '/canteen/biryani.svg',
+    available: true,
+  },
+  {
+    id: 'cm3',
+    name: 'Chicken Chatpatey',
+    price: 100,
+    category: 'Snacks',
+    subtitle: 'Spicy street chatpatey tossed with crispy chicken bites',
+    image: '/canteen/chicken-chatpatey.jpg',
+    fallbackImage: '/canteen/biryani.svg',
+    available: true,
+  },
+  {
+    id: 'cm4',
+    name: 'Fried Rice',
+    price: 100,
+    category: 'Meals',
+    subtitle: 'Wok-tossed seasoned garden vegetables & rice',
+    image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/biryani.svg',
+    available: true,
+  },
+  {
+    id: 'cm5',
+    name: 'Chicken Chowmein',
+    price: 100,
+    category: 'Momo & Noodles',
+    subtitle: 'Stir-fried noodles with chicken & peppers',
+    image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/chowmein.svg',
+    available: true,
+  },
+  {
+    id: 'cm6',
+    name: 'Veg Chowmein',
+    price: 60,
+    category: 'Momo & Noodles',
+    subtitle: 'Stir-fried noodles with fresh crisp veggies',
+    image: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/chowmein.svg',
+    available: true,
+  },
+  {
+    id: 'cm7',
+    name: 'Samosa',
+    price: 50,
+    category: 'Snacks',
+    subtitle: 'Crispy golden spiced potato pastry (2 pcs)',
+    image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/samosa.svg',
+    available: true,
+  },
+  {
+    id: 'cm8',
+    name: 'Lassi',
+    price: 80,
+    category: 'Beverages',
+    subtitle: 'Chilled sweet creamy curd yogurt drink with pistachios',
+    image: '/canteen/lassi.jpg',
+    fallbackImage: '/canteen/lassi.svg',
+    available: true,
+  },
+  {
+    id: 'cm9',
+    name: 'Thukpa',
+    price: 80,
+    category: 'Momo & Noodles',
+    subtitle: 'Steaming hot Himalayan noodle soup',
+    image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/chowmein.svg',
+    available: true,
+  },
+  {
+    id: 'cm10',
+    name: 'Veg Momo',
+    price: 80,
+    category: 'Momo & Noodles',
+    subtitle: 'Steamed fresh vegetable dumplings (10 pcs)',
+    image: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=600&auto=format&fit=crop&q=80',
+    fallbackImage: '/canteen/momo.svg',
+    available: true,
+  },
+  {
+    id: 'cm11',
+    name: 'Chicken Momo',
+    price: 120,
+    category: 'Momo & Noodles',
+    subtitle: 'Juicy steamed chicken dumplings with timur achar (10 pcs)',
+    image: '/canteen/chicken-momo.jpg',
+    fallbackImage: '/canteen/momo.svg',
+    available: true,
+  },
 ];
 
 export const CANTEEN_SPECIALS_LIST = [
   {
     id: 1,
-    name: 'Royal Biryani',
+    name: 'Chicken Biryani',
     price: 220,
     subtitle: 'Special of the day',
     category: 'Meals',
@@ -215,7 +326,7 @@ export const CANTEEN_SPECIALS_LIST = [
     subtitle: 'Steamed · Available',
     category: 'Snacks',
     featured: false,
-    image: '/canteen/momo.png',
+    image: '/canteen/chicken-momo.jpg',
     cardColor: 'sky',
   },
   {
@@ -235,7 +346,7 @@ export const CANTEEN_SPECIALS_LIST = [
     subtitle: 'Cold drinks',
     category: 'Beverages',
     featured: false,
-    image: '/canteen/lassi.png',
+    image: '/canteen/lassi.jpg',
     cardColor: 'slate',
   },
 ];
@@ -377,9 +488,9 @@ export const INITIAL_ATTENDANCE_RECORDS = [
 ];
 
 // =========================================================================
-// L4CG3 OFFICIAL WEEKLY TIMETABLE ROUTINE
+// OFFICIAL WEEKLY TIMETABLE ROUTINE
 // =========================================================================
-export const L4CG3_TIMETABLE_ROUTINE = [
+export const TIMETABLE_ROUTINE = [
   {
     day: 'Sunday',
     isOffDay: false,
@@ -390,8 +501,8 @@ export const L4CG3_TIMETABLE_ROUTINE = [
         classType: 'Lecture',
         moduleCode: '4CS001',
         moduleName: 'Introductory Programming and Problem Solving',
-        lecturer: 'Mr. Basanta Singh',
-        group: 'L4CG3 + L4CG5 + L4CG6',
+        lecturer: 'Aayush Regmi',
+        group: 'Section A + Section B',
         room: 'LT-01 Wulfurna',
       },
     ],
@@ -407,7 +518,7 @@ export const L4CG3_TIMETABLE_ROUTINE = [
         moduleCode: '4CS017',
         moduleName: 'Internet Software Architecture and Database',
         lecturer: 'Mr. Arvind Nepal',
-        group: 'L4CG1 + L4CG2 + L4CG3',
+        group: 'Section A + Section B',
         room: 'LT-01 Wulfurna',
       },
       {
@@ -417,7 +528,7 @@ export const L4CG3_TIMETABLE_ROUTINE = [
         moduleCode: '4CS015',
         moduleName: 'Fundamentals of Computing',
         lecturer: 'Ms. Sandhya Tiwari',
-        group: 'L4CG3',
+        group: 'Section A',
         room: 'TR-04 Mechi',
       },
     ],
@@ -433,7 +544,7 @@ export const L4CG3_TIMETABLE_ROUTINE = [
         moduleCode: '4CS015',
         moduleName: 'Fundamentals of Computing',
         lecturer: 'Mr. Sanjeev Chamling',
-        group: 'L4CG1 + L4CG3 + L4CG6',
+        group: 'Section A + Section C',
         room: 'LT-01 Wulfurna',
       },
       {
@@ -443,7 +554,7 @@ export const L4CG3_TIMETABLE_ROUTINE = [
         moduleCode: '4CS001',
         moduleName: 'Introductory Programming and Problem Solving',
         lecturer: 'Mr. Bhisma Raj Koirala',
-        group: 'L4CG3',
+        group: 'Section A',
         room: 'TR-05 Kankai',
       },
     ],
@@ -459,7 +570,7 @@ export const L4CG3_TIMETABLE_ROUTINE = [
         moduleCode: '4CS017',
         moduleName: 'Internet Software Architecture and Database',
         lecturer: 'Mr. Pankaj Shah',
-        group: 'L4CG3 + L4CG4',
+        group: 'Section A + Section B',
         room: 'SR-02 Compton',
       },
     ],
@@ -480,8 +591,8 @@ export const L4CG3_TIMETABLE_ROUTINE = [
         classType: 'Workshop',
         moduleCode: '4CS001',
         moduleName: 'Introductory Programming and Problem Solving',
-        lecturer: 'Mr. Basanta Singh',
-        group: 'L4CG3 + L4CG6',
+        lecturer: 'Aayush Regmi',
+        group: 'Section A + Section C',
         room: 'SR-01 Wolves',
       },
     ],
@@ -494,6 +605,8 @@ export const L4CG3_TIMETABLE_ROUTINE = [
   },
 ];
 
+export const L4CG3_TIMETABLE_ROUTINE = TIMETABLE_ROUTINE;
+
 // =========================================================================
 // OFFICIAL SCHEDULE CHANGES PUBLISHED BY RTE DEPARTMENT (VIEW-ONLY)
 // =========================================================================
@@ -503,7 +616,7 @@ export const INITIAL_RTE_SCHEDULE_CHANGES = [
     moduleCode: '4CS001',
     moduleName: 'Introductory Programming and Problem Solving (Workshop)',
     classType: 'Workshop',
-    group: 'L4CG3 + L4CG6',
+    group: 'Section A + Section C',
     originalSchedule: 'Friday 8:00 AM – 10:30 AM (SR-01 Wolves)',
     newSchedule: 'Friday 8:30 AM – 11:00 AM (SR-01 Wolves)',
     reason: 'RTE routine adjustment due to morning faculty research synchronization',
@@ -517,7 +630,7 @@ export const INITIAL_RTE_SCHEDULE_CHANGES = [
     moduleCode: '4CS015',
     moduleName: 'Fundamentals of Computing (Workshop)',
     classType: 'Workshop',
-    group: 'L4CG3',
+    group: 'Section A',
     originalSchedule: 'Monday 12:00 PM – 2:30 PM (TR-04 Mechi)',
     newSchedule: 'Monday 12:00 PM – 2:30 PM (Lab 2, Block B 2nd Floor)',
     reason: 'Special Linux CLI & virtualization virtual machine practical lab setup',
@@ -531,7 +644,7 @@ export const INITIAL_RTE_SCHEDULE_CHANGES = [
     moduleCode: '4CS015',
     moduleName: 'Fundamentals of Computing (Lecture)',
     classType: 'Lecture',
-    group: 'L4CG1 + L4CG3 + L4CG6',
+    group: 'Section A + Section B',
     originalSchedule: 'Tuesday 8:00 AM – 10:00 AM (LT-01 Wulfurna)',
     newSchedule: 'Devfest 2026 Keynote Session (Main Auditorium)',
     reason: 'Compulsory student symposium attendance for annual Devfest 2026 Keynote',
