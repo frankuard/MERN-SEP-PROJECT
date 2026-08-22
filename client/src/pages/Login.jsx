@@ -156,14 +156,14 @@ const Login = () => {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden bg-[#eef2f7] px-4 py-8 sm:px-6">
-      <div className="flex w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(26,43,76,0.12)] md:min-h-[620px] md:flex-row">
+      <div className="flex w-full max-w-245 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(26,43,76,0.12)] md:min-h-155 md:flex-row">
 
         {/* Branding panel — mobile top */}
         <section className="relative flex h-48 w-full shrink-0 items-center justify-center bg-[#f8fafc] p-6 sm:h-56 sm:p-8 md:hidden">
           <img
             src="/chautari-logo.png"
             alt="Chautari"
-            className="h-auto max-h-[170px] w-auto max-w-[85%] object-contain select-none sm:max-h-[190px]"
+            className="h-auto max-h-42.5 w-auto max-w-[85%] object-contain select-none sm:max-h-47.5"
             loading="eager"
             decoding="sync"
           />
@@ -397,7 +397,7 @@ const Login = () => {
             <img
               src="/chautari-logo.png"
               alt="Chautari"
-              className="h-auto max-h-[440px] w-full max-w-[380px] object-contain select-none lg:max-h-[480px] lg:max-w-[420px]"
+              className="h-auto max-h-110 w-full max-w-95 object-contain select-none lg:max-h-120 lg:max-w-105"
               loading="eager"
               decoding="sync"
             />
