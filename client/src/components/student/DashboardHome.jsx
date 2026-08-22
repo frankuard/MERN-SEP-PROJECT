@@ -46,12 +46,7 @@ const DashboardHome = ({
             boxShadow: t.shadowCard,
           }}
         >
-          <UpcomingEvents
-            t={t}
-            collegeEvents={collegeEvents}
-            communityEvents={communityEvents}
-            onNavigateTab={onNavigateTab}
-          />
+          <UpcomingEvents t={t} onNavigateTab={onNavigateTab} />
         </div>
       </div>
     </div>
