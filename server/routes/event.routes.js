@@ -10,6 +10,7 @@ const roleMiddleware = require('../middleware/roleMiddleware');
 const {
   getEvents,
   getEventById,
+  getAllEventsAdmin,
   createEvent,
   updateEvent,
   deleteEvent,
@@ -96,6 +97,25 @@ router.delete(
   roleMiddleware('staff', 'admin'),
   deleteEvent
 );
+
+// Register permanently for an event.
+router.post('/:id/register', authMiddleware, registerForEvent);
+
+// Cancellation endpoint kept for future use.
+router.delete('/:id/register', authMiddleware, cancelRegistration);
+
+// ADMIN — all events including drafts. Must stay above '/:id'.
+router.get(
+  '/admin/all',
+  authMiddleware,
+  roleMiddleware('admin'),
+  getAllEventsAdmin
+);
+
+// =====================================================
+// SINGLE EVENT
+// =====================================================
+router.get('/:id', getEventById);
 
 
 module.exports = router;
