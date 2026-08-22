@@ -37,7 +37,7 @@ const DashboardHome = ({
             boxShadow: t.shadowCard,
           }}
         >
-          <ImportantAnnouncements t={t} announcements={announcements} />
+          <ImportantAnnouncements t={t} />
         </div>
         <div
           className="rounded-[28px] p-5 sm:p-6"

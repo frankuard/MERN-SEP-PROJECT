@@ -32,6 +32,14 @@ const canteenMenuSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+        isSpecialOfTheDay: {
+      type: Boolean,
+      default: false,
+    },
+        isPopular: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

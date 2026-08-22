@@ -13,7 +13,7 @@ const User = require('../models/User');
  */
 const getMenu = async (req, res) => {
   try {
-    const { category, search, available } = req.query;
+            const { category, search, available, isSpecialOfTheDay, isPopular } = req.query;
 
     const filter = {};
 
@@ -23,6 +23,14 @@ const getMenu = async (req, res) => {
     if (available !== undefined) {
       filter.availability = available === 'true';
     }
+        if (isSpecialOfTheDay !== undefined) {
+      filter.isSpecialOfTheDay = isSpecialOfTheDay === 'true';
+    }
+
+        if (isPopular !== undefined) {
+      filter.isPopular = isPopular === 'true';
+    }
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
