@@ -2,30 +2,18 @@ import axiosInstance from './axiosInstance';
 
 const attendanceApi = {
   // Student
-  markToday: async (room) => {
-    const res = await axiosInstance.post('/attendance/mark', room ? { room } : {});
-    return res.data;
-  },
   getMyAttendance: async () => {
     const res = await axiosInstance.get('/attendance/my');
-    return res.data; // { records, stats }
+    return res.data;
   },
 
   // Admin
-  getSummary: async () => {
-    const res = await axiosInstance.get('/attendance/summary');
-    return res.data; // array of per-student summaries
+  getAllStudents: async () => {
+    const res = await axiosInstance.get('/attendance/admin/all');
+    return res.data; // array of { studentId, username, email, department, semester, totalDays, present, absent, percentage }
   },
-  getStudentDetail: async (userId) => {
-    const res = await axiosInstance.get(`/attendance/student/${userId}`);
-    return res.data; // { student, records, stats }
-  },
-  upsertStudentAttendance: async (userId, { date, status, room }) => {
-    const res = await axiosInstance.post(`/attendance/student/${userId}`, { date, status, room });
-    return res.data;
-  },
-  deleteRecord: async (recordId) => {
-    const res = await axiosInstance.delete(`/attendance/${recordId}`);
+  updateStudentAttendance: async (studentId, { totalDays, present, absent }) => {
+    const res = await axiosInstance.post(`/attendance/student/${studentId}`, { totalDays, present, absent });
     return res.data;
   },
 };
