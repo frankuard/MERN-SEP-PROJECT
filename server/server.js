@@ -22,6 +22,7 @@ const canteenRoutes = require('./routes/canteen.routes');
 const timetableRoutes = require('./routes/timetable.routes');
 
 const announcementRoutes = require('./routes/announcement.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
 
 const app = express();
 
@@ -101,6 +102,9 @@ app.use('/api/timetable', timetableRoutes);
 
 
 app.use('/api/announcements', announcementRoutes);
+
+app.use('/api/attendance', attendanceRoutes);
+
 connectDB();
 
 app.listen(3000,() => {
