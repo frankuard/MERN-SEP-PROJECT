@@ -44,6 +44,7 @@ const navConfig = {
   admin: [
   { id: "dashboard", label: "Dashboard", icon: Home },
   { id: "manage-attendance", label: "Manage Attendance", icon: ClipboardList },
+  { id: "manage-events", label: "Manage Events", icon: Calendar },
   { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
 ],
 };

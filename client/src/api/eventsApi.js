@@ -1,5 +1,6 @@
 import axiosInstance from './axiosInstance';
 
+
 const eventsApi = {
   getEvents: async (params = {}) => {
     const res = await axiosInstance.get('/events', { params });
@@ -55,6 +56,13 @@ const eventsApi = {
     const res = await axiosInstance.get(`/events/${eventId}/registrations`);
     return res.data;
   },
+  
+  getAllEventsAdmin: async () => {
+  const res = await axiosInstance.get('/events/admin/all');
+  return res.data;
+},
 };
+
+
 
 export default eventsApi;

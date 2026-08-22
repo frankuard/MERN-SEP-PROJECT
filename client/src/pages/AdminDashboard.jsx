@@ -6,6 +6,8 @@ import { themes } from '../data/themes';
 import AdminDashboardHome from '../components/admin/Dashboard/AdminDashboardHome';
 import ManageAttendanceSection from '../components/admin/ManageAttendance/ManageAttendanceSection';
 // import PendingApprovalsSection from '../components/admin/PendingApprovals/...'; // wire in later
+import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSection';
+
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -27,6 +29,10 @@ const AdminDashboard = () => {
           {activeTab === 'manage-attendance' && (
             <ManageAttendanceSection t={t} />
           )}
+
+          {activeTab === 'manage-events' && (
+  <ManageEventsSection t={t} />
+)}
 
           {activeTab === 'approvals' && (
             <div>

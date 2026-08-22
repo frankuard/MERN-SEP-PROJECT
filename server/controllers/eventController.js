@@ -32,9 +32,9 @@ const getEvents = async (req, res) => {
     let registeredEventIds = new Set();
 
     // Only check registrations when the user is logged in.
-    if (req.user?.userId) {
+    if (req.user?._id) {
       const registrations = await EventRegistration.find({
-        user: req.user.userId,
+        user: req.user._id,
         status: 'registered',
       }).select('event');
 
@@ -79,10 +79,10 @@ const getEventById = async (req, res) => {
 
     let registered = false;
 
-    if (req.user?.userId) {
+    if (req.user?._id) {
       const registration = await EventRegistration.findOne({
         event: event._id,
-        user: req.user.userId,
+        user: req.user._id,
         status: 'registered',
       });
 
@@ -165,7 +165,7 @@ const createEvent = async (req, res) => {
           ? isPublished
           : true,
 
-      createdBy: req.user.userId,
+      createdBy: req.user._id,
     });
 
     res.status(201).json({
@@ -275,7 +275,7 @@ const registerForEvent = async (req, res) => {
       });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user._id;
 
     // Check whether this user already has a registration.
     const existingRegistration =
@@ -341,9 +341,8 @@ const registerForEvent = async (req, res) => {
     if (error.code === 11000) {
       const registration = await EventRegistration.findOne({
         event: req.params.id,
-        user: req.user.userId,
+        user: req.user._id,
       });
-
       return res.status(200).json({
         success: true,
         registered: true,
@@ -370,7 +369,7 @@ const getMyRegistrations = async (req, res) => {
   try {
     const registrations =
       await EventRegistration.find({
-        user: req.user.userId,
+        user: req.user._id,
         status: 'registered',
       })
         .populate('event')
@@ -399,7 +398,7 @@ const cancelRegistration = async (req, res) => {
     const registration =
       await EventRegistration.findOne({
         event: req.params.id,
-        user: req.user.userId,
+        user: req.user._id,
         status: 'registered',
       });
 
@@ -426,10 +425,34 @@ const cancelRegistration = async (req, res) => {
   }
 };
 
+/**
+ * GET ALL EVENTS (ADMIN)
+ *
+ * GET /events/admin/all
+ *
+ * Unlike getEvents, this ignores isPublished so admins can see
+ * and manage drafts too.
+ */
+const getAllEventsAdmin = async (req, res) => {
+  try {
+    const events = await Event.find({})
+      .populate('createdBy', 'username email role')
+      .sort({ date: 1 });
+
+    res.status(200).json(events);
+  } catch (error) {
+    res.status(500).json({
+      message: 'Failed to fetch events',
+      error: error.message,
+    });
+  }
+};
+
 
 module.exports = {
   getEvents,
   getEventById,
+  getAllEventsAdmin,
   createEvent,
   updateEvent,
   deleteEvent,
