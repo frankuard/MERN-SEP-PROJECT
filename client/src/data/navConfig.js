@@ -42,9 +42,10 @@ const navConfig = {
     { id: "notices", label: "Notices", icon: FileText },
   ],
   admin: [
-    { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
-  ],
+  { id: "dashboard", label: "Dashboard", icon: Home },
+  { id: "manage-attendance", label: "Manage Attendance", icon: ClipboardList },
+  { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
+],
 };
  
 const roleNames = {

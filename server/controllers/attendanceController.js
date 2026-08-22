@@ -55,4 +55,42 @@ const adminSetAttendance = async (req, res) => {
   }
 };
 
-module.exports = { getMyAttendance, adminSetAttendance };
+
+const User = require('../models/User');
+
+// GET /api/attendance/admin/all — every approved student + their attendance
+const getAllStudentsAttendance = async (req, res) => {
+  try {
+    const students = await User.find({ role: 'student', status: 'approved' })
+      .select('username email department semester')
+      .sort({ username: 1 });
+
+    const records = await Attendance.find({});
+    const recordMap = {};
+    records.forEach((r) => { recordMap[r.student.toString()] = r; });
+
+    const result = students.map((s) => {
+      const r = recordMap[s._id.toString()];
+      const totalDays = r ? r.totalDays : 0;
+      const present = r ? r.present : 0;
+      const absent = r ? r.absent : 0;
+      return {
+        studentId: s._id,
+        username: s.username,
+        email: s.email,
+        department: s.department,
+        semester: s.semester,
+        totalDays,
+        present,
+        absent,
+        percentage: computePercentage(present, totalDays),
+      };
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getMyAttendance, adminSetAttendance, getAllStudentsAttendance };
