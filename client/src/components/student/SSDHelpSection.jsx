@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   GraduationCap, Calendar, Clock,
   FileText, Users, Award
 } from 'lucide-react';
 import RequestAttendanceReportModal from './modals/RequestAttendanceReportModal';
+import attendanceApi from '../../api/attendanceApi';
 
 const SSDHelpSection = ({
   t,
@@ -16,6 +17,25 @@ const SSDHelpSection = ({
 }) => {
   const [ssdActiveSubTab, setSsdActiveSubTab] = useState('attendance'); // 'attendance' | 'volunteering' | 'volunteer-requests'
   const [showReportModal, setShowReportModal] = useState(false);
+
+  // Real attendance summary from the backend — replaces the old hardcoded
+  // 87% / 42 / 6. Defaults to zeros until the fetch resolves.
+  const [attendanceSummary, setAttendanceSummary] = useState({
+    percentage: 0,
+    present: 0,
+    absent: 0,
+    totalDays: 0,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    attendanceApi.getMyAttendance()
+      .then((data) => {
+        if (mounted && data) setAttendanceSummary(data);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -76,7 +96,7 @@ const SSDHelpSection = ({
               <div className="absolute top-2 right-2">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
               </div>
-              <p className="text-3xl font-extrabold text-emerald-600">87%</p>
+              <p className="text-3xl font-extrabold text-emerald-600">{attendanceSummary.percentage}%</p>
               <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
                 Overall Attendance
               </p>
@@ -90,7 +110,7 @@ const SSDHelpSection = ({
               className="rounded-2xl border p-5 shadow-xs text-center"
               style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
             >
-              <p className="text-3xl font-extrabold text-blue-600">42</p>
+              <p className="text-3xl font-extrabold text-blue-600">{attendanceSummary.present}</p>
               <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
                 Present Days
               </p>
@@ -102,7 +122,7 @@ const SSDHelpSection = ({
               className="rounded-2xl border p-5 shadow-xs text-center"
               style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
             >
-              <p className="text-3xl font-extrabold text-red-500">6</p>
+              <p className="text-3xl font-extrabold text-red-500">{attendanceSummary.absent}</p>
               <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
                 Absent Days
               </p>
@@ -148,7 +168,7 @@ const SSDHelpSection = ({
                 Recent Attendance Activity Log
               </h3>
               <span className="text-xs font-semibold text-emerald-600">
-                87% Aggregate Record
+                {attendanceSummary.percentage}% Aggregate Record
               </span>
             </div>
 

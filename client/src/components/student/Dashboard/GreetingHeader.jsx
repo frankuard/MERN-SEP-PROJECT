@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { DASHBOARD_ATTENDANCE } from '../../../data/studentDashboardData';
+import attendanceApi from '../../../api/attendanceApi';
 import DashboardMascot from './DashboardMascot';
 
 const GreetingHeader = ({ t, greeting, studentName, onNavigateTab }) => {
-  const { percentage, present, absent } = DASHBOARD_ATTENDANCE;
+  // Real attendance summary from the backend — replaces the old hardcoded
+  // DASHBOARD_ATTENDANCE import. Defaults to zeros until the fetch resolves.
+  const [attendance, setAttendance] = useState({ percentage: 0, present: 0, absent: 0 });
+
+  useEffect(() => {
+    let mounted = true;
+    attendanceApi.getMyAttendance()
+      .then((data) => {
+        if (mounted && data) setAttendance(data);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const { percentage, present, absent } = attendance;
 
   return (
     <section
