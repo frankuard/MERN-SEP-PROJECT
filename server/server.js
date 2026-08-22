@@ -21,6 +21,7 @@ const eventRoutes = require('./routes/event.routes');
 const canteenRoutes = require('./routes/canteen.routes');
 const timetableRoutes = require('./routes/timetable.routes');
 
+const announcementRoutes = require('./routes/announcement.routes');
 
 const app = express();
 
@@ -41,6 +42,8 @@ app.use(
     credentials: true,
   })
 );
+
+
 
 
 app.use(cookieParser());
@@ -96,6 +99,8 @@ app.use('/api/canteen', canteenRoutes);
 
 app.use('/api/timetable', timetableRoutes);
 
+
+app.use('/api/announcements', announcementRoutes);
 connectDB();
 
 app.listen(3000,() => {
