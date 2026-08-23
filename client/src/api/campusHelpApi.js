@@ -1,35 +1,49 @@
 import axiosInstance from './axiosInstance';
-import { INITIAL_CAMPUS_HELP } from '../data/studentDashboardData';
 
-/**
- * Campus Help & Peer Requests Service & Endpoints
- */
 export const campusHelpApi = {
-  // Get all peer help requests
+  // Peer Help Requests
   getHelpRequests: async () => {
-    try {
-      const res = await axiosInstance.get('/campus-help/requests');
-      return res.data;
-    } catch {
-      return INITIAL_CAMPUS_HELP;
-    }
+    const res = await axiosInstance.get('/campus-help/requests');
+    return res.data;
   },
 
-  // Post a new peer help request
-  submitHelpRequest: async (requestText, author = 'Suraj Poddar') => {
-    try {
-      const res = await axiosInstance.post('/campus-help/requests', { request: requestText });
-      return res.data;
-    } catch {
-      return {
-        id: `ch_${Date.now()}`,
-        request: requestText.trim(),
-        author,
-        sem: 'Current Student',
-        replies: 0,
-        time: 'Just now',
-      };
-    }
+  submitHelpRequest: async ({ request, attachments = [] }) => {
+    const res = await axiosInstance.post('/campus-help/requests', { request, attachments });
+    return res.data;
+  },
+
+  addResponse: async (requestId, { message, attachments = [] }) => {
+    const res = await axiosInstance.post(`/campus-help/requests/${requestId}/responses`, {
+      message,
+      attachments,
+    });
+    return res.data;
+  },
+
+  deleteHelpRequest: async (requestId) => {
+    const res = await axiosInstance.delete(`/campus-help/requests/${requestId}`);
+    return res.data;
+  },
+
+  // Department Contact Cards
+  getDepartments: async () => {
+    const res = await axiosInstance.get('/campus-help/departments');
+    return res.data;
+  },
+
+  createDepartment: async (data) => {
+    const res = await axiosInstance.post('/campus-help/departments', data);
+    return res.data;
+  },
+
+  updateDepartment: async (id, data) => {
+    const res = await axiosInstance.patch(`/campus-help/departments/${id}`, data);
+    return res.data;
+  },
+
+  deleteDepartment: async (id) => {
+    const res = await axiosInstance.delete(`/campus-help/departments/${id}`);
+    return res.data;
   },
 };
 

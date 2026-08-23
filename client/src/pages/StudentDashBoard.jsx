@@ -459,8 +459,8 @@ const StudentDashboard = () => {
 
             {/* 2. Lost & Found Section */}
             {activeTab === 'lost-found' && (
-  <LostFoundSection t={t} />
-)}
+              <LostFoundSection t={t} />
+            )}
 
             {/* 3. Campus Posts Section */}
             {activeTab === 'campus-posts' && (
@@ -506,8 +506,8 @@ const StudentDashboard = () => {
 
             {/* 7. Events Section */}
             {activeTab === 'events' && (
-  <EventsSection t={t} />
-)}
+              <EventsSection t={t} />
+            )}
 
             {/* 8. Vacant Classes Section */}
             {activeTab === 'vacant-classes' && (
@@ -520,13 +520,9 @@ const StudentDashboard = () => {
             )}
 
             {/* 9. Campus Help Section */}
+
             {activeTab === 'campus-help' && (
-              <CampusHelpSection
-                t={t}
-                user={user}
-                helpRequests={helpRequests}
-                setHelpRequests={setHelpRequests}
-              />
+              <CampusHelpSection t={t} user={user} />
             )}
 
             {/* 10. Dashboard Home View */}

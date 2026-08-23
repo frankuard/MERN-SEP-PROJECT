@@ -1,196 +1,223 @@
-import React, { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
-  HelpCircle, Building2, Phone, Mail, MapPin,
-  GraduationCap, Clock, MessageSquare
+  HelpCircle, Building2, Phone, Mail, GraduationCap,
+  CalendarClock, MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import campusHelpApi from '../../api/campusHelpApi';
 import AskHelpModal from './modals/AskHelpModal';
+import HelpThreadModal from './modals/HelpThreadModal';
 
-// Same rotating pastel tints used across the Dashboard (CanteenSpecial,
-// ImportantAnnouncements) and Resources, so every card-based section in the
-// app shares the same rhythm of colors.
 const CARD_TINTS = ['pastelBlue', 'pastelPink', 'pastelYellow', 'pastelCyan', 'pastelPurple', 'pastelOrange'];
 
-// Fixed, calm accent colors for icons/values — applied via inline style so
-// they render correctly in both themes regardless of any dark-mode class.
 const ACCENT = {
   blue: '#5b7c99',
   green: '#5c8a72',
-  amber: '#b08a5a',
-  purple: '#8a72a8',
-  rose: '#b5636b',
 };
 
-const CampusHelpSection = ({
-  t,
-  user,
-  helpRequests,
-  setHelpRequests,
-}) => {
-  const [showAskHelpModal, setShowAskHelpModal] = useState(false);
+// ---- Dummy department contact data (Phase 1 — will move to API later) ----
+const DEPARTMENTS = [
+  {
+    id: 'bic',
+    icon: Building2,
+    title: 'Official BIC Campus Contact',
+    phone: '021-500050',
+    phoneHref: 'tel:0215000050',
+    email: 'info@bicnepal.edu.np',
+    emailHref: 'mailto:info@bicnepal.edu.np',
+  },
+  {
+    id: 'ssd',
+    icon: GraduationCap,
+    title: 'SSD Department',
+    phone: '+977 9802747227',
+    phoneHref: 'tel:+9779802747227',
+    email: 'studentservices@bicnepal.edu.np',
+    emailHref: 'mailto:studentservices@bicnepal.edu.np',
+  },
+  {
+    id: 'rte',
+    icon: CalendarClock,
+    title: 'RTE Department',
+    phone: '+977 9802747228',
+    phoneHref: 'tel:+9779802747228',
+    email: 'registry@bicnepal.edu.np',
+    emailHref: 'mailto:registry@bicnepal.edu.np',
+  },
+];
 
-  const handleAddHelpRequest = async (requestText) => {
-    const newReq = await campusHelpApi.submitHelpRequest(requestText, user?.username || 'Suraj Poddar');
-    setHelpRequests((prev) => [newReq, ...prev]);
-    toast.success('Help request shared with campus!');
-  };
+// ---- Dummy peer help requests with embedded response threads (Phase 1) ----
+const INITIAL_HELP_REQUESTS = [
+  {
+    id: 'ch1',
+    request: 'Can someone share today\u2019s DBMS notes?',
+    author: 'Ankit Sharma',
+    sem: 'CS 5th Sem',
+    time: '1h ago',
+    responses: [
+      {
+        id: 'r1',
+        author: 'Priya Shrestha',
+        time: '45m ago',
+        message: 'I have the full chapter scanned, sending it over.',
+        attachments: ['dbms-notes-ch4.pdf'],
+      },
+    ],
+  },
+  {
+    id: 'ch2',
+    request: 'Need a scientific calculator for tomorrow\u2019s exam.',
+    author: 'Priya Shrestha',
+    sem: 'BBA 2nd Sem',
+    time: '3h ago',
+    responses: [],
+  },
+  {
+    id: 'ch3',
+    request: 'Looking for a study partner for AI midterms.',
+    author: 'Rohan KC',
+    sem: 'BCA 4th Sem',
+    time: '5h ago',
+    responses: [
+      {
+        id: 'r2',
+        author: 'Suraj Poddar',
+        time: '2h ago',
+        message: 'Down to study together, free after 4 PM most days.',
+        attachments: [],
+      },
+      {
+        id: 'r3',
+        author: 'Diya Khadka',
+        time: '1h ago',
+        message: 'Same here, can we make a group chat?',
+        attachments: [],
+      },
+    ],
+  },
+];
 
-  // Each contact detail rendered as its own small "item card" — matching the
-  // book-card / gear-card pattern from Resources — instead of a plain row.
-  const ContactCard = ({ icon, tint, label, value, note, href }) => (
+const DepartmentCard = ({ dept, t }) => {
+  const DeptIcon = dept.icon;
+  return (
     <div
-      className="dashboard-card-lift flex items-start gap-3 rounded-[22px] p-4"
-      style={{ backgroundColor: tint, boxShadow: t.shadowSoft }}
+      className="dashboard-card-lift rounded-[24px] p-5"
+      style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
     >
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-        style={{ backgroundColor: t.surfaceBg }}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: t.textMuted }}>
-          {label}
-        </p>
-        {href ? (
-          <a href={href} className="mt-1 block text-sm font-extrabold hover:underline" style={{ color: t.textPrimary }}>
-            {value}
-          </a>
-        ) : (
-          <p className="mt-1 text-sm font-extrabold" style={{ color: t.textPrimary }}>
-            {value}
-          </p>
-        )}
-        <p className="mt-1 text-xs font-semibold" style={{ color: t.textSecondary || t.textMuted }}>
-          {note}
-        </p>
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white">
+          <DeptIcon size={18} strokeWidth={2.5} />
+        </div>
+        <h3 className="text-sm font-extrabold" style={{ color: t.textPrimary }}>{dept.title}</h3>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        
+          <a href={dept.phoneHref}
+          className="flex items-center gap-2 text-sm hover:underline"
+          style={{ color: t.textPrimary }}
+        >
+          <Phone size={15} style={{ color: ACCENT.green }} />
+          <span className="font-bold" style={{ color: t.textMuted }}>Phone:</span>
+          <span className="font-extrabold">{dept.phone}</span>
+        </a>
+
+        
+         <a href={dept.emailHref}
+          className="flex items-center gap-2 text-sm hover:underline"
+          style={{ color: t.textPrimary }}
+        >
+          <Mail size={15} style={{ color: ACCENT.blue }} />
+          <span className="font-bold" style={{ color: t.textMuted }}>Email:</span>
+          <span className="font-extrabold">{dept.email}</span>
+        </a>
       </div>
     </div>
   );
+};
+
+const CampusHelpSection = ({ t, user }) => {
+  const [helpRequests, setHelpRequests] = useState(INITIAL_HELP_REQUESTS);
+  const [showAskHelpModal, setShowAskHelpModal] = useState(false);
+  const [activeThread, setActiveThread] = useState(null);
+
+  const peerHelpRef = useRef(null);
+  const contactInfoRef = useRef(null);
+
+  const scrollTo = (ref) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleAddHelpRequest = ({ text, attachments }) => {
+  const newReq = {
+    id: `ch_${Date.now()}`,
+    request: text,
+    author: user?.username || 'Suraj Poddar',
+    sem: user?.semester ? `Sem ${user.semester}` : 'Student',
+    time: 'Just now',
+    responses: [],
+    attachments,
+  };
+  setHelpRequests((prev) => [newReq, ...prev]);
+  toast.success('Help request shared with campus!');
+};
+
+
+  const handleAddResponse = (requestId, { text, files }) => {
+    const newResponse = {
+      id: `r_${Date.now()}`,
+      author: user?.username || 'Roshan Karki',
+      time: 'Just now',
+      message: text,
+      attachments: files.map((f) => f.name),
+    };
+    setHelpRequests((prev) =>
+      prev.map((req) =>
+        req.id === requestId ? { ...req, responses: [...req.responses, newResponse] } : req
+      )
+    );
+    setActiveThread((prev) =>
+      prev && prev.id === requestId ? { ...prev, responses: [...prev.responses, newResponse] } : prev
+    );
+    toast.success('Response posted!');
+  };
 
   return (
     <div className="dashboard-playful space-y-6 pb-4 animate-in fade-in duration-200">
-      {/* CARD 1: College Header */}
-      <div
-        className="dashboard-card-lift flex flex-col items-center gap-5 rounded-[28px] p-5 text-center sm:p-7 md:flex-row md:text-left"
-        style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
-      >
-        {/* Logo kept on a fixed white plate since the artwork itself needs a
-            light background regardless of theme */}
-        <div className="flex shrink-0 items-center gap-4 rounded-2xl border p-3" style={{ backgroundColor: '#ffffff', borderColor: t.border }}>
-          <img
-            src="/bic-logo-full.png"
-            alt="Biratnagar International College | ing"
-            className="h-14 sm:h-16 w-auto object-contain select-none"
-          />
-        </div>
-
-        <div>
-          <h1 className="text-xl font-black tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
-            Biratnagar International College
-          </h1>
-          <p className="mt-1 text-xs font-semibold sm:text-sm" style={{ color: t.textMuted }}>
-            In Academic Partnership with University of Wolverhampton, UK
-          </p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
+          Campus Help
+        </h2>
+        <p className="mt-1.5 text-base leading-relaxed" style={{ color: t.textMuted }}>
+          Official contacts and peer support, all in one place.
+        </p>
       </div>
 
-      {/* CARD 2: Official BIC Campus Contact */}
-      <div
-        className="dashboard-card-lift rounded-[28px] p-5 sm:p-7"
-        style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
-      >
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white">
-            <Building2 size={20} strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>
-              Official BIC Campus Contact
-            </h3>
-            <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
-              General inquiries, administration &amp; academic affairs
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <ContactCard
-            icon={<Phone size={18} style={{ color: ACCENT.green }} />}
-            tint={t[CARD_TINTS[0]]}
-            label="Phone"
-            value="021-500050 / 021-500170 / 9801009090"
-            note="Front Desk & Admissions Hotline (07:00 AM – 05:00 PM)"
-            href="tel:0215000050"
-          />
-          <ContactCard
-            icon={<Mail size={18} style={{ color: ACCENT.blue }} />}
-            tint={t[CARD_TINTS[1]]}
-            label="Email"
-            value="info@bicnepal.edu.np"
-            note="Official institutional correspondence"
-            href="mailto:info@bicnepal.edu.np"
-          />
-          <ContactCard
-            icon={<MapPin size={18} style={{ color: ACCENT.rose }} />}
-            tint={t[CARD_TINTS[2]]}
-            label="Location"
-            value="Biratnagar 5, Bhrikuti Chowk"
-            note="Morang, Koshi Province, Nepal"
-          />
-        </div>
+      {/* Jump-link buttons */}
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => scrollTo(peerHelpRef)}
+          className="cursor-pointer flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-extrabold text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: ACCENT.green }}
+        >
+          <HelpCircle size={16} />
+          Peer Help
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollTo(contactInfoRef)}
+          className="cursor-pointer flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-extrabold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+          style={{ borderColor: t.border, color: t.textPrimary }}
+        >
+          <Building2 size={16} />
+          Contact Info
+        </button>
       </div>
 
-      {/* CARD 3: SSD Department (Student Services) */}
+      {/* ---- SECTION 1: Peer Help & Study Requests (TOP) ---- */}
       <div
-        className="dashboard-card-lift rounded-[28px] p-5 sm:p-7"
-        style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
-      >
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white">
-            <GraduationCap size={20} strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>
-              SSD Department (Student Services)
-            </h3>
-            <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
-              Attendance, scholarships, volunteering &amp; student welfare
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <ContactCard
-            icon={<Phone size={18} style={{ color: ACCENT.amber }} />}
-            tint={t[CARD_TINTS[3]]}
-            label="SSD Helpline"
-            value="+977 9802747227"
-            note="Direct SSD officer & student welfare coordinator"
-            href="tel:+9779802747227"
-          />
-          <ContactCard
-            icon={<Mail size={18} style={{ color: ACCENT.purple }} />}
-            tint={t[CARD_TINTS[4]]}
-            label="SSD Email"
-            value="studentservices@bicnepal.edu.np"
-            note="Scholarship renewals, leave requests & records"
-            href="mailto:studentservices@bicnepal.edu.np"
-          />
-          <ContactCard
-            icon={<Clock size={18} style={{ color: ACCENT.blue }} />}
-            tint={t[CARD_TINTS[5]]}
-            label="Office & Hours"
-            value="Block A, Room 102 (Admin Floor)"
-            note="Sunday – Friday: 07:00 AM – 04:00 PM"
-          />
-        </div>
-      </div>
-
-      {/* CARD 4: Peer Help & Student Requests Community Board */}
-      <div
-        className="dashboard-card-lift rounded-[28px] p-5 sm:p-7"
+        ref={peerHelpRef}
+        className="dashboard-card-lift scroll-mt-6 rounded-[28px] p-5 sm:p-7"
         style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
       >
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -211,7 +238,7 @@ const CampusHelpSection = ({
           <button
             type="button"
             onClick={() => setShowAskHelpModal(true)}
-            className="dashboard-btn-bounce mb-5 flex items-center justify-center gap-2 self-start rounded-full py-2.5 px-5 text-xs font-extrabold text-white transition-all hover:opacity-90"
+            className="dashboard-btn-bounce mb-5 flex cursor-pointer items-center justify-center gap-2 self-start rounded-full py-2.5 px-5 text-xs font-extrabold text-white transition-all hover:opacity-90"
             style={{ backgroundColor: ACCENT.green, boxShadow: t.shadowSoft }}
           >
             + Ask Campus Help
@@ -239,7 +266,7 @@ const CampusHelpSection = ({
                 </div>
 
                 <p className="mt-3 text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
-                  “{req.request}”
+                  &ldquo;{req.request}&rdquo;
                 </p>
 
                 <p className="mt-2 text-xs font-semibold" style={{ color: t.textSecondary || t.textMuted }}>
@@ -249,15 +276,15 @@ const CampusHelpSection = ({
 
               <div className="mt-4 flex items-center justify-between pt-3">
                 <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: t.textMuted }}>
-                  <MessageSquare size={13} /> {req.replies} responses
+                  <MessageSquare size={13} /> {req.responses.length} responses
                 </span>
                 <button
                   type="button"
-                  onClick={() => toast.success(`Replying to ${req.author}...`)}
-                  className="rounded-full px-3 py-1 text-xs font-extrabold transition-all hover:opacity-80"
+                  onClick={() => setActiveThread(req)}
+                  className="cursor-pointer rounded-full px-3 py-1 text-xs font-extrabold transition-all hover:opacity-80"
                   style={{ backgroundColor: t.surfaceBg, color: t.textPrimary }}
                 >
-                  Reply
+                  View &amp; Reply
                 </button>
               </div>
             </div>
@@ -265,12 +292,40 @@ const CampusHelpSection = ({
         </div>
       </div>
 
-      {/* Ask Help Modal */}
+      {/* ---- SECTION 2: Contact Info (BOTTOM) ---- */}
+      <div ref={contactInfoRef} className="scroll-mt-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white">
+            <Building2 size={20} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>Contact Info</h3>
+            <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
+              Reach out to campus departments directly
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {DEPARTMENTS.map((dept) => (
+            <DepartmentCard key={dept.id} dept={dept} t={t} />
+          ))}
+        </div>
+      </div>
+
       <AskHelpModal
         isOpen={showAskHelpModal}
         onClose={() => setShowAskHelpModal(false)}
         t={t}
         onSubmit={handleAddHelpRequest}
+      />
+
+      <HelpThreadModal
+        isOpen={!!activeThread}
+        onClose={() => setActiveThread(null)}
+        t={t}
+        request={activeThread}
+        onReply={(payload) => activeThread && handleAddResponse(activeThread.id, payload)}
       />
     </div>
   );

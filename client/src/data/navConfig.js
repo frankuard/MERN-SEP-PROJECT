@@ -44,19 +44,13 @@ const navConfig = {
   admin: [
   { id: "dashboard", label: "Dashboard", icon: Home },
   { id: "manage-attendance", label: "Manage Attendance", icon: ClipboardList },
-  { id: "manage-events", label: "Manage Events", icon: Calendar },
-  { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
   { id: "manage-announcements", label: "Manage Announcements", icon: Megaphone },
+  { id: "manage-events", label: "Manage Events", icon: Calendar },
   { id: "manage-canteen", label: "Manage Canteen", icon: UtensilsCrossed },
-    { id: "manage-lost-found", label: "Manage Lost & Found", icon: Search }, 
+  { id: "manage-lost-found", label: "Manage Lost & Found", icon: Search }, 
+  { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
 ],
 };
  
-const roleNames = {
-  student: "Roshan Karki",
-  teacher: "Rojika Thapa",
-  staff: "Suraj Poddar",
-  admin: "Diya Khadka",
-};
 
 export default navConfig;
