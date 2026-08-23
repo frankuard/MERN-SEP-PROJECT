@@ -2,13 +2,8 @@ const LostFoundItem = require('../models/LostFoundItem');
 const CctvRequest = require('../models/CctvRequest');
 const User = require('../models/User');
 
-// Resolves the logged-in user's ID regardless of which field name the JWT payload uses
 const resolveUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 
-/**
- * 1. Get all Lost & Found items (search, category, status, type, mine)
- * GET /api/lost-found
- */
 const getLostFoundItems = async (req, res) => {
   try {
     const { search, category, status, type, mine } = req.query;
@@ -46,10 +41,6 @@ const getLostFoundItems = async (req, res) => {
   }
 };
 
-/**
- * 2. Get single Lost & Found item by ID
- * GET /api/lost-found/:id
- */
 const getLostFoundItem = async (req, res) => {
   try {
     const item = await LostFoundItem.findById(req.params.id)
@@ -66,10 +57,6 @@ const getLostFoundItem = async (req, res) => {
   }
 };
 
-/**
- * 3. Create a new Lost / Found Item
- * POST /api/lost-found
- */
 const createLostFoundItem = async (req, res) => {
   try {
     const { title, description, type, category, location, image, contactInfo } = req.body;
@@ -104,10 +91,6 @@ const createLostFoundItem = async (req, res) => {
   }
 };
 
-/**
- * 4. Update an existing Lost & Found Item
- * PATCH /api/lost-found/:id
- */
 const updateLostFoundItem = async (req, res) => {
   try {
     const { id } = req.params;
@@ -115,7 +98,7 @@ const updateLostFoundItem = async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     const userId = resolveUserId(req);
-    const isOwner = item.createdBy.toString() === userId;
+    const isOwner = item.createdBy && item.createdBy.toString() === userId;
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
 
     if (!isOwner && !isStaffOrAdmin) {
@@ -145,10 +128,6 @@ const updateLostFoundItem = async (req, res) => {
   }
 };
 
-/**
- * 5. Delete a Lost & Found item
- * DELETE /api/lost-found/:id
- */
 const deleteLostFoundItem = async (req, res) => {
   try {
     const { id } = req.params;
@@ -156,7 +135,7 @@ const deleteLostFoundItem = async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     const userId = resolveUserId(req);
-    const isOwner = item.createdBy.toString() === userId;
+    const isOwner = item.createdBy && item.createdBy.toString() === userId;
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
 
     if (!isOwner && !isStaffOrAdmin) {
@@ -171,10 +150,6 @@ const deleteLostFoundItem = async (req, res) => {
   }
 };
 
-/**
- * 6. Claim This Item
- * POST/PATCH /api/lost-found/:id/claim
- */
 const claimLostFoundItem = async (req, res) => {
   try {
     const { id } = req.params;
@@ -204,13 +179,11 @@ const claimLostFoundItem = async (req, res) => {
       userName: claimantName,
       userEmail: claimantEmail,
       details: claimDetails,
-      status: 'Approved',
+      status: 'Pending',
       claimedAt: new Date(),
     });
 
-    item.status = 'Claimed';
-    item.claimedBy = userId;
-    item.claimantName = claimantName;
+    item.status = 'Claim Pending';
 
     await item.save();
 
@@ -226,10 +199,6 @@ const claimLostFoundItem = async (req, res) => {
   }
 };
 
-/**
- * 7. Mark Item as Returned
- * PATCH /api/lost-found/:id/return
- */
 const markItemReturned = async (req, res) => {
   try {
     const { id } = req.params;
@@ -237,7 +206,7 @@ const markItemReturned = async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     const userId = resolveUserId(req);
-    const isOwner = item.createdBy.toString() === userId;
+    const isOwner = item.createdBy && item.createdBy.toString() === userId;
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
 
     if (!isOwner && !isStaffOrAdmin) {
@@ -261,10 +230,6 @@ const markItemReturned = async (req, res) => {
   }
 };
 
-/**
- * 8. Submit CCTV Footage Request
- * POST /api/lost-found/cctv-request
- */
 const createCctvRequest = async (req, res) => {
   try {
     const { location, date, timeFrom, timeTo, reason, relatedLostItem, additionalDetails } = req.body;
@@ -299,10 +264,6 @@ const createCctvRequest = async (req, res) => {
   }
 };
 
-/**
- * 9. Get CCTV Footage Requests (Student gets their own, Staff/Admin gets all)
- * GET /api/lost-found/cctv-requests
- */
 const getCctvRequests = async (req, res) => {
   try {
     const isStaffOrAdmin = ['staff', 'admin'].includes(req.user.role);
@@ -320,10 +281,6 @@ const getCctvRequests = async (req, res) => {
   }
 };
 
-/**
- * 10. Update CCTV Request Status (Admin / Staff Review)
- * PATCH /api/lost-found/cctv-request/:id/status
- */
 const updateCctvStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -349,10 +306,6 @@ const updateCctvStatus = async (req, res) => {
   }
 };
 
-/**
- * 11. Get Lost & Found Statistics (kept for staff/admin views elsewhere, not used by student UI)
- * GET /api/lost-found/stats
- */
 const getLostFoundStats = async (req, res) => {
   try {
     const totalItems = await LostFoundItem.countDocuments();
@@ -370,6 +323,60 @@ const getLostFoundStats = async (req, res) => {
   }
 };
 
+const updateClaimStatus = async (req, res) => {
+  try {
+    const { itemId, claimId } = req.params;
+    const { status } = req.body;
+
+    if (!['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ message: 'status must be Approved or Rejected' });
+    }
+
+    const item = await LostFoundItem.findById(itemId);
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    const claim = item.claims.id(claimId);
+    if (!claim) return res.status(404).json({ message: 'Claim not found' });
+
+    claim.status = status;
+
+    if (status === 'Approved') {
+      item.status = 'Claimed';
+      item.claimedBy = claim.user;
+      item.claimantName = claim.userName;
+      item.claims.forEach((c) => {
+        if (c._id.toString() !== claimId && c.status === 'Pending') {
+          c.status = 'Rejected';
+        }
+      });
+    } else {
+      const wasActiveClaimant =
+        item.claimedBy && claim.user && item.claimedBy.toString() === claim.user.toString();
+      if (wasActiveClaimant) {
+        item.claimedBy = null;
+        item.claimantName = null;
+      }
+      const stillHasApproved = item.claims.some((c) => c.status === 'Approved');
+      const stillHasPending = item.claims.some((c) => c.status === 'Pending');
+      if (!stillHasApproved) {
+        item.status = stillHasPending ? 'Claim Pending' : 'Unclaimed';
+      }
+    }
+
+    await item.save();
+
+    const populated = await LostFoundItem.findById(item._id)
+      .populate('createdBy', 'username email role')
+      .populate('claimedBy', 'username email role')
+      .populate('claims.user', 'username email role');
+
+    res.status(200).json(populated);
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid ID' });
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getLostFoundItems,
   getLostFoundItem,
@@ -382,4 +389,5 @@ module.exports = {
   getCctvRequests,
   updateCctvStatus,
   getLostFoundStats,
+  updateClaimStatus,
 };

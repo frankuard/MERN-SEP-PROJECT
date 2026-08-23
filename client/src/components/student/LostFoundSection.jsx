@@ -78,7 +78,6 @@ const LostFoundSection = ({ t }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showCctvModal, setShowCctvModal] = useState(false);
 
-  // Debounce search input -> search query
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 350);
     return () => clearTimeout(timer);
@@ -131,8 +130,7 @@ const LostFoundSection = ({ t }) => {
       );
       setActivity(merged);
     } catch {
-      // Activity is secondary; failing silently here just leaves the section empty,
-      // the main items grid above still reports its own errors.
+      // Activity is secondary
     }
   }, []);
 

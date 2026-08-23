@@ -14,6 +14,7 @@ const {
   getCctvRequests,
   updateCctvStatus,
   getLostFoundStats,
+  updateClaimStatus,
 } = require('../controllers/lostFoundController');
 
 const allRoles = roleMiddleware('student', 'teacher', 'staff', 'admin');
@@ -38,5 +39,6 @@ router.delete('/:id', authMiddleware, allRoles, deleteLostFoundItem);
 router.post('/:id/claim', authMiddleware, allRoles, claimLostFoundItem);
 router.patch('/:id/claim', authMiddleware, allRoles, claimLostFoundItem);
 router.patch('/:id/return', authMiddleware, allRoles, markItemReturned);
+router.patch('/:itemId/claim/:claimId/status', authMiddleware, staffAndAdmin, updateClaimStatus);
 
 module.exports = router;
