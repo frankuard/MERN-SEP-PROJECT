@@ -177,16 +177,18 @@ const getAllCredits = async (req, res) => {
  */
 const getMyCredit = async (req, res) => {
   try {
-    let credit = await CanteenCredit.findOne({ user: req.user._id });
+    let credit = await CanteenCredit.findOne({ user: req.user._id })
+      .populate('paymentHistory.receivedBy', 'username')
+      .populate('dueHistory.addedBy', 'username');
 
     if (!credit) {
-      // Default placeholder balance if not yet initialized
       return res.status(200).json({
         amountDue: 0,
         amountPaid: 0,
         remainingBalance: 0,
         paymentStatus: 'Cleared',
         paymentHistory: [],
+        dueHistory: [],
       });
     }
 
