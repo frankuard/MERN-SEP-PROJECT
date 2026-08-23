@@ -1,6 +1,5 @@
 import axiosInstance from './axiosInstance';
 
-// Helper to normalize MongoDB items (_id -> id)
 const normalizeItem = (item) => {
   if (!item) return item;
   return {
@@ -14,11 +13,7 @@ const normalizeList = (list) => {
   return list.map(normalizeItem);
 };
 
-/**
- * Lost & Found Service & MongoDB Endpoints
- */
 export const lostFoundApi = {
-  // 1. Get all lost & found items from MongoDB (supports search, category, status)
   getItems: async (params = {}) => {
     try {
       const res = await axiosInstance.get('/lost-found', { params });
@@ -29,7 +24,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 2. Get single item by ID
   getItemById: async (id) => {
     try {
       const res = await axiosInstance.get(`/lost-found/${id}`);
@@ -40,7 +34,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 3. Report a lost/found item to MongoDB
   reportItem: async (itemData) => {
     try {
       const res = await axiosInstance.post('/lost-found', itemData);
@@ -51,7 +44,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 4. Update an existing item in MongoDB
   updateItem: async (id, updateData) => {
     try {
       const res = await axiosInstance.patch(`/lost-found/${id}`, updateData);
@@ -62,7 +54,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 5. Delete an item from MongoDB
   deleteItem: async (id) => {
     try {
       const res = await axiosInstance.delete(`/lost-found/${id}`);
@@ -73,7 +64,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 6. Mark item as Claimed in MongoDB
   claimItem: async (itemId, claimDetails = {}) => {
     try {
       const res = await axiosInstance.post(`/lost-found/${itemId}/claim`, claimDetails);
@@ -84,7 +74,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 7. Mark item as Returned in MongoDB
   returnItem: async (itemId) => {
     try {
       const res = await axiosInstance.patch(`/lost-found/${itemId}/return`);
@@ -95,7 +84,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 8. Get CCTV footage verification requests for logged-in user from MongoDB
   getMyCctvRequests: async () => {
     try {
       const res = await axiosInstance.get('/lost-found/cctv-requests');
@@ -106,7 +94,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 9. Submit CCTV footage request to MongoDB
   submitCctvRequest: async (cctvData) => {
     try {
       const res = await axiosInstance.post('/lost-found/cctv-request', cctvData);
@@ -117,7 +104,6 @@ export const lostFoundApi = {
     }
   },
 
-  // 10. Update CCTV request status (Staff/Admin)
   updateCctvStatus: async (id, statusData) => {
     try {
       const res = await axiosInstance.patch(`/lost-found/cctv-request/${id}/status`, statusData);
@@ -128,13 +114,22 @@ export const lostFoundApi = {
     }
   },
 
-  // 11. Get real-time stats from MongoDB
   getStats: async () => {
     try {
       const res = await axiosInstance.get('/lost-found/stats');
       return res.data;
     } catch (err) {
       console.error('Error fetching Lost & Found stats from MongoDB:', err);
+      throw err;
+    }
+  },
+
+  updateClaimStatus: async (itemId, claimId, status) => {
+    try {
+      const res = await axiosInstance.patch(`/lost-found/${itemId}/claim/${claimId}/status`, { status });
+      return normalizeItem(res.data);
+    } catch (err) {
+      console.error(`Error updating claim #${claimId} status:`, err);
       throw err;
     }
   },

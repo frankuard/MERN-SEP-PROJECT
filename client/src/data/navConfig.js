@@ -3,7 +3,7 @@ import {
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
   AlertTriangle, ClipboardList, CheckSquare, Settings, LogOut,
   ChevronLeft, ChevronRight, Menu, X, Sun, Moon, PlusCircle, TrendingUp, Bell,
-  Building2, School, GraduationCap, Clock, UtensilsCrossed
+  Building2, School, GraduationCap, Clock, Video, UtensilsCrossed   // ← add UtensilsCrossed here
 } from "lucide-react";
 
 const navConfig = {
@@ -48,6 +48,7 @@ const navConfig = {
   { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
   { id: "manage-announcements", label: "Manage Announcements", icon: Megaphone },
   { id: "manage-canteen", label: "Manage Canteen", icon: UtensilsCrossed },
+    { id: "manage-lost-found", label: "Manage Lost & Found", icon: Search }, 
 ],
 };
  

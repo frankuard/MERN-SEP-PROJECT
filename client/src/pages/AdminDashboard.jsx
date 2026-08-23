@@ -9,6 +9,7 @@ import ManageAttendanceSection from '../components/admin/ManageAttendance/Manage
 import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSection';
 import ManageAnnouncementsSection from '../components/admin/ManageAnnouncements/ManageAnnouncementsSection';
 import ManageCanteenSection from '../components/admin/ManageCanteen/ManageCanteenSection';
+import ManageLostFoundSection from '../components/admin/ManageLostFound/ManageLostFoundSection';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -43,6 +44,11 @@ const AdminDashboard = () => {
           {activeTab === 'manage-canteen' && (
             <ManageCanteenSection t={t} />
           )}
+
+          {activeTab === 'manage-lost-found' && (
+  <ManageLostFoundSection t={t} />
+)}
+
           {activeTab === 'approvals' && (
             <div>
               <p className="text-sm" style={{ color: t.textMuted }}>
