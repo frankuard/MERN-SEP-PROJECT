@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, UtensilsCrossed, ImageIcon, Sparkles, Flame } from 'lucide-react';
 import canteenApi from '../../api/canteenApi';
 import CreditDueCard from './Dashboard/CreditDueCard';
+import CreditHistoryModal from './modals/CreditHistoryModal';
 
 const CATEGORIES = ['All', 'Meals', 'Snacks', 'Momo & Noodles', 'Beverages'];
 
@@ -32,7 +33,8 @@ const CanteenSection = ({ t }) => {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [menuItems, setMenuItems] = useState([]);
-  const [credit, setCredit] = useState({ amountDue: 0, amountPaid: 0 });
+  const [credit, setCredit] = useState({ amountDue: 0 });
+  const [showCreditHistory, setShowCreditHistory] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -47,7 +49,7 @@ const CanteenSection = ({ t }) => {
       const data = await canteenApi.getMenu(params);
       if (Array.isArray(data)) setMenuItems(data);
     } catch {
-      // menu grid just stays as-is on failure; not wiring a dedicated error state here per current scope
+      // menu grid stays as-is on failure; no dedicated error state wired here yet
     }
   }, [selectedCategory, search]);
 
@@ -57,7 +59,8 @@ const CanteenSection = ({ t }) => {
     let mounted = true;
     canteenApi.getCreditBalance()
       .then((res) => {
-if (mounted && res) setCredit({ amountDue: res.remainingBalance ?? 0, amountPaid: res.amountPaid ?? 0 });      })
+        if (mounted && res) setCredit({ amountDue: res.remainingBalance ?? 0 });
+      })
       .catch(() => {});
     return () => { mounted = false; };
   }, []);
@@ -71,7 +74,8 @@ if (mounted && res) setCredit({ amountDue: res.remainingBalance ?? 0, amountPaid
         <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Menu</h2>
       </div>
 
-<div className="flex flex-col gap-3 sm:flex-row sm:items-start">        <div className="relative flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="relative flex-1">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
           <input
             type="text"
@@ -82,7 +86,7 @@ if (mounted && res) setCredit({ amountDue: res.remainingBalance ?? 0, amountPaid
             style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textPrimary, ['--tw-ring-color']: t.accentPrimary }}
           />
         </div>
-        <CreditDueCard t={t} amountDue={credit.amountDue} amountPaid={credit.amountPaid} />
+        <CreditDueCard t={t} amountDue={credit.amountDue} onViewHistory={() => setShowCreditHistory(true)} />
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -103,50 +107,64 @@ if (mounted && res) setCredit({ amountDue: res.remainingBalance ?? 0, amountPaid
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {menuItems.map((item) => (
-          <div
-            key={item._id}
-            className="group flex flex-col overflow-hidden rounded-[24px] border transition-all hover:shadow-lg"
-            style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowSoft }}
-          >
-            <div className="relative h-44 w-full overflow-hidden sm:h-48">
-              <FoodImage src={item.image} alt={item.name} tint={t.pastelBlue} />
-              {item.isSpecialOfTheDay && (
-                <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black px-2.5 py-1 text-[10px] font-extrabold uppercase text-white">
-                  <Sparkles size={11} />
-                  Special
-                </span>
-              )}
-              {item.isPopular && !item.isSpecialOfTheDay && (
-                <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase text-white" style={{ backgroundColor: '#f472b6' }}>
-                  <Flame size={11} />
-                  Popular
-                </span>
-              )}
-            </div>
-            <div className="flex flex-1 flex-col justify-between p-4">
-              <div>
-                <h4 className="text-base font-extrabold tracking-tight line-clamp-1" style={{ color: t.textPrimary }} title={item.name}>
-                  {item.name}
-                </h4>
-                <p className="mt-0.5 text-xs font-semibold line-clamp-1" style={{ color: t.textMuted }} title={item.description}>
-                  {item.description || item.category}
-                </p>
-              </div>
-              <div className="mt-4 flex items-center justify-between border-t pt-3" style={{ borderColor: t.border }}>
-                <span className="text-xs font-bold" style={{ color: t.textMuted }}>Price</span>
-                <span
-                  className="rounded-xl px-3.5 py-1.5 text-sm font-black tabular-nums"
-                  style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}
-                >
-                  NPR {item.price}
-                </span>
-              </div>
-            </div>
+      {menuItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-16 text-center" style={{ borderColor: t.border }}>
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: t.pageBg }}>
+            <UtensilsCrossed size={20} style={{ color: t.textMuted }} />
           </div>
-        ))}
-      </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>No items in this category</p>
+            <p className="text-sm" style={{ color: t.textMuted }}>Try a different category or check back later.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {menuItems.map((item) => (
+            <div
+              key={item._id}
+              className="group flex flex-col overflow-hidden rounded-[24px] border transition-all hover:shadow-lg"
+              style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowSoft }}
+            >
+              <div className="relative h-44 w-full overflow-hidden sm:h-48">
+                <FoodImage src={item.image} alt={item.name} tint={t.pastelBlue} />
+                {item.isSpecialOfTheDay && (
+                  <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black px-2.5 py-1 text-[10px] font-extrabold uppercase text-white">
+                    <Sparkles size={11} />
+                    Special
+                  </span>
+                )}
+                {item.isPopular && !item.isSpecialOfTheDay && (
+                  <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase text-white" style={{ backgroundColor: '#f472b6' }}>
+                    <Flame size={11} />
+                    Popular
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col justify-between p-4">
+                <div>
+                  <h4 className="text-base font-extrabold tracking-tight line-clamp-1" style={{ color: t.textPrimary }} title={item.name}>
+                    {item.name}
+                  </h4>
+                  <p className="mt-0.5 text-xs font-semibold line-clamp-1" style={{ color: t.textMuted }} title={item.description}>
+                    {item.description || item.category}
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center justify-between border-t pt-3" style={{ borderColor: t.border }}>
+                  <span className="text-xs font-bold" style={{ color: t.textMuted }}>Price</span>
+                  <span
+                    className="rounded-xl px-3.5 py-1.5 text-sm font-black tabular-nums"
+                    style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}
+                  >
+                    NPR {item.price}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <CreditHistoryModal isOpen={showCreditHistory} onClose={() => setShowCreditHistory(false)} t={t} />
     </div>
   );
 };
