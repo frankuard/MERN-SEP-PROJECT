@@ -122,7 +122,7 @@ const CanteenSection = ({ t }) => {
           {menuItems.map((item) => (
             <div
               key={item._id}
-              className="group flex flex-col overflow-hidden rounded-[24px] border transition-all hover:shadow-lg"
+              className="group flex flex-col overflow-hidden rounded-3xl border transition-all hover:shadow-lg"
               style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowSoft }}
             >
               <div className="relative h-44 w-full overflow-hidden sm:h-48">

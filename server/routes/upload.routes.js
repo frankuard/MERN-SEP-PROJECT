@@ -11,7 +11,7 @@ const uploadImage = require('../controllers/uploadController');
 router.post(
   '/',
   authMiddleware,
-  roleMiddleware('teacher', 'staff', 'admin'),
+  roleMiddleware('student', 'teacher', 'staff', 'admin'),
   upload.single('image'),
   uploadImage
 );
