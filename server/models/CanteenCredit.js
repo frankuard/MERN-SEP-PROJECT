@@ -29,6 +29,31 @@ const paymentRecordSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const dueRecordSchema = new mongoose.Schema(
+  {
+    amount: {
+      type: Number,
+      required: true,
+      min: [1, 'Due amount must be greater than zero'],
+    },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
+    note: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    addedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  },
+  { _id: true }
+);
+
+
 const canteenCreditSchema = new mongoose.Schema(
   {
     user: {
@@ -51,10 +76,9 @@ const canteenCreditSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Amount paid cannot be negative'],
     },
-    remainingBalance: {
+        remainingBalance: {
       type: Number,
       default: 0,
-      min: [0, 'Remaining balance cannot be negative'],
     },
     paymentStatus: {
       type: String,
@@ -62,21 +86,22 @@ const canteenCreditSchema = new mongoose.Schema(
       default: 'Pending',
     },
     paymentHistory: [paymentRecordSchema],
+        dueHistory: [dueRecordSchema],
   },
   { timestamps: true }
 );
 
 // Auto-calculate remaining balance and payment status before saving
-canteenCreditSchema.pre('save', function (next) {
-  this.remainingBalance = Math.max(0, this.amountDue - this.amountPaid);
-  if (this.remainingBalance === 0 && this.amountDue > 0) {
+canteenCreditSchema.pre('save', function () {
+  this.remainingBalance = this.amountDue - this.amountPaid;
+
+  if (this.remainingBalance <= 0) {
     this.paymentStatus = 'Cleared';
-  } else if (this.amountPaid > 0 && this.remainingBalance > 0) {
+  } else if (this.amountPaid > 0) {
     this.paymentStatus = 'Partially Paid';
   } else {
     this.paymentStatus = 'Pending';
   }
-  next();
 });
 
 const CanteenCredit = mongoose.models.CanteenCredit || mongoose.model('CanteenCredit', canteenCreditSchema);

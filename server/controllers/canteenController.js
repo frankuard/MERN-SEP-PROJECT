@@ -11,6 +11,10 @@ const User = require('../models/User');
  * @route  GET /api/canteen/menu
  * @access Public / Authenticated
  */
+
+const resolveUserId = (req) => req.user?._id || req.user?.userId;
+
+
 const getMenu = async (req, res) => {
   try {
             const { category, search, available, isSpecialOfTheDay, isPopular } = req.query;
@@ -201,7 +205,8 @@ const getCreditById = async (req, res) => {
   try {
     const record = await CanteenCredit.findById(req.params.id)
       .populate('user', 'username email')
-      .populate('paymentHistory.receivedBy', 'username');
+      .populate('paymentHistory.receivedBy', 'username')
+      .populate('dueHistory.addedBy', 'username');
 
     if (!record) {
       return res.status(404).json({ message: 'Credit record not found' });
@@ -228,9 +233,17 @@ const createOrUpdateCredit = async (req, res) => {
 
     let credit = await CanteenCredit.findOne({ user: userId });
 
+    const dueEntry = {
+      amount: Number(amountDue),
+      date: new Date(),
+      note: req.body.note || 'Charge added by admin',
+      addedBy: resolveUserId(req),
+    };
+
     if (credit) {
       credit.amountDue += Number(amountDue);
       if (studentName) credit.studentName = studentName;
+      credit.dueHistory.push(dueEntry);
       await credit.save();
     } else {
       credit = await CanteenCredit.create({
@@ -238,6 +251,7 @@ const createOrUpdateCredit = async (req, res) => {
         studentName: studentName || 'Student',
         amountDue: Number(amountDue),
         amountPaid: 0,
+        dueHistory: [dueEntry],
       });
     }
 
@@ -273,7 +287,7 @@ const recordCreditPayment = async (req, res) => {
       method: method || 'Cash',
       date: new Date(),
       note: note || 'Payment received by admin/counter',
-      receivedBy: req.user._id,
+      receivedBy: resolveUserId(req),
     });
 
     await credit.save();

@@ -8,7 +8,7 @@ import ManageAttendanceSection from '../components/admin/ManageAttendance/Manage
 // import PendingApprovalsSection from '../components/admin/PendingApprovals/...'; // wire in later
 import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSection';
 import ManageAnnouncementsSection from '../components/admin/ManageAnnouncements/ManageAnnouncementsSection';
-
+import ManageCanteenSection from '../components/admin/ManageCanteen/ManageCanteenSection';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -40,7 +40,9 @@ const AdminDashboard = () => {
           {activeTab === 'manage-announcements' && (
             <ManageAnnouncementsSection t={t} />
           )}
-
+          {activeTab === 'manage-canteen' && (
+            <ManageCanteenSection t={t} />
+          )}
           {activeTab === 'approvals' && (
             <div>
               <p className="text-sm" style={{ color: t.textMuted }}>

@@ -3,7 +3,7 @@ import {
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
   AlertTriangle, ClipboardList, CheckSquare, Settings, LogOut,
   ChevronLeft, ChevronRight, Menu, X, Sun, Moon, PlusCircle, TrendingUp, Bell,
-  Building2, School, GraduationCap, Clock
+  Building2, School, GraduationCap, Clock, UtensilsCrossed
 } from "lucide-react";
 
 const navConfig = {
@@ -47,6 +47,7 @@ const navConfig = {
   { id: "manage-events", label: "Manage Events", icon: Calendar },
   { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
   { id: "manage-announcements", label: "Manage Announcements", icon: Megaphone },
+  { id: "manage-canteen", label: "Manage Canteen", icon: UtensilsCrossed },
 ],
 };
  
