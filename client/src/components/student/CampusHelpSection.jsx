@@ -7,6 +7,18 @@ import toast from 'react-hot-toast';
 import campusHelpApi from '../../api/campusHelpApi';
 import AskHelpModal from './modals/AskHelpModal';
 
+// Fixed, calm accent colors — same muted palette used across Resources —
+// applied via inline style instead of Tailwind's dark: variants, so they
+// render correctly regardless of theme rather than depending on a stray
+// dark-mode class.
+const ACCENT = {
+  blue: '#5b7c99',
+  green: '#5c8a72',
+  amber: '#b08a5a',
+  purple: '#8a72a8',
+  rose: '#b5636b',
+};
+
 const CampusHelpSection = ({
   t,
   user,
@@ -26,11 +38,12 @@ const CampusHelpSection = ({
       {/* 1. Official College Header Card with Logo at First */}
       <div
         className="rounded-3xl border p-7 shadow-xs relative overflow-hidden"
-        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+        style={{ backgroundColor: t.cardBg, borderColor: t.border }}
       >
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b pb-6" style={{ borderColor: t.border }}>
-          {/* Logo Prominently at First */}
-          <div className="flex items-center gap-4 bg-white dark:bg-white/95 p-3 rounded-2xl border border-gray-200 shadow-xs">
+        <div className="flex flex-col items-center gap-5 border-b pb-6 text-center md:flex-row md:text-left" style={{ borderColor: t.border }}>
+          {/* Logo Prominently at First — kept on a fixed white plate since the
+              logo artwork itself needs a light background regardless of theme */}
+          <div className="flex shrink-0 items-center gap-4 rounded-2xl border p-3 shadow-xs" style={{ backgroundColor: '#ffffff', borderColor: t.border }}>
             <img
               src="/bic-logo-full.png"
               alt="Biratnagar International College | ing"
@@ -38,12 +51,12 @@ const CampusHelpSection = ({
             />
           </div>
 
-          <div className="text-center md:text-right space-y-1">
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">
-              Official Help &amp; Student Support Desk
-            </span>
-            <p className="text-xs font-semibold mt-1" style={{ color: t.textMuted }}>
-              Biratnagar International College · In Academic Partnership with University of Wolverhampton, UK
+          <div>
+            <h1 className="text-xl font-black tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
+              Biratnagar International College
+            </h1>
+            <p className="mt-1 text-sm font-semibold" style={{ color: t.textMuted }}>
+              In Academic Partnership with University of Wolverhampton, UK
             </p>
           </div>
         </div>
@@ -56,12 +69,12 @@ const CampusHelpSection = ({
             style={{ backgroundColor: t.pageBg, borderColor: t.border }}
           >
             <div className="flex items-center gap-2.5 border-b pb-3" style={{ borderColor: t.border }}>
-              <Building2 size={20} className="text-blue-600" />
+              <Building2 size={20} style={{ color: ACCENT.blue }} />
               <div>
-                <h3 className="text-base font-extrabold uppercase tracking-wide" style={{ color: t.textPrimary }}>
+                <h3 className="text-lg font-extrabold uppercase tracking-wide" style={{ color: t.textPrimary }}>
                   Official BIC Campus Contact
                 </h3>
-                <p className="text-[11px]" style={{ color: t.textMuted }}>
+                <p className="text-[12.5px]" style={{ color: t.textMuted }}>
                   General Inquiries, Administration &amp; Academic Affairs
                 </p>
               </div>
@@ -69,51 +82,52 @@ const CampusHelpSection = ({
 
             <div className="space-y-3 text-xs">
               {/* PHONE */}
-              <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
-                <Phone size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3.5 rounded-xl border p-4" style={{ backgroundColor: t.surfaceBg, borderColor: t.border }}>
+                <Phone size={18} className="shrink-0 mt-0.5" style={{ color: ACCENT.green }} />
                 <div>
-                  <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                  <p className="font-bold uppercase tracking-wider text-[11px]" style={{ color: t.textMuted }}>
                     PHONE
                   </p>
-                  <p className="font-extrabold text-sm text-[#2f4336] dark:text-emerald-400 mt-0.5">
+                  <p className="font-extrabold text-[15px] mt-0.5" style={{ color: ACCENT.green }}>
                     021-500050 / 021-500170 / 9801009090
                   </p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-[12.5px] mt-0.5" style={{ color: t.textMuted }}>
                     Front Desk &amp; Admissions Hotline (07:00 AM – 05:00 PM)
                   </p>
                 </div>
               </div>
 
               {/* EMAIL */}
-              <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
-                <Mail size={18} className="text-blue-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3.5 rounded-xl border p-4" style={{ backgroundColor: t.surfaceBg, borderColor: t.border }}>
+                <Mail size={18} className="shrink-0 mt-0.5" style={{ color: ACCENT.blue }} />
                 <div>
-                  <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                  <p className="font-bold uppercase tracking-wider text-[11px]" style={{ color: t.textMuted }}>
                     EMAIL
                   </p>
                   <a
                     href="mailto:info@bicnepal.edu.np"
-                    className="font-extrabold text-sm text-blue-600 hover:underline mt-0.5 block"
+                    className="font-extrabold text-[15px] hover:underline mt-0.5 block"
+                    style={{ color: ACCENT.blue }}
                   >
                     info@bicnepal.edu.np
                   </a>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-[12.5px] mt-0.5" style={{ color: t.textMuted }}>
                     Official Institutional Correspondence
                   </p>
                 </div>
               </div>
 
               {/* LOCATION */}
-              <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
-                <MapPin size={18} className="text-red-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3.5 rounded-xl border p-4" style={{ backgroundColor: t.surfaceBg, borderColor: t.border }}>
+                <MapPin size={18} className="shrink-0 mt-0.5" style={{ color: ACCENT.rose }} />
                 <div>
-                  <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                  <p className="font-bold uppercase tracking-wider text-[11px]" style={{ color: t.textMuted }}>
                     LOCATION
                   </p>
-                  <p className="font-extrabold text-sm" style={{ color: t.textPrimary }}>
+                  <p className="font-extrabold text-[15px]" style={{ color: t.textPrimary }}>
                     Biratnagar 5, Bhrikuti Chowk
                   </p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-[12.5px] mt-0.5" style={{ color: t.textMuted }}>
                     Morang, Koshi Province, Nepal
                   </p>
                 </div>
@@ -127,12 +141,12 @@ const CampusHelpSection = ({
             style={{ backgroundColor: t.pageBg, borderColor: t.border }}
           >
             <div className="flex items-center gap-2.5 border-b pb-3" style={{ borderColor: t.border }}>
-              <GraduationCap size={22} className="text-amber-600" />
+              <GraduationCap size={22} style={{ color: ACCENT.amber }} />
               <div>
-                <h3 className="text-base font-extrabold uppercase tracking-wide" style={{ color: t.textPrimary }}>
+                <h3 className="text-lg font-extrabold uppercase tracking-wide" style={{ color: t.textPrimary }}>
                   SSD Department (Student Services)
                 </h3>
-                <p className="text-[11px]" style={{ color: t.textMuted }}>
+                <p className="text-[12.5px]" style={{ color: t.textMuted }}>
                   Attendance, Scholarships, Volunteering &amp; Student Welfare
                 </p>
               </div>
@@ -140,54 +154,56 @@ const CampusHelpSection = ({
 
             <div className="space-y-3 text-xs">
               {/* SSD PHONE */}
-              <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
-                <Phone size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3.5 rounded-xl border p-4" style={{ backgroundColor: t.surfaceBg, borderColor: t.border }}>
+                <Phone size={18} className="shrink-0 mt-0.5" style={{ color: ACCENT.amber }} />
                 <div>
-                  <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                  <p className="font-bold uppercase tracking-wider text-[11px]" style={{ color: t.textMuted }}>
                     SSD HELPLINE NUMBER
                   </p>
                   <a
                     href="tel:+9779802747227"
-                    className="font-extrabold text-sm text-amber-700 dark:text-amber-300 hover:underline mt-0.5 block"
+                    className="font-extrabold text-[15px] hover:underline mt-0.5 block"
+                    style={{ color: ACCENT.amber }}
                   >
                     +977 9802747227
                   </a>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-[12.5px] mt-0.5" style={{ color: t.textMuted }}>
                     Direct SSD Officer &amp; Student Welfare Coordinator
                   </p>
                 </div>
               </div>
 
               {/* SSD EMAIL */}
-              <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
-                <Mail size={18} className="text-purple-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3.5 rounded-xl border p-4" style={{ backgroundColor: t.surfaceBg, borderColor: t.border }}>
+                <Mail size={18} className="shrink-0 mt-0.5" style={{ color: ACCENT.purple }} />
                 <div>
-                  <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                  <p className="font-bold uppercase tracking-wider text-[11px]" style={{ color: t.textMuted }}>
                     SSD DEPARTMENT EMAIL
                   </p>
                   <a
                     href="mailto:studentservices@bicnepal.edu.np"
-                    className="font-extrabold text-sm text-purple-700 dark:text-purple-300 hover:underline mt-0.5 block"
+                    className="font-extrabold text-[15px] hover:underline mt-0.5 block"
+                    style={{ color: ACCENT.purple }}
                   >
                     studentservices@bicnepal.edu.np
                   </a>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-[12.5px] mt-0.5" style={{ color: t.textMuted }}>
                     Scholarship Renewals, Leave Requests &amp; Records
                   </p>
                 </div>
               </div>
 
               {/* SSD ROOM & HOURS */}
-              <div className="flex items-start gap-3 rounded-xl border p-3 bg-white dark:bg-[#1a1f2c]" style={{ borderColor: t.border }}>
-                <Clock size={18} className="text-blue-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3.5 rounded-xl border p-4" style={{ backgroundColor: t.surfaceBg, borderColor: t.border }}>
+                <Clock size={18} className="shrink-0 mt-0.5" style={{ color: ACCENT.blue }} />
                 <div>
-                  <p className="font-bold uppercase tracking-wider text-[10px]" style={{ color: t.textMuted }}>
+                  <p className="font-bold uppercase tracking-wider text-[11px]" style={{ color: t.textMuted }}>
                     OFFICE LOCATION &amp; HOURS
                   </p>
                   <p className="font-bold text-xs" style={{ color: t.textPrimary }}>
                     Block A, Room 102 (Administration Floor)
                   </p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-[12.5px] mt-0.5" style={{ color: t.textMuted }}>
                     Sunday – Friday: 07:00 AM – 04:00 PM
                   </p>
                 </div>
@@ -200,11 +216,11 @@ const CampusHelpSection = ({
       {/* 2. Peer Help & Student Requests Community Board */}
       <div
         className="rounded-3xl border p-6 shadow-xs space-y-5"
-        style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+        style={{ backgroundColor: t.cardBg, borderColor: t.border }}
       >
         <div className="flex flex-col justify-between gap-3 border-b pb-4 sm:flex-row sm:items-center" style={{ borderColor: t.border }}>
           <div className="flex items-center gap-2">
-            <HelpCircle size={20} className="text-blue-600" />
+            <HelpCircle size={20} style={{ color: ACCENT.blue }} />
             <div>
               <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
                 Campus Peer Help &amp; Study Requests
@@ -218,7 +234,8 @@ const CampusHelpSection = ({
           <button
             type="button"
             onClick={() => setShowAskHelpModal(true)}
-            className="rounded-xl bg-[#2f4336] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#25362b] self-start"
+            className="rounded-xl px-4 py-2 text-xs font-bold text-white shadow-xs self-start transition-opacity hover:opacity-90"
+            style={{ backgroundColor: ACCENT.green }}
           >
             + Ask Campus Help
           </button>
@@ -233,7 +250,10 @@ const CampusHelpSection = ({
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="rounded-md bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+                  <span
+                    className="rounded-md px-2 py-0.5 text-[10px] font-bold"
+                    style={{ backgroundColor: t.surfaceBg, color: ACCENT.blue }}
+                  >
                     {req.sem}
                   </span>
                   <span className="text-[10px]" style={{ color: t.textMuted }}>
@@ -257,8 +277,10 @@ const CampusHelpSection = ({
                 <button
                   type="button"
                   onClick={() => toast.success(`Replying to ${req.author}...`)}
-                  className="rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  className="rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors"
                   style={{ borderColor: t.border, color: t.textPrimary }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = t.hoverBg; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
                   Reply
                 </button>
