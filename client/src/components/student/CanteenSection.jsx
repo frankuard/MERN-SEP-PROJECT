@@ -57,8 +57,7 @@ const CanteenSection = ({ t }) => {
     let mounted = true;
     canteenApi.getCreditBalance()
       .then((res) => {
-        if (mounted && res) setCredit({ amountDue: res.amountDue ?? 0, amountPaid: res.amountPaid ?? 0 });
-      })
+if (mounted && res) setCredit({ amountDue: res.remainingBalance ?? 0, amountPaid: res.amountPaid ?? 0 });      })
       .catch(() => {});
     return () => { mounted = false; };
   }, []);
@@ -72,8 +71,7 @@ const CanteenSection = ({ t }) => {
         <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Menu</h2>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-        <div className="relative flex-1">
+<div className="flex flex-col gap-3 sm:flex-row sm:items-start">        <div className="relative flex-1">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
           <input
             type="text"
