@@ -1,6 +1,6 @@
 const { getImageKit, isImageKitConfigured } = require('../config/imagekit');
 
-const uploadImage = async (req, res) => {
+const uploadFile = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -8,7 +8,7 @@ const uploadImage = async (req, res) => {
 
     if (!isImageKitConfigured()) {
       return res.status(503).json({
-        message: 'Image upload is not configured. Add ImageKit environment variables.',
+        message: 'Upload is not configured. Add ImageKit environment variables.',
       });
     }
 
@@ -18,10 +18,10 @@ const uploadImage = async (req, res) => {
       fileName: req.file.originalname,
     });
 
-    res.status(201).json({ url: result.url });
+    res.status(201).json({ url: result.url, name: req.file.originalname });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-module.exports = uploadImage;
+module.exports = uploadFile;

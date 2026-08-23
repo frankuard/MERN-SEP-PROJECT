@@ -25,6 +25,16 @@ export const campusHelpApi = {
     return res.data;
   },
 
+  // Attachment upload (documents + images)
+  uploadAttachment: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axiosInstance.post('/upload/document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data; // { url, name }
+  },
+
   // Department Contact Cards
   getDepartments: async () => {
     const res = await axiosInstance.get('/campus-help/departments');
