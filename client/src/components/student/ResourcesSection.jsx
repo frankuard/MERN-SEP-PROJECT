@@ -140,16 +140,12 @@ const ResourcesSection = ({
                           Shelf {book.shelf}
                         </span>
                         <span
-                          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold"
+                          className="rounded-full px-2.5 py-1 text-[10px] font-extrabold"
                           style={{
                             backgroundColor: t.surfaceBg,
                             color: book.available ? '#15803d' : '#b45309',
                           }}
                         >
-                          <span
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: book.available ? '#22c55e' : '#f59e0b' }}
-                          />
                           {book.available ? 'Available' : 'Issued'}
                         </span>
                       </div>
