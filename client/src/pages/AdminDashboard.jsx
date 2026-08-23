@@ -10,6 +10,8 @@ import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSe
 import ManageAnnouncementsSection from '../components/admin/ManageAnnouncements/ManageAnnouncementsSection';
 import ManageCanteenSection from '../components/admin/ManageCanteen/ManageCanteenSection';
 import ManageLostFoundSection from '../components/admin/ManageLostFound/ManageLostFoundSection';
+import ManageCampusHelpSection from '../components/admin/ManageCampusHelp/ManageCampusHelpSection';
+
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -47,6 +49,10 @@ const AdminDashboard = () => {
 
           {activeTab === 'manage-lost-found' && (
   <ManageLostFoundSection t={t} />
+)}
+
+{activeTab === 'manage-campus-help' && (
+  <ManageCampusHelpSection t={t} />
 )}
 
           {activeTab === 'approvals' && (
