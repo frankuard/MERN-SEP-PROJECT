@@ -7,6 +7,7 @@ import AdminDashboardHome from '../components/admin/Dashboard/AdminDashboardHome
 import ManageAttendanceSection from '../components/admin/ManageAttendance/ManageAttendanceSection';
 // import PendingApprovalsSection from '../components/admin/PendingApprovals/...'; // wire in later
 import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSection';
+import ManageAnnouncementsSection from '../components/admin/ManageAnnouncements/ManageAnnouncementsSection';
 
 
 const AdminDashboard = () => {
@@ -23,16 +24,22 @@ const AdminDashboard = () => {
       <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8">
         <div className="mx-auto max-w-5xl">
           {activeTab === 'dashboard' && (
-            <AdminDashboardHome t={t} adminName={adminName} />
+            <AdminDashboardHome
+              t={t}
+              adminName={user?.username || 'Admin'}
+              onNavigate={setActiveTab}
+            />
           )}
-
           {activeTab === 'manage-attendance' && (
             <ManageAttendanceSection t={t} />
           )}
 
           {activeTab === 'manage-events' && (
-  <ManageEventsSection t={t} />
-)}
+            <ManageEventsSection t={t} />
+          )}
+          {activeTab === 'manage-announcements' && (
+            <ManageAnnouncementsSection t={t} />
+          )}
 
           {activeTab === 'approvals' && (
             <div>

@@ -46,6 +46,7 @@ const navConfig = {
   { id: "manage-attendance", label: "Manage Attendance", icon: ClipboardList },
   { id: "manage-events", label: "Manage Events", icon: Calendar },
   { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
+  { id: "manage-announcements", label: "Manage Announcements", icon: Megaphone },
 ],
 };
  
