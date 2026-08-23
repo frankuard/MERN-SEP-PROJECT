@@ -178,7 +178,8 @@ const MenuTab = ({ t }) => {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>Menu Items</h3>
-        <button type="button" onClick={openCreate} className="flex items-center gap-1.5 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white">
+        <button type="button" onClick={openCreate} 
+        className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90">
           <Plus size={16} /> Add Food Item
         </button>
       </div>
@@ -199,10 +200,11 @@ const MenuTab = ({ t }) => {
               </div>
               <p className="mt-1 truncate text-xs" style={{ color: t.textMuted }}>{item.description || item.category}</p>
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={() => openEdit(item)} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-bold" style={{ borderColor: t.border, color: t.textPrimary }}>
+                <button type="button" onClick={() => openEdit(item)} className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+style={{ borderColor: t.border, color: t.textPrimary }}>
                   <Pencil size={13} /> Edit
                 </button>
-                <button type="button" onClick={() => setDeleteTarget(item)} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-bold" style={{ borderColor: '#fecaca', color: '#dc2626' }}>
+                <button type="button" onClick={() => setDeleteTarget(item)} className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-bold transition-colors hover:bg-red-50 dark:hover:bg-red-950/30" style={{ borderColor: '#fecaca', color: '#dc2626' }}>
                   <Trash2 size={13} /> Delete
                 </button>
               </div>
@@ -312,7 +314,8 @@ const CreditTab = ({ t }) => {
                 <p className="mt-1 text-sm font-extrabold" style={{ color: t.textMuted }}>Cleared</p>
               )}            </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setDetailsId(c._id)} className="rounded-lg border px-3 py-2 text-xs font-bold" style={{ borderColor: t.border, color: t.textPrimary }}>
+              <button type="button" onClick={() => setDetailsId(c._id)} className="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+style={{ borderColor: t.border, color: t.textPrimary }}>
                 View Details
               </button>
               <button type="button" onClick={() => { setAdjustMode('increase'); setAdjustTarget(c); }} className="rounded-lg border px-3 py-2 text-xs font-bold" style={{ borderColor: t.border, color: t.textPrimary }}>
@@ -357,7 +360,7 @@ const ManageCanteenSection = ({ t }) => {
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-all"
+className="flex cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-all hover:opacity-80"
             style={{ backgroundColor: tab === id ? t.accentPrimary : 'transparent', color: tab === id ? t.pageBg : t.textPrimary }}
           >
             <Icon size={14} /> {label}

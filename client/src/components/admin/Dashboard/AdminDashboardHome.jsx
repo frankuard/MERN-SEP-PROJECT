@@ -27,7 +27,7 @@ const QuickAction = ({ icon, title, description, onClick, t }) => (
   <button
     type="button"
     onClick={onClick}
-    className="flex items-center gap-4 rounded-2xl border p-5 text-left transition-transform hover:scale-[1.01]"
+className="flex cursor-pointer items-center gap-4 rounded-2xl border p-5 text-left transition-all hover:scale-[1.01] hover:shadow-md"
     style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowSoft }}
   >
     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black text-white">
