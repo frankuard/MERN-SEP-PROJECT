@@ -499,7 +499,7 @@ const ManageEventsSection = ({ t }) => {
                 <button
                     type="button"
                     onClick={openCreate}
-                    className="flex items-center justify-center gap-1.5 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white"
+                    className="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
                 >
                     <Plus size={16} />
                     Add New Event
@@ -605,7 +605,7 @@ const ManageEventsSection = ({ t }) => {
                                                 <button
                                                     type="button"
                                                     onClick={() => openEdit(ev)}
-                                                    className="flex h-8 w-8 items-center justify-center rounded-lg border"
+                                                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                                                     style={{ borderColor: t.border, color: t.textPrimary }}
                                                 >
                                                     <Pencil size={14} />
@@ -613,7 +613,7 @@ const ManageEventsSection = ({ t }) => {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDeleteClick(ev)}
-                                                    className="flex h-8 w-8 items-center justify-center rounded-lg border"
+                                                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
                                                     style={{ borderColor: '#fecaca', color: '#dc2626' }}
                                                 >
                                                     <Trash2 size={14} />

@@ -197,7 +197,7 @@ const ManageAttendanceSection = ({ t }) => {
                         type="button"
                         disabled={!isDirty || savingId === student.studentId}
                         onClick={() => handleSave(student)}
-                        className="flex items-center gap-1.5 rounded-xl bg-black px-3 py-1.5 text-xs font-bold text-white disabled:opacity-30"
+                        className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-black px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         <Save size={13} />
                         {savingId === student.studentId ? 'Saving...' : 'Save'}
@@ -273,7 +273,7 @@ const ManageAttendanceSection = ({ t }) => {
                   type="button"
                   disabled={!isDirty || savingId === student.studentId}
                   onClick={() => handleSave(student)}
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-black py-2 text-xs font-bold text-white disabled:opacity-30"
+                  className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-black py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <Save size={13} />
                   {savingId === student.studentId ? 'Saving...' : 'Save'}
