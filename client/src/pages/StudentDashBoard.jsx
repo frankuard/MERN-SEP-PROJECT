@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar, User, CreditCard, Mic2, Cpu, Trophy,
+  Calendar, User, Mic2, Cpu, Trophy,
   BrainCircuit, Code, Palette, CheckCircle2, Clock
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
@@ -16,8 +16,6 @@ import {
   INITIAL_COMMUNITY_EVENTS,
   INITIAL_ANNOUNCEMENTS,
   INITIAL_LOST_FOUND,
-  INITIAL_CAMPUS_HELP,
-  INITIAL_CAMPUS_POSTS,
   INITIAL_LIBRARY_BOOKS,
   INITIAL_VOLUNTEERING_HISTORY,
   INITIAL_VOLUNTEER_REQUESTS,
@@ -33,7 +31,6 @@ import LostFoundSection from '../components/student/LostFoundSection';
 import ResourcesSection from '../components/student/ResourcesSection';
 import CanteenSection from '../components/student/CanteenSection';
 import VacantClassesSection from '../components/student/VacantClassesSection';
-import CampusPostsSection from '../components/student/CampusPostsSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import lostFoundApi from '../api/lostFoundApi';
@@ -51,8 +48,6 @@ const StudentDashboard = () => {
   const [communityEvents, setCommunityEvents] = useState(INITIAL_COMMUNITY_EVENTS);
   const [announcements] = useState(INITIAL_ANNOUNCEMENTS);
   const [lostFoundItems, setLostFoundItems] = useState(INITIAL_LOST_FOUND);
-  const [helpRequests, setHelpRequests] = useState(INITIAL_CAMPUS_HELP);
-  const [campusPosts, setCampusPosts] = useState(INITIAL_CAMPUS_POSTS);
 
   // CCTV Requests List
   const [cctvRequests, setCctvRequests] = useState([
@@ -460,16 +455,6 @@ const StudentDashboard = () => {
             {/* 2. Lost & Found Section */}
             {activeTab === 'lost-found' && (
               <LostFoundSection t={t} />
-            )}
-
-            {/* 3. Campus Posts Section */}
-            {activeTab === 'campus-posts' && (
-              <CampusPostsSection
-                t={t}
-                campusPosts={campusPosts}
-                onToggleLikePost={toggleLikePost}
-                onNavigateTab={setActiveTab}
-              />
             )}
 
             {/* 4. Canteen Section */}

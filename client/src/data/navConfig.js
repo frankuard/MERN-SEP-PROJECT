@@ -16,8 +16,6 @@ const navConfig = {
     { id: "timetable", label: "Timetable", icon: Clock },
     { id: "ssd-help", label: "SSD Help", icon: GraduationCap },
     { id: "vacant-classes", label: "Vacant Classes", icon: School },
-    { id: "campus-posts", label: "Posts", icon: FileText },
-    { id: "location", label: "Locations", icon: MapPin },
     { id: "campus-help", label: "Help", icon: HelpCircle },
   ],
   teacher: [
