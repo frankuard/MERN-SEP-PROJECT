@@ -25,6 +25,7 @@ const attendanceRoutes = require('./routes/attendance.routes');
 const helpRoutes = require('./routes/help.routes');
 const resourceRoutes = require('./routes/resource.routes');
 const timetableRoutes = require('./routes/timetable.routes');
+const classroomRoutes = require("./routes/classroom.routes");
 
 
 
@@ -115,6 +116,9 @@ app.use('/api/campus-help', helpRoutes);
 app.use('/api/resources', resourceRoutes);
 
 app.use('/api/timetable', timetableRoutes);
+
+app.use("/api/classrooms", classroomRoutes);
+
 
 connectDB();
 
