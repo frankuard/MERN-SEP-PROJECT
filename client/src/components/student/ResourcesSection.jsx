@@ -1,22 +1,191 @@
-import React, { useState, useMemo } from 'react';
-import { BookOpen, Trophy, Search, Loader2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { BookOpen, Trophy, Search, Clock, CheckCircle2, Hourglass } from 'lucide-react';
+import resourcesApi from '../../api/resourcesApi';
+import BorrowRequestModal from './modals/BorrowRequestModal';
+import toast from 'react-hot-toast';
 
-// Rotating pastel tints for list/item cards — pulled from the same theme tokens
-// the Dashboard uses (CanteenSpecial, ImportantAnnouncements, etc.)
 const CARD_TINTS = ['pastelBlue', 'pastelPink', 'pastelYellow', 'pastelCyan', 'pastelPurple', 'pastelOrange'];
+const ACCENT = '#5c8a72';
 
-const ResourcesSection = ({
-  t,
-  libraryBooks,
-  pendingBookApprovals,
-  onToggleBorrowBook,
-  sportsGearRequests,
-  onSportsRequestSubmit,
-}) => {
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const daysRemaining = (returnBy) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(returnBy);
+  due.setHours(0, 0, 0, 0);
+  return Math.round((due - today) / (1000 * 60 * 60 * 24));
+};
+
+/* ------------------------------------------------------------------ */
+/* Book cover — Event-card style: portrait image, themed fallback     */
+/* ------------------------------------------------------------------ */
+const BookCover = ({ book, tint }) => {
+  if (book.cover) {
+    return (
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl">
+        <img src={book.cover} alt={book.name} className="h-full w-full object-cover" loading="lazy" />
+      </div>
+    );
+  }
+  return (
+    <div
+      className="relative flex aspect-[2/3] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl p-4 text-center"
+      style={{ backgroundColor: tint }}
+    >
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/70 shadow-sm">
+        <BookOpen size={20} style={{ color: ACCENT }} />
+      </div>
+      <span className="line-clamp-3 text-xs font-extrabold leading-snug" style={{ color: '#111111' }}>
+        {book.name}
+      </span>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Book card                                                           */
+/* ------------------------------------------------------------------ */
+const BookCard = ({ book, tint, onRequestBorrow, t }) => {
+  const status = book.status; // 'none' | 'pending' | 'borrowed'
+  const record = book.myRequest;
+
+  return (
+    <div
+      className="flex h-full flex-col rounded-2xl border p-4 transition-all duration-200 hover:shadow-md"
+      style={{ backgroundColor: t.cardBg, borderColor: t.border }}
+    >
+      <BookCover book={book} tint={tint} />
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: t.pageBg, color: t.textMuted }}>
+          Shelf {book.shelf}
+        </span>
+        {status === 'pending' && (
+          <span className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: '#fef3c7', color: '#b45309' }}>
+            <Hourglass size={11} />
+            Pending Approval
+          </span>
+        )}
+        {status === 'borrowed' && (
+          <span className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
+            <Clock size={11} />
+            Borrowed
+          </span>
+        )}
+      </div>
+
+      <h4 className="mt-2.5 text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
+        {book.name}
+      </h4>
+      <p className="mt-1 text-xs font-semibold" style={{ color: t.textMuted }}>by {book.author}</p>
+
+      {status === 'borrowed' && record?.returnBy && (
+        <p className="mt-2 text-[11px] font-bold" style={{ color: '#1d4ed8' }}>
+          Due in {daysRemaining(record.returnBy)} day{daysRemaining(record.returnBy) === 1 ? '' : 's'} ({formatDate(record.returnBy)})
+        </p>
+      )}
+
+      <div className="mt-4 border-t pt-3" style={{ borderColor: t.border }}>
+        {status === 'none' && (
+          <button
+            type="button"
+            onClick={() => onRequestBorrow(book)}
+            className="w-full cursor-pointer rounded-xl py-2.5 text-xs font-extrabold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: ACCENT }}
+          >
+            Request to Borrow
+          </button>
+        )}
+        {status === 'pending' && (
+          <div className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-extrabold" style={{ backgroundColor: t.pageBg, color: '#b45309' }}>
+            <Hourglass size={13} />
+            Waiting for admin approval
+          </div>
+        )}
+        {status === 'borrowed' && (
+          <div className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-extrabold" style={{ backgroundColor: t.pageBg, color: '#1d4ed8' }}>
+            <CheckCircle2 size={13} />
+            Currently with you
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Your Books — request/borrow log                                     */
+/* ------------------------------------------------------------------ */
+const YourBooksLog = ({ myBorrows, t }) => {
+  const entries = myBorrows.filter((r) => r.status !== 'rejected');
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="rounded-[28px] p-5 sm:p-7" style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}>
+      <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>Your Books</h3>
+      <p className="mt-0.5 text-xs font-semibold" style={{ color: t.textMuted }}>Requests and current borrows</p>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {entries.map((entry) => (
+          <div key={entry._id} className="rounded-2xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase"
+                style={{
+                  backgroundColor: entry.status === 'pending' ? '#fef3c7' : entry.status === 'returned' ? '#d1fae5' : '#dbeafe',
+                  color: entry.status === 'pending' ? '#b45309' : entry.status === 'returned' ? '#047857' : '#1d4ed8',
+                }}
+              >
+                {entry.status === 'pending' ? 'Pending' : entry.status === 'returned' ? 'Returned' : 'Borrowed'}
+              </span>
+              <span className="text-[11px] font-semibold" style={{ color: t.textMuted }}>{formatDate(entry.createdAt)}</span>
+            </div>
+            <p className="mt-1.5 text-sm font-bold" style={{ color: t.textPrimary }}>{entry.book?.name}</p>
+            <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>Student ID: {entry.studentIdNumber}</p>
+            <p className="mt-1 text-xs font-semibold" style={{ color: t.textPrimary }}>
+              Return by: {formatDate(entry.returnBy)}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Main component                                                      */
+/* ------------------------------------------------------------------ */
+const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
   const [resourcesActiveCategory, setResourcesActiveCategory] = useState('library');
   const [bookSearchQuery, setBookSearchQuery] = useState('');
 
-  // Sports Form State
+  const [books, setBooks] = useState([]);
+  const [myBorrows, setMyBorrows] = useState([]);
+  const [modalBook, setModalBook] = useState(null);
+  const [loadingBooks, setLoadingBooks] = useState(true);
+
+  const loadBooks = useCallback(() => {
+    setLoadingBooks(true);
+    resourcesApi.getBooks()
+      .then((data) => { if (Array.isArray(data)) setBooks(data); })
+      .catch(() => toast.error('Failed to load books'))
+      .finally(() => setLoadingBooks(false));
+  }, []);
+
+  const loadMyBorrows = useCallback(() => {
+    resourcesApi.getMyBorrows()
+      .then((data) => { if (Array.isArray(data)) setMyBorrows(data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { loadBooks(); loadMyBorrows(); }, [loadBooks, loadMyBorrows]);
+
   const [sportsForm, setSportsForm] = useState({
     item: 'Cricket Bat',
     qty: 1,
@@ -25,25 +194,35 @@ const ResourcesSection = ({
   });
 
   const filteredBooks = useMemo(() => {
-    if (!bookSearchQuery.trim()) return libraryBooks;
-    return libraryBooks.filter(
+    if (!bookSearchQuery.trim()) return books;
+    return books.filter(
       (b) =>
         b.name.toLowerCase().includes(bookSearchQuery.toLowerCase()) ||
         b.author.toLowerCase().includes(bookSearchQuery.toLowerCase()) ||
         b.shelf.toLowerCase().includes(bookSearchQuery.toLowerCase())
     );
-  }, [libraryBooks, bookSearchQuery]);
+  }, [books, bookSearchQuery]);
+
+  const handleBorrowRequestSubmit = async ({ returnBy, studentId }) => {
+    try {
+      await resourcesApi.requestBorrow(modalBook._id, { returnBy, studentIdNumber: studentId });
+      toast.success('Borrow request sent!');
+      loadBooks();
+      loadMyBorrows();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send request');
+      throw err;
+    }
+  };
 
   const handleSportsSubmit = (e) => {
     e.preventDefault();
-    // Guard against submitting while the quantity field is mid-edit/empty
     const qty = sportsForm.qty === '' ? 1 : sportsForm.qty;
     onSportsRequestSubmit({ ...sportsForm, qty });
   };
 
   return (
     <div className="dashboard-playful space-y-6 pb-4 animate-in fade-in duration-200">
-      {/* Prominent Horizontal Navbar for the 4 Sections in One Single Row with Big Text */}
       <nav
         className="dashboard-card-lift flex w-full flex-wrap items-center gap-2 overflow-x-auto rounded-[28px] p-2"
         style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
@@ -51,18 +230,10 @@ const ResourcesSection = ({
         <button
           type="button"
           onClick={() => setResourcesActiveCategory('library')}
-          className={`dashboard-btn-bounce flex items-center justify-center gap-2.5 rounded-full py-3.5 px-6 text-sm font-extrabold transition-all ${
-            resourcesActiveCategory === 'library' ? 'shadow-sm' : ''
-          }`}
+          className="dashboard-btn-bounce flex cursor-pointer items-center justify-center gap-2.5 rounded-full py-3.5 px-6 text-sm font-extrabold transition-all"
           style={{
             backgroundColor: resourcesActiveCategory === 'library' ? '#111111' : 'transparent',
             color: resourcesActiveCategory === 'library' ? '#ffffff' : t.textSecondary,
-          }}
-          onMouseEnter={(e) => {
-            if (resourcesActiveCategory !== 'library') e.currentTarget.style.backgroundColor = t.hoverBg;
-          }}
-          onMouseLeave={(e) => {
-            if (resourcesActiveCategory !== 'library') e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
           <BookOpen size={18} />
@@ -72,41 +243,24 @@ const ResourcesSection = ({
         <button
           type="button"
           onClick={() => setResourcesActiveCategory('sports')}
-          className={`dashboard-btn-bounce flex items-center justify-center gap-2.5 rounded-full py-3.5 px-6 text-sm font-extrabold transition-all ${
-            resourcesActiveCategory === 'sports' ? 'shadow-sm' : ''
-          }`}
+          className="dashboard-btn-bounce flex cursor-pointer items-center justify-center gap-2.5 rounded-full py-3.5 px-6 text-sm font-extrabold transition-all"
           style={{
             backgroundColor: resourcesActiveCategory === 'sports' ? '#111111' : 'transparent',
             color: resourcesActiveCategory === 'sports' ? '#ffffff' : t.textSecondary,
-          }}
-          onMouseEnter={(e) => {
-            if (resourcesActiveCategory !== 'sports') e.currentTarget.style.backgroundColor = t.hoverBg;
-          }}
-          onMouseLeave={(e) => {
-            if (resourcesActiveCategory !== 'sports') e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
           <Trophy size={18} />
           <span>2. Sports Items Needed</span>
         </button>
-
       </nav>
 
-      {/* ----------------- CATEGORY 1: LIBRARY BOOK MANAGEMENT (BIMALA MAM APPROVAL) ----------------- */}
       {resourcesActiveCategory === 'library' && (
         <div className="space-y-6">
-          <div
-            className="rounded-[28px] p-5 sm:p-7"
-            style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
-          >
+          <div className="rounded-[28px] p-5 sm:p-7" style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}>
             <div className="flex items-center gap-3 pb-5">
-              <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white"
-                aria-hidden="true"
-              >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white">
                 <BookOpen size={20} strokeWidth={2.5} />
               </div>
-
               <div className="relative flex-1">
                 <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
                 <input
@@ -120,93 +274,44 @@ const ResourcesSection = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredBooks.map((book, i) => {
-                const isPending = !!pendingBookApprovals[book.id];
-                const pendingType = pendingBookApprovals[book.id];
-                const tint = t[CARD_TINTS[i % CARD_TINTS.length]];
-                return (
-                  <div
-                    key={book.id}
-                    className="dashboard-card-lift flex flex-col justify-between rounded-[22px] p-4"
-                    style={{ backgroundColor: tint, boxShadow: t.shadowSoft }}
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <span
-                          className="rounded-full px-2.5 py-1 text-[10px] font-extrabold"
-                          style={{ backgroundColor: t.surfaceBg, color: t.textPrimary }}
-                        >
-                          Shelf {book.shelf}
-                        </span>
-                        <span
-                          className="rounded-full px-2.5 py-1 text-[10px] font-extrabold"
-                          style={{
-                            backgroundColor: t.surfaceBg,
-                            color: book.available ? '#15803d' : '#b45309',
-                          }}
-                        >
-                          {book.available ? 'Available' : 'Issued'}
-                        </span>
-                      </div>
+            {loadingBooks && (
+              <p className="py-6 text-center text-sm font-semibold" style={{ color: t.textMuted }}>Loading books...</p>
+            )}
 
-                      <h4 className="mt-3 text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
-                        {book.name}
-                      </h4>
-                      <p className="mt-1 text-xs font-semibold" style={{ color: t.textSecondary }}>
-                        by {book.author}
-                      </p>
+            {!loadingBooks && filteredBooks.length === 0 && (
+              <p className="py-6 text-center text-sm font-semibold" style={{ color: t.textMuted }}>No books found.</p>
+            )}
 
-                      {!book.available && book.issuedTo && (
-                        <p className="mt-2 text-[11px] font-extrabold text-amber-600">
-                          Status: {book.issuedTo}
-                        </p>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => onToggleBorrowBook(book.id)}
-                      className="dashboard-btn-bounce mt-4 flex items-center justify-center gap-2 rounded-full py-2.5 text-xs font-extrabold text-white transition-all hover:opacity-90"
-                      style={{
-                        backgroundColor: isPending ? '#b08a5a' : book.available ? '#5c8a72' : '#5b7c99',
-                        boxShadow: t.shadowSoft,
-                        cursor: isPending ? 'not-allowed' : 'pointer',
-                        opacity: isPending ? 0.9 : 1,
-                      }}
-                    >
-                      {isPending && <Loader2 size={13} className="animate-spin" />}
-                      {pendingType === 'borrowing' && '⏳ Waiting Bimala Mam Approval (5s)...'}
-                      {pendingType === 'returning' && '⏳ Bimala Mam Checking Condition (5s)...'}
-                      {!isPending && (book.available ? 'Borrow Book (Bimala Mam Approval)' : 'Return to Library (Submit)')}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            {!loadingBooks && filteredBooks.length > 0 && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredBooks.map((book, i) => (
+                  <BookCard
+                    key={book._id}
+                    book={book}
+                    tint={t[CARD_TINTS[i % CARD_TINTS.length]]}
+                    onRequestBorrow={setModalBook}
+                    t={t}
+                  />
+                ))}
+              </div>
+            )}
           </div>
+
+          <YourBooksLog myBorrows={myBorrows} t={t} />
         </div>
       )}
 
-      {/* ----------------- CATEGORY 2: SPORTS ITEMS NEEDED ----------------- */}
       {resourcesActiveCategory === 'sports' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* Left: Sports Item Requisition Form */}
             <div className="lg:col-span-6">
-              <div
-                className="rounded-[28px] p-5 sm:p-7"
-                style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
-              >
+              <div className="rounded-[28px] p-5 sm:p-7" style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}>
                 <div className="mb-5 flex items-center gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white">
                     <Trophy size={20} strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>
-                      Request Sports Equipment
-                    </h3>
+                    <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>Request Sports Equipment</h3>
                     <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
                       Select item from college sports room inventory for practice or recess matches
                     </p>
@@ -235,9 +340,7 @@ const ResourcesSection = ({
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-extrabold mb-1.5" style={{ color: t.textPrimary }}>
-                        Quantity
-                      </label>
+                      <label className="block text-xs font-extrabold mb-1.5" style={{ color: t.textPrimary }}>Quantity</label>
                       <input
                         type="number"
                         min={1}
@@ -245,13 +348,7 @@ const ResourcesSection = ({
                         value={sportsForm.qty}
                         onChange={(e) => {
                           const raw = e.target.value;
-                          // Allow the field to be genuinely empty while the user is
-                          // editing, instead of coercing it to 0 (which caused the
-                          // "05, 06..." bug when typing right after clearing it).
-                          if (raw === '') {
-                            setSportsForm({ ...sportsForm, qty: '' });
-                            return;
-                          }
+                          if (raw === '') { setSportsForm({ ...sportsForm, qty: '' }); return; }
                           const num = Number(raw);
                           if (Number.isNaN(num)) return;
                           setSportsForm({ ...sportsForm, qty: num });
@@ -267,11 +364,8 @@ const ResourcesSection = ({
                         style={{ backgroundColor: t.pageBg, border: `1px solid ${t.border}`, color: t.textPrimary }}
                       />
                     </div>
-
                     <div>
-                      <label className="block text-xs font-extrabold mb-1.5" style={{ color: t.textPrimary }}>
-                        Time / Slot Needed
-                      </label>
+                      <label className="block text-xs font-extrabold mb-1.5" style={{ color: t.textPrimary }}>Time / Slot Needed</label>
                       <select
                         value={sportsForm.slot}
                         onChange={(e) => setSportsForm({ ...sportsForm, slot: e.target.value })}
@@ -287,7 +381,7 @@ const ResourcesSection = ({
 
                   <button
                     type="submit"
-                    className="dashboard-btn-bounce w-full rounded-full bg-black py-3.5 text-xs font-extrabold text-white"
+                    className="dashboard-btn-bounce w-full cursor-pointer rounded-full bg-black py-3.5 text-xs font-extrabold text-white"
                     style={{ boxShadow: t.shadowSoft }}
                   >
                     Submit Sports Equipment Request
@@ -296,19 +390,12 @@ const ResourcesSection = ({
               </div>
             </div>
 
-            {/* Right: Issued & Requested Gear */}
             <div className="lg:col-span-6">
-              <div
-                className="rounded-[28px] p-5 sm:p-7"
-                style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}
-              >
-                <h3 className="text-base font-extrabold mb-1" style={{ color: t.textPrimary }}>
-                  My Sports Equipment Requisitions
-                </h3>
+              <div className="rounded-[28px] p-5 sm:p-7" style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}>
+                <h3 className="text-base font-extrabold mb-1" style={{ color: t.textPrimary }}>My Sports Equipment Requisitions</h3>
                 <p className="text-xs font-semibold mb-4" style={{ color: t.textMuted }}>
                   Pick up approved equipment from Ground Floor Sports In-charge desk
                 </p>
-
                 <div className="space-y-3">
                   {sportsGearRequests.map((req, i) => (
                     <div
@@ -317,17 +404,10 @@ const ResourcesSection = ({
                       style={{ backgroundColor: t[CARD_TINTS[i % CARD_TINTS.length]], boxShadow: t.shadowSoft }}
                     >
                       <div>
-                        <h4 className="font-extrabold text-sm" style={{ color: t.textPrimary }}>
-                          {req.item} (Qty: {req.qty})
-                        </h4>
-                        <p className="text-[11px] font-semibold mt-0.5" style={{ color: t.textSecondary }}>
-                          Slot: {req.slot}
-                        </p>
+                        <h4 className="font-extrabold text-sm" style={{ color: t.textPrimary }}>{req.item} (Qty: {req.qty})</h4>
+                        <p className="text-[11px] font-semibold mt-0.5" style={{ color: t.textSecondary }}>Slot: {req.slot}</p>
                       </div>
-
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-extrabold text-emerald-800">
-                        {req.status}
-                      </span>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-extrabold text-emerald-800">{req.status}</span>
                     </div>
                   ))}
                 </div>
@@ -336,6 +416,14 @@ const ResourcesSection = ({
           </div>
         </div>
       )}
+
+      <BorrowRequestModal
+        isOpen={!!modalBook}
+        onClose={() => setModalBook(null)}
+        t={t}
+        book={modalBook}
+        onSubmit={handleBorrowRequestSubmit}
+      />
     </div>
   );
 };

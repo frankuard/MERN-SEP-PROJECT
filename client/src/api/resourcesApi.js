@@ -1,81 +1,100 @@
 import axiosInstance from './axiosInstance';
-import { INITIAL_LIBRARY_BOOKS } from '../data/studentDashboardData';
 
-/**
- * Campus Resources Service & Endpoints
- */
-export const resourcesApi = {
-  // Library: Get Books catalog
-  getLibraryBooks: async () => {
-    try {
-      const res = await axiosInstance.get('/resources/library/books');
-      return res.data;
-    } catch {
-      return INITIAL_LIBRARY_BOOKS;
-    }
+const resourcesApi = {
+  // -------- Student — Books --------
+  getBooks: async () => {
+    const res = await axiosInstance.get('/resources/books');
+    return res.data;
+  },
+  getMyBorrows: async () => {
+    const res = await axiosInstance.get('/resources/my-borrows');
+    return res.data;
+  },
+  requestBorrow: async (bookId, payload) => {
+    const res = await axiosInstance.post(`/resources/books/${bookId}/borrow`, payload);
+    return res.data;
   },
 
-  // Library: Borrow book (Bimala Mam Approval)
-  borrowBook: async (bookId, studentName = 'Suraj Poddar') => {
-    try {
-      const res = await axiosInstance.post(`/resources/library/books/${bookId}/borrow`, { studentName });
-      return res.data;
-    } catch {
-      return { success: true, bookId, available: false, issuedTo: `Issued to ${studentName} (Due: Sep 01)` };
-    }
+  // -------- Admin — Books --------
+  getBooksAdmin: async () => {
+    const res = await axiosInstance.get('/resources/books/admin');
+    return res.data;
+  },
+  createBook: async (payload) => {
+    const res = await axiosInstance.post('/resources/books', payload);
+    return res.data;
+  },
+  updateBook: async (id, payload) => {
+    const res = await axiosInstance.patch(`/resources/books/${id}`, payload);
+    return res.data;
+  },
+  deleteBook: async (id) => {
+    const res = await axiosInstance.delete(`/resources/books/${id}`);
+    return res.data;
   },
 
-  // Library: Return book (Bimala Mam Verification)
-  returnBook: async (bookId) => {
-    try {
-      const res = await axiosInstance.post(`/resources/library/books/${bookId}/return`);
-      return res.data;
-    } catch {
-      return { success: true, bookId, available: true, issuedTo: null };
-    }
+  // -------- Admin — Book Borrow Requests --------
+  getBorrowRequests: async (params = {}) => {
+    const res = await axiosInstance.get('/resources/borrow-requests', { params });
+    return res.data;
+  },
+  approveBorrowRequest: async (id) => {
+    const res = await axiosInstance.patch(`/resources/borrow-requests/${id}/approve`);
+    return res.data;
+  },
+  rejectBorrowRequest: async (id) => {
+    const res = await axiosInstance.patch(`/resources/borrow-requests/${id}/reject`);
+    return res.data;
+  },
+  markReturned: async (id) => {
+    const res = await axiosInstance.patch(`/resources/borrow-requests/${id}/return`);
+    return res.data;
   },
 
-  // Sports: Request sports gear
-  requestSportsGear: async (gearData) => {
-    try {
-      const res = await axiosInstance.post('/resources/sports/request', gearData);
-      return res.data;
-    } catch {
-      return {
-        id: `sp_${Date.now()}`,
-        ...gearData,
-        status: 'Approved & Ready for Pickup',
-      };
-    }
+  // -------- Student — Sports --------
+  getSportsItems: async () => {
+    const res = await axiosInstance.get('/resources/sports-items');
+    return res.data;
+  },
+  getMySportsRequests: async () => {
+    const res = await axiosInstance.get('/resources/my-sports-requests');
+    return res.data;
+  },
+  requestSportsItem: async (itemId, payload) => {
+    const res = await axiosInstance.post(`/resources/sports-items/${itemId}/request`, payload);
+    return res.data;
   },
 
-  // Budget: Submit student/club fund claim
-  submitBudgetClaim: async (claimData) => {
-    try {
-      const res = await axiosInstance.post('/resources/budget-claim', claimData);
-      return res.data;
-    } catch {
-      return {
-        id: `bc_${Date.now()}`,
-        ...claimData,
-        status: 'Approved by SSD',
-      };
-    }
+  // -------- Admin — Sports Items --------
+  createSportsItem: async (payload) => {
+    const res = await axiosInstance.post('/resources/sports-items', payload);
+    return res.data;
+  },
+  updateSportsItem: async (id, payload) => {
+    const res = await axiosInstance.patch(`/resources/sports-items/${id}`, payload);
+    return res.data;
+  },
+  deleteSportsItem: async (id) => {
+    const res = await axiosInstance.delete(`/resources/sports-items/${id}`);
+    return res.data;
   },
 
-  // Facilities: Submit maintenance complaint ticket
-  submitComplaintTicket: async (complaintData) => {
-    try {
-      const res = await axiosInstance.post('/resources/complaints', complaintData);
-      return res.data;
-    } catch {
-      return {
-        id: `cmp_${Date.now().toString().slice(-4)}`,
-        ...complaintData,
-        status: 'Assigned to Maintenance Staff',
-        time: 'Just now',
-      };
-    }
+  // -------- Admin — Sports Requests --------
+  getSportsRequests: async (params = {}) => {
+    const res = await axiosInstance.get('/resources/sports-requests', { params });
+    return res.data;
+  },
+  approveSportsRequest: async (id) => {
+    const res = await axiosInstance.patch(`/resources/sports-requests/${id}/approve`);
+    return res.data;
+  },
+  rejectSportsRequest: async (id) => {
+    const res = await axiosInstance.patch(`/resources/sports-requests/${id}/reject`);
+    return res.data;
+  },
+  markSportsReturned: async (id) => {
+    const res = await axiosInstance.patch(`/resources/sports-requests/${id}/return`);
+    return res.data;
   },
 };
 

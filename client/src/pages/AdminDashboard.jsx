@@ -11,6 +11,7 @@ import ManageAnnouncementsSection from '../components/admin/ManageAnnouncements/
 import ManageCanteenSection from '../components/admin/ManageCanteen/ManageCanteenSection';
 import ManageLostFoundSection from '../components/admin/ManageLostFound/ManageLostFoundSection';
 import ManageCampusHelpSection from '../components/admin/ManageCampusHelp/ManageCampusHelpSection';
+import ManageResourcesSection from '../components/admin/ManageResources/ManageResourcesSection';
 
 
 const AdminDashboard = () => {
@@ -49,6 +50,10 @@ const AdminDashboard = () => {
 
           {activeTab === 'manage-lost-found' && (
   <ManageLostFoundSection t={t} />
+)}
+
+{activeTab === 'manage-resources' && (
+  <ManageResourcesSection t={t} />
 )}
 
 {activeTab === 'manage-campus-help' && (
