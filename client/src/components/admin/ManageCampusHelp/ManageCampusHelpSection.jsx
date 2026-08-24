@@ -220,7 +220,7 @@ const HelpRequestLogCard = ({ req, t, onDelete, expanded, onToggle }) => (
       <div className="mt-3 flex flex-wrap gap-1.5">
         {req.attachments.map((att) => (
           
-            <a key={att.url}
+           <a key={att.url}
             href={att.url}
             target="_blank"
             rel="noopener noreferrer"
@@ -269,7 +269,7 @@ const HelpRequestLogCard = ({ req, t, onDelete, expanded, onToggle }) => (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {r.attachments.map((att) => (
                   
-                   <a key={att.url}
+                  <a  key={att.url}
                     href={att.url}
                     target="_blank"
                     rel="noopener noreferrer"

@@ -437,20 +437,12 @@ const StudentDashboard = () => {
           <div className={`mx-auto space-y-8 ${activeTab === 'dashboard' ? 'max-w-5xl' : 'max-w-6xl'}`} style={activeTab === 'dashboard' ? { fontFamily: '"Nunito", sans-serif' } : undefined}>
             {/* 1. Resources Section */}
             {activeTab === 'resources' && (
-              <ResourcesSection
-                t={t}
-                libraryBooks={libraryBooks}
-                pendingBookApprovals={pendingBookApprovals}
-                onToggleBorrowBook={handleToggleBorrowBook}
-                sportsGearRequests={sportsGearRequests}
-                onSportsRequestSubmit={handleSportsRequestSubmit}
-                budgetClaims={budgetClaims}
-                onBudgetClaimSubmit={handleBudgetClaimSubmit}
-                complaintTickets={complaintTickets}
-                onComplaintSubmit={handleComplaintSubmit}
-                onNavigateTab={setActiveTab}
-              />
-            )}
+  <ResourcesSection
+    t={t}
+    sportsGearRequests={sportsGearRequests}
+    onSportsRequestSubmit={handleSportsRequestSubmit}
+  />
+)}
 
             {/* 2. Lost & Found Section */}
             {activeTab === 'lost-found' && (
@@ -522,6 +514,8 @@ const StudentDashboard = () => {
                 onNavigateTab={setActiveTab}
               />
             )}
+
+      
           </div>
         </main>
       </div>
