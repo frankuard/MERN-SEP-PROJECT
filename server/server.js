@@ -19,12 +19,13 @@ const testPostRoutes = require('./routes/testPost.routes');
 const lostFoundRoutes = require('./routes/lostFound.routes');
 const eventRoutes = require('./routes/event.routes');
 const canteenRoutes = require('./routes/canteen.routes');
-const timetableRoutes = require('./routes/timetable.routes');
 
 const announcementRoutes = require('./routes/announcement.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 const helpRoutes = require('./routes/help.routes');
 const resourceRoutes = require('./routes/resource.routes');
+const timetableRoutes = require('./routes/timetable.routes');
+
 
 
 
@@ -112,6 +113,8 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/campus-help', helpRoutes);
 
 app.use('/api/resources', resourceRoutes);
+
+app.use('/api/timetable', timetableRoutes);
 
 connectDB();
 

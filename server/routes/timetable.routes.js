@@ -4,40 +4,34 @@ const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
 const {
   getTimetable,
-  getClassById,
-  createClass,
-  updateClass,
-  deleteClass,
+  getScheduleChanges,
+  getTimetableAdmin,
+  createPeriod,
+  updatePeriod,
+  deletePeriod,
+  getScheduleChangesAdmin,
+  createScheduleChange,
+  updateScheduleChange,
+  deleteScheduleChange,
 } = require('../controllers/timetableController');
 
-// =====================================================
-// PUBLIC / AUTHENTICATED TIMETABLE VIEW
-// =====================================================
-router.get('/', getTimetable);
-router.get('/:id', getClassById);
+const allRoles = roleMiddleware('student', 'teacher', 'staff', 'admin');
+const adminOnly = roleMiddleware('admin');
 
-// =====================================================
-// ADMIN / STAFF TIMETABLE MANAGEMENT (CRUD)
-// =====================================================
-router.post(
-  '/',
-  authMiddleware,
-  roleMiddleware('admin', 'staff'),
-  createClass
-);
+// -------- Student --------
+router.get('/', authMiddleware, allRoles, getTimetable);
+router.get('/changes', authMiddleware, allRoles, getScheduleChanges);
 
-router.put(
-  '/:id',
-  authMiddleware,
-  roleMiddleware('admin', 'staff'),
-  updateClass
-);
+// -------- Admin — Periods (above any bare '/:id' pattern isn't an issue here since base path has none) --------
+router.get('/admin', authMiddleware, adminOnly, getTimetableAdmin);
+router.post('/', authMiddleware, adminOnly, createPeriod);
+router.patch('/:id', authMiddleware, adminOnly, updatePeriod);
+router.delete('/:id', authMiddleware, adminOnly, deletePeriod);
 
-router.delete(
-  '/:id',
-  authMiddleware,
-  roleMiddleware('admin', 'staff'),
-  deleteClass
-);
+// -------- Admin — Schedule Changes --------
+router.get('/changes/admin', authMiddleware, adminOnly, getScheduleChangesAdmin);
+router.post('/changes', authMiddleware, adminOnly, createScheduleChange);
+router.patch('/changes/:id', authMiddleware, adminOnly, updateScheduleChange);
+router.delete('/changes/:id', authMiddleware, adminOnly, deleteScheduleChange);
 
 module.exports = router;
