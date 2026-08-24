@@ -26,6 +26,8 @@ const {
   markSportsReturned,
 } = require('../controllers/resourceController');
 
+
+
 const allRoles = roleMiddleware('student', 'teacher', 'staff', 'admin');
 const adminOnly = roleMiddleware('admin');
 

@@ -14,9 +14,8 @@ const navConfig = {
     { id: "lost-found", label: "Lost & Found", icon: Search },
     { id: "campus-help", label: "Help", icon: HelpCircle },
     { id: "resources", label: "Resources", icon: BookOpen },
-    { id: "timetable", label: "Timetable", icon: Clock },
-    { id: "ssd-help", label: "SSD Help", icon: GraduationCap },
-    { id: "vacant-classes", label: "Vacant Classes", icon: School },
+    { id: "rte", label: "RTE", icon: Clock },
+{ id: "ssd-help", label: "SSD Help", icon: GraduationCap },
   ],
   teacher: [
     { id: "dashboard", label: "Dashboard", icon: Home },

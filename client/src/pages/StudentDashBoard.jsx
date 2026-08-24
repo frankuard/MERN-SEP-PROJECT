@@ -30,7 +30,6 @@ import SSDHelpSection from '../components/student/SSDHelpSection';
 import LostFoundSection from '../components/student/LostFoundSection';
 import ResourcesSection from '../components/student/ResourcesSection';
 import CanteenSection from '../components/student/CanteenSection';
-import VacantClassesSection from '../components/student/VacantClassesSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import lostFoundApi from '../api/lostFoundApi';
@@ -414,7 +413,7 @@ const StudentDashboard = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setActiveTab('timetable'); setShowProfileMenu(false); }}
+                    onClick={() => { setActiveTab('rte'); setShowProfileMenu(false); }}
                     className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                   >
                     <Clock size={14} /> View Class Timetable
@@ -460,13 +459,7 @@ const StudentDashboard = () => {
               />
             )}
 
-            {/* 5. Timetable Section (Position: Canteen -> Timetable -> SSD Help) */}
-            {activeTab === 'timetable' && (
-              <TimetableSection
-                t={t}
-                onNavigateTab={setActiveTab}
-              />
-            )}
+            
 
             {/* 6. SSD Help Section */}
             {activeTab === 'ssd-help' && (
@@ -486,15 +479,15 @@ const StudentDashboard = () => {
               <EventsSection t={t} />
             )}
 
-            {/* 8. Vacant Classes Section */}
-            {activeTab === 'vacant-classes' && (
-              <VacantClassesSection
-                t={t}
-                classPermissions={classPermissions}
-                onTakePermission={handleTakePermission}
-                onNavigateTab={setActiveTab}
-              />
-            )}
+            {/* 5. RTE Section — merged Timetable + Vacant Classes */}
+{activeTab === 'rte' && (
+  <TimetableSection
+    t={t}
+    classPermissions={classPermissions}
+    onTakePermission={handleTakePermission}
+    onNavigateTab={setActiveTab}
+  />
+)}
 
             {/* 9. Campus Help Section */}
 

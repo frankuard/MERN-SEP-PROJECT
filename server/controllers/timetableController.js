@@ -1,167 +1,238 @@
 const Timetable = require('../models/Timetable');
+const ScheduleChange = require('../models/ScheduleChange');
+
+const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// ========================================================
+// STUDENT — Timetable
+// ========================================================
 
 /**
- * @desc   Get all timetable classes with optional search/filtering
- * @route  GET /api/timetable
- * @access Public / Authenticated
+ * GET /timetable
+ * Returns periods grouped by day, in DAY_ORDER, with isOffDay computed.
  */
 const getTimetable = async (req, res) => {
   try {
-    const { day, teacher, courseCode, room, classType, search, format } = req.query;
+    const periods = await Timetable.find({}).sort({ day: 1, order: 1, time: 1 });
 
-    const filter = {};
+    const grouped = DAY_ORDER.map((day) => {
+      const dayPeriods = periods
+        .filter((p) => p.day === day)
+        .map((p) => ({
+          id: p._id,
+          time: p.time,
+          classType: p.classType,
+          moduleCode: p.moduleCode,
+          moduleName: p.moduleName,
+          lecturer: p.lecturer,
+          group: p.group,
+          room: p.room,
+        }));
 
-    if (day) {
-      filter.day = { $regex: new RegExp(`^${day}$`, 'i') };
-    }
-    if (teacher) {
-      filter.teacher = { $regex: teacher, $options: 'i' };
-    }
-    if (courseCode) {
-      filter.courseCode = { $regex: courseCode, $options: 'i' };
-    }
-    if (room) {
-      filter.room = { $regex: room, $options: 'i' };
-    }
-    if (classType) {
-      filter.classType = { $regex: new RegExp(`^${classType}$`, 'i') };
-    }
-    if (search) {
-      filter.$or = [
-        { courseCode: { $regex: search, $options: 'i' } },
-        { courseName: { $regex: search, $options: 'i' } },
-        { teacher: { $regex: search, $options: 'i' } },
-        { room: { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    const classes = await Timetable.find(filter).sort({ createdAt: 1 });
-
-    // If frontend requests routine grouped by days (Sunday to Saturday)
-    if (format === 'grouped' || req.query.group) {
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const groupedRoutine = days.map((d) => {
-        const dayClasses = classes.filter((c) => c.day.toLowerCase() === d.toLowerCase());
-        return {
-          day: d,
-          isOffDay: dayClasses.length === 0,
-          periods: dayClasses.map((c) => ({
-            id: c._id,
-            time: `${c.startTime} – ${c.endTime}`,
-            startTime: c.startTime,
-            endTime: c.endTime,
-            classType: c.classType,
-            moduleCode: c.courseCode,
-            moduleName: c.courseName,
-            lecturer: c.teacher,
-            room: c.room,
-          })),
-        };
-      });
-
-      return res.status(200).json(groupedRoutine);
-    }
-
-    res.status(200).json(classes);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch timetable', error: error.message });
-  }
-};
-
-/**
- * @desc   Get single timetable class by ID
- * @route  GET /api/timetable/:id
- * @access Public / Authenticated
- */
-const getClassById = async (req, res) => {
-  try {
-    const classItem = await Timetable.findById(req.params.id);
-    if (!classItem) {
-      return res.status(404).json({ message: 'Timetable class not found' });
-    }
-    res.status(200).json(classItem);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch class', error: error.message });
-  }
-};
-
-/**
- * @desc   Create new timetable class
- * @route  POST /api/timetable
- * @access Private (Admin / Staff)
- */
-const createClass = async (req, res) => {
-  try {
-    const { day, startTime, endTime, courseCode, courseName, teacher, room, classType } = req.body;
-
-    if (!day || !startTime || !endTime || !courseCode || !courseName || !teacher || !room) {
-      return res.status(400).json({ message: 'Please provide all required fields' });
-    }
-
-    const newClass = await Timetable.create({
-      day,
-      startTime,
-      endTime,
-      courseCode,
-      courseName,
-      teacher,
-      room,
-      classType: classType || 'Lecture',
+      return {
+        day,
+        isOffDay: dayPeriods.length === 0,
+        periods: dayPeriods,
+      };
     });
 
-    res.status(201).json({ message: 'Class session added successfully', class: newClass });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to create class', error: error.message });
+    res.status(200).json(grouped);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
 /**
- * @desc   Update timetable class
- * @route  PUT /api/timetable/:id
- * @access Private (Admin / Staff)
+ * GET /timetable/changes
+ * Returns active schedule changes only, newest first.
  */
-const updateClass = async (req, res) => {
+const getScheduleChanges = async (req, res) => {
   try {
-    const classItem = await Timetable.findById(req.params.id);
-    if (!classItem) {
-      return res.status(404).json({ message: 'Timetable class not found' });
-    }
-
-    const updatedClass = await Timetable.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
-
-    res.status(200).json({ message: 'Class session updated successfully', class: updatedClass });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to update class', error: error.message });
+    const changes = await ScheduleChange.find({ isActive: true }).sort({ createdAt: -1 });
+    res.status(200).json(changes);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
+// ========================================================
+// ADMIN — Timetable Periods
+// ========================================================
+
 /**
- * @desc   Delete timetable class
- * @route  DELETE /api/timetable/:id
- * @access Private (Admin / Staff)
+ * GET /timetable/admin
+ * Flat list (not grouped) so the admin UI can edit individual periods.
  */
-const deleteClass = async (req, res) => {
+const getTimetableAdmin = async (req, res) => {
   try {
-    const classItem = await Timetable.findById(req.params.id);
-    if (!classItem) {
-      return res.status(404).json({ message: 'Timetable class not found' });
+    const periods = await Timetable.find({}).sort({ day: 1, order: 1, time: 1 });
+    res.status(200).json(periods);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const createPeriod = async (req, res) => {
+  try {
+    const { day, time, classType, moduleCode, moduleName, lecturer, group, room, order } = req.body;
+
+    if (!day || !time || !classType || !moduleCode || !moduleName || !lecturer || !room) {
+      return res.status(400).json({
+        message: 'day, time, classType, moduleCode, moduleName, lecturer, and room are required',
+      });
     }
 
-    await Timetable.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: 'Class session deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to delete class', error: error.message });
+    const period = await Timetable.create({
+      day,
+      time: time.trim(),
+      classType,
+      moduleCode: moduleCode.trim(),
+      moduleName: moduleName.trim(),
+      lecturer: lecturer.trim(),
+      group: group?.trim() || '',
+      room: room.trim(),
+      order: order != null ? Number(order) : 0,
+    });
+
+    res.status(201).json(period);
+  } catch (err) {
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const updatePeriod = async (req, res) => {
+  try {
+    const period = await Timetable.findById(req.params.id);
+    if (!period) return res.status(404).json({ message: 'Period not found' });
+
+    const allowedFields = ['day', 'time', 'classType', 'moduleCode', 'moduleName', 'lecturer', 'group', 'room', 'order'];
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) period[field] = req.body[field];
+    });
+
+    const updated = await period.save();
+    res.status(200).json(updated);
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid period ID' });
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const deletePeriod = async (req, res) => {
+  try {
+    const period = await Timetable.findById(req.params.id);
+    if (!period) return res.status(404).json({ message: 'Period not found' });
+
+    await period.deleteOne();
+    res.status(200).json({ message: 'Period deleted' });
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid period ID' });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ========================================================
+// ADMIN — Schedule Changes
+// ========================================================
+
+/**
+ * GET /timetable/changes/admin
+ * All changes including archived (isActive: false), for management view.
+ */
+const getScheduleChangesAdmin = async (req, res) => {
+  try {
+    const changes = await ScheduleChange.find({}).sort({ createdAt: -1 });
+    res.status(200).json(changes);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const createScheduleChange = async (req, res) => {
+  try {
+    const {
+      moduleCode, moduleName, classType, group,
+      originalSchedule, newSchedule, reason,
+      effectiveDate, publishedBy, status, badgeColor,
+    } = req.body;
+
+    if (!moduleCode || !moduleName || !classType || !originalSchedule || !newSchedule || !effectiveDate || !status) {
+      return res.status(400).json({
+        message: 'moduleCode, moduleName, classType, originalSchedule, newSchedule, effectiveDate, and status are required',
+      });
+    }
+
+    const change = await ScheduleChange.create({
+      moduleCode: moduleCode.trim(),
+      moduleName: moduleName.trim(),
+      classType,
+      group: group?.trim() || '',
+      originalSchedule: originalSchedule.trim(),
+      newSchedule: newSchedule.trim(),
+      reason: reason?.trim() || '',
+      effectiveDate: effectiveDate.trim(),
+      publishedBy: publishedBy?.trim() || 'RTE Department (Registry & Timetabling)',
+      status,
+      badgeColor: badgeColor || 'amber',
+    });
+
+    res.status(201).json(change);
+  } catch (err) {
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const updateScheduleChange = async (req, res) => {
+  try {
+    const change = await ScheduleChange.findById(req.params.id);
+    if (!change) return res.status(404).json({ message: 'Schedule change not found' });
+
+    const allowedFields = [
+      'moduleCode', 'moduleName', 'classType', 'group',
+      'originalSchedule', 'newSchedule', 'reason',
+      'effectiveDate', 'publishedBy', 'status', 'badgeColor', 'isActive',
+    ];
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) change[field] = req.body[field];
+    });
+
+    const updated = await change.save();
+    res.status(200).json(updated);
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid schedule change ID' });
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const deleteScheduleChange = async (req, res) => {
+  try {
+    const change = await ScheduleChange.findById(req.params.id);
+    if (!change) return res.status(404).json({ message: 'Schedule change not found' });
+
+    await change.deleteOne();
+    res.status(200).json({ message: 'Schedule change deleted' });
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid schedule change ID' });
+    res.status(500).json({ message: err.message });
   }
 };
 
 module.exports = {
+  // Student
   getTimetable,
-  getClassById,
-  createClass,
-  updateClass,
-  deleteClass,
+  getScheduleChanges,
+  // Admin — periods
+  getTimetableAdmin,
+  createPeriod,
+  updatePeriod,
+  deletePeriod,
+  // Admin — schedule changes
+  getScheduleChangesAdmin,
+  createScheduleChange,
+  updateScheduleChange,
+  deleteScheduleChange,
 };
