@@ -46,6 +46,7 @@ const navConfig = {
   { id: "manage-campus-help", label: "Manage Campus Help", icon: MessageSquare },
   { id: "manage-canteen", label: "Manage Canteen", icon: UtensilsCrossed },
   { id: "manage-resources", label: "Manage Resources", icon: BookOpen },
+  { id: "manage-timetable", label: "Manage Timetable", icon: Clock },
   { id: "manage-lost-found", label: "Manage Lost & Found", icon: Search }, 
   { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
 ],

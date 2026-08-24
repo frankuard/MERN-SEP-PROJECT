@@ -12,7 +12,7 @@ import ManageCanteenSection from '../components/admin/ManageCanteen/ManageCantee
 import ManageLostFoundSection from '../components/admin/ManageLostFound/ManageLostFoundSection';
 import ManageCampusHelpSection from '../components/admin/ManageCampusHelp/ManageCampusHelpSection';
 import ManageResourcesSection from '../components/admin/ManageResources/ManageResourcesSection';
-
+import ManageTimetableSection from "../components/admin/ManageTimetable/ManageTimetableSection";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -27,6 +27,7 @@ const AdminDashboard = () => {
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8">
         <div className="mx-auto max-w-5xl">
+
           {activeTab === 'dashboard' && (
             <AdminDashboardHome
               t={t}
@@ -58,6 +59,10 @@ const AdminDashboard = () => {
 
 {activeTab === 'manage-campus-help' && (
   <ManageCampusHelpSection t={t} />
+)}
+
+{activeTab === "manage-timetable" && (
+  <ManageTimetableSection t={t} />
 )}
 
           {activeTab === 'approvals' && (
