@@ -1,55 +1,57 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+
+const DAY_ENUM = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const classroomRequestSchema = new mongoose.Schema(
   {
     classroom: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "VacantClassroom",
-      required: true,
+      ref: 'Classroom',
+      required: [true, 'Classroom is required'],
     },
+    roomName: { type: String, required: true, trim: true }, // snapshot for display
 
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
+      ref: 'User',
+      required: [true, 'Requesting user is required'],
     },
+    requesterName: { type: String, required: true, trim: true }, // snapshot for admin list
 
-    purpose: {
+    day: {
       type: String,
-      required: true,
+      enum: DAY_ENUM,
+      required: [true, 'Day is required'],
+    },
+    startTime: { type: String, required: [true, 'Start time is required'], trim: true },
+    endTime: { type: String, required: [true, 'End time is required'], trim: true },
+
+    reason: {
+      type: String,
       trim: true,
-    },
-
-    requestDate: {
-      type: String,
-      required: true,
-    },
-
-    requestedFrom: {
-      type: String,
-      required: true,
-    },
-
-    requestedTo: {
-      type: String,
-      required: true,
+      default: '',
     },
 
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
     },
 
-    adminRemark: {
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    reviewNote: {
       type: String,
-      default: "",
+      trim: true,
+      default: '',
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model(
-  "ClassroomRequest",
-  classroomRequestSchema
-);
+const ClassroomRequest = mongoose.models.ClassroomRequest || mongoose.model('ClassroomRequest', classroomRequestSchema);
+
+module.exports = ClassroomRequest;

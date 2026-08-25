@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Calendar, Timer, MapPin, User, BookOpen, School, History, CheckCircle2, ArrowRightLeft, Clock,
+  Calendar, Timer, MapPin, User, BookOpen, School, History, CheckCircle2,
+  ArrowRightLeft, Clock, X, Users, Lock, GraduationCap,
 } from 'lucide-react';
 import timetableApi from '../../api/timetableApi';
-import { CLASSROOM_POOL, TIMETABLE_ROUTINE, INITIAL_RTE_SCHEDULE_CHANGES } from '../../data/studentDashboardData';
+import classroomApi from '../../api/classroomApi';
+import classroomRequestApi from '../../api/classroomRequestApi';
+import { TIMETABLE_ROUTINE, INITIAL_RTE_SCHEDULE_CHANGES } from '../../data/studentDashboardData';
 
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
@@ -27,14 +30,26 @@ const SUB_TABS = [
   { id: 'changes', label: 'Temporary Changes', icon: History },
 ];
 
-const TimetableSection = ({ t, classPermissions = {}, onTakePermission }) => {
+const TimetableSection = ({ t }) => {
   const [subTab, setSubTab] = useState('schedule');
   const [activeDay, setActiveDay] = useState(DAY_ORDER[new Date().getDay()]);
 
-  const [routine, setRoutine] = useState(null); // null = not loaded yet, [] = loaded but empty
+  const [routine, setRoutine] = useState(null); // null = not loaded yet
   const [changes, setChanges] = useState(null);
 
-  // Load real timetable on mount. Falls back to static data on error or empty response.
+  // -------- Vacant classrooms (per-day, backend-computed) --------
+  const [vacantDay, setVacantDay] = useState(DAY_ORDER[new Date().getDay()]);
+  const [rooms, setRooms] = useState(null); // array from getVacantClassrooms(day)
+  const [myRequests, setMyRequests] = useState(null);
+  const [requestForm, setRequestForm] = useState(null); // { classroomId, roomName } or null
+  const [formDay, setFormDay] = useState(DAY_ORDER[new Date().getDay()]);
+  const [formStart, setFormStart] = useState('');
+  const [formEnd, setFormEnd] = useState('');
+  const [formReason, setFormReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  // -------- Load class schedule --------
   useEffect(() => {
     let mounted = true;
     timetableApi.getTimetable()
@@ -43,7 +58,7 @@ const TimetableSection = ({ t, classPermissions = {}, onTakePermission }) => {
     return () => { mounted = false; };
   }, []);
 
-  // Load schedule changes only when that sub-tab is opened, same fallback pattern.
+  // -------- Load schedule changes (only when tab opened) --------
   useEffect(() => {
     if (subTab !== 'changes' || changes !== null) return;
     let mounted = true;
@@ -53,14 +68,78 @@ const TimetableSection = ({ t, classPermissions = {}, onTakePermission }) => {
     return () => { mounted = false; };
   }, [subTab, changes]);
 
+  // -------- Load vacant rooms for the selected day + my requests --------
+  const loadVacantData = (day) => {
+    setRooms(null);
+    classroomApi.getVacantClassrooms(day).then(setRooms).catch(() => setRooms([]));
+    classroomRequestApi.getMyRequests().then(setMyRequests).catch(() => setMyRequests([]));
+  };
+
+  useEffect(() => {
+    if (subTab !== 'vacant') return;
+    loadVacantData(vacantDay);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab, vacantDay]);
+
   const source = routine || TIMETABLE_ROUTINE;
   const activeDayData = source.find((d) => d.day === activeDay) || { day: activeDay, isOffDay: true, periods: [] };
-
   const getTypeBadge = (type) => TYPE_BADGE[type?.toLowerCase()] || { bg: t.chipBg, text: t.textMuted };
+
+  // Latest (most recent) request this student has for a given classroom + day.
+  const latestRequestFor = (classroomId) => {
+    if (!myRequests) return null;
+    const forRoom = myRequests.filter(
+      (r) => (r.classroom?._id || r.classroom) === classroomId && r.day === vacantDay
+    );
+    if (forRoom.length === 0) return null;
+    return forRoom.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  };
+
+  const openRequestForm = (classroomId, roomName) => {
+    setRequestForm({ classroomId, roomName });
+    setFormDay(vacantDay);
+    setFormStart('');
+    setFormEnd('');
+    setFormReason('');
+    setFormError('');
+  };
+
+  const submitRequest = async () => {
+    if (!formStart.trim() || !formEnd.trim()) {
+      setFormError('Start and end time are required.');
+      return;
+    }
+    setSubmitting(true);
+    setFormError('');
+    try {
+      await classroomRequestApi.createRequest({
+        classroomId: requestForm.classroomId,
+        day: formDay,
+        startTime: formStart.trim(),
+        endTime: formEnd.trim(),
+        reason: formReason.trim(),
+      });
+      setRequestForm(null);
+      loadVacantData(vacantDay);
+    } catch (err) {
+      setFormError(err?.response?.data?.message || 'Could not submit request.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const releaseRequest = async (requestId) => {
+    try {
+      await classroomRequestApi.cancelMyRequest(requestId);
+      loadVacantData(vacantDay);
+    } catch {
+      // silently ignore — list will just reflect prior state until retried
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header — plain, semester label, no date carousel */}
+      {/* Header */}
       <div className="flex items-center gap-2.5">
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.chipBg }}>
           <Clock size={19} style={{ color: t.textPrimary }} />
@@ -142,7 +221,7 @@ const TimetableSection = ({ t, classPermissions = {}, onTakePermission }) => {
                     <div key={period.id} className="rounded-xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5 text-xs font-bold tabular-nums" style={{ color: t.textMuted }}>
-                          <Timer size={13} /> {period.time}
+                          <Timer size={13} /> {period.startTime} – {period.endTime}
                         </span>
                         <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
                           {period.classType}
@@ -176,47 +255,212 @@ const TimetableSection = ({ t, classPermissions = {}, onTakePermission }) => {
         </div>
       )}
 
-      {/* ===================== VACANT CLASSROOMS (static, unchanged) ===================== */}
+      {/* ===================== VACANT CLASSROOMS ===================== */}
       {subTab === 'vacant' && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CLASSROOM_POOL.map((room) => {
-            const status = classPermissions[room.id] || 'vacant';
-            const statusBadge = {
-              vacant: { bg: '#dcfce7', text: '#15803d', label: 'Vacant' },
-              pending: { bg: '#fef3c7', text: '#b45309', label: 'Pending' },
-              approved: { bg: '#dbeafe', text: '#1d4ed8', label: 'Approved' },
-            }[status];
+        <div className="space-y-4">
+          {/* Day tabs — same pattern as Class Schedule */}
+          <div className="flex flex-wrap gap-2">
+            {DAY_ORDER.map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => setVacantDay(day)}
+                className="rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors sm:text-sm"
+                style={{
+                  backgroundColor: vacantDay === day ? t.accentPrimary : t.cardBg,
+                  borderColor: vacantDay === day ? t.accentPrimary : t.border,
+                  color: vacantDay === day ? t.pageBg : t.textPrimary,
+                }}
+              >
+                {DAY_SHORT[day]}
+              </button>
+            ))}
+          </div>
 
-            return (
-              <div key={room.id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
-                      <p className="text-xs" style={{ color: t.textMuted }}>{room.block}</p>
+          {rooms === null && (
+            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              Checking room availability for {vacantDay}...
+            </div>
+          )}
+
+          {rooms !== null && rooms.length === 0 && (
+            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              No classrooms have been added yet.
+            </div>
+          )}
+
+          {rooms !== null && rooms.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {rooms.map((room) => {
+                // room.status: 'class' | 'blocked' | 'vacant' (from backend, real occupancy for vacantDay)
+                if (room.status === 'class') {
+                  return (
+                    <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="min-w-0 truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
+                          <span className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
+                            <GraduationCap size={12} /> In Class
+                          </span>
+                        </div>
+                        <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                          <p className="flex items-center gap-1.5"><Users size={12} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
+                          <p>{room.occupiedBy?.moduleCode} · {room.occupiedBy?.startTime}–{room.occupiedBy?.endTime}</p>
+                        </div>
+                      </div>
+                      <button type="button" disabled className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white opacity-60" style={{ backgroundColor: t.accentPrimary }}>
+                        Occupied
+                      </button>
                     </div>
-                    <span className="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: statusBadge.bg, color: statusBadge.text }}>
-                      {statusBadge.label}
-                    </span>
-                  </div>
+                  );
+                }
 
-                  <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
-                    <p>Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
-                    <p>Amenities: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.facilities}</span></p>
+                if (room.status === 'blocked') {
+                  return (
+                    <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="min-w-0 truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
+                          <span className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: '#f3f4f6', color: '#4b5563' }}>
+                            <Lock size={12} /> Reserved
+                          </span>
+                        </div>
+                        <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                          <p className="flex items-center gap-1.5"><Users size={12} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
+                          <p>{room.occupiedBy?.startTime}–{room.occupiedBy?.endTime}</p>
+                          {room.occupiedBy?.reason && <p>Reason: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.occupiedBy.reason}</span></p>}
+                        </div>
+                      </div>
+                      <button type="button" disabled className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white opacity-60" style={{ backgroundColor: '#6b7280' }}>
+                        Reserved by Admin
+                      </button>
+                    </div>
+                  );
+                }
+
+                // status === 'vacant' — check personal request status on top
+                const myReq = latestRequestFor(room._id);
+                const status = myReq?.status || 'vacant'; // vacant | pending | approved | rejected
+                const statusBadge = {
+                  vacant: { bg: '#dcfce7', text: '#15803d', label: 'Vacant' },
+                  pending: { bg: '#fef3c7', text: '#b45309', label: 'Pending' },
+                  approved: { bg: '#dbeafe', text: '#1d4ed8', label: 'Approved' },
+                  rejected: { bg: '#fee2e2', text: '#dc2626', label: 'Rejected' },
+                }[status];
+
+                return (
+                  <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
+                        <span className="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: statusBadge.bg, color: statusBadge.text }}>
+                          {statusBadge.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                        <p className="flex items-center gap-1.5"><Users size={12} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
+                        {room.facilities && <p>Amenities: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.facilities}</span></p>}
+                        {myReq && (status === 'pending' || status === 'approved') && (
+                          <p>Requested: <span className="font-semibold" style={{ color: t.textPrimary }}>{myReq.day}, {myReq.startTime}–{myReq.endTime}</span></p>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={status === 'pending'}
+                      onClick={() => {
+                        if (status === 'vacant' || status === 'rejected') openRequestForm(room._id, room.name);
+                        if (status === 'approved') releaseRequest(myReq._id);
+                      }}
+                      className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-70"
+                      style={{ backgroundColor: status === 'approved' ? '#16a34a' : status === 'pending' ? '#f59e0b' : t.accentPrimary }}
+                    >
+                      {status === 'vacant' && 'Take Permission'}
+                      {status === 'pending' && 'Permission Pending'}
+                      {status === 'approved' && 'Approved (Release)'}
+                      {status === 'rejected' && 'Request Again'}
+                    </button>
                   </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Request modal */}
+          {requestForm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-sm rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>Request {requestForm.roomName}</h4>
+                  <button type="button" onClick={() => setRequestForm(null)}>
+                    <X size={16} style={{ color: t.textMuted }} />
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onTakePermission?.(room.id)}
-                  className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: status === 'vacant' ? t.accentPrimary : status === 'pending' ? '#f59e0b' : '#16a34a' }}
-                >
-                  {status === 'vacant' ? 'Take Permission' : status === 'pending' ? 'Permission Pending' : 'Approved (Release)'}
-                </button>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Day</label>
+                    <select
+                      value={formDay}
+                      onChange={(e) => setFormDay(e.target.value)}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={{ borderColor: t.border, backgroundColor: t.pageBg, color: t.textPrimary }}
+                    >
+                      {DAY_ORDER.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>Start time</label>
+                      <input
+                        value={formStart}
+                        onChange={(e) => setFormStart(e.target.value)}
+                        placeholder="8:00 AM"
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={{ borderColor: t.border, backgroundColor: t.pageBg, color: t.textPrimary }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>End time</label>
+                      <input
+                        value={formEnd}
+                        onChange={(e) => setFormEnd(e.target.value)}
+                        placeholder="10:00 AM"
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={{ borderColor: t.border, backgroundColor: t.pageBg, color: t.textPrimary }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Reason (optional)</label>
+                    <textarea
+                      value={formReason}
+                      onChange={(e) => setFormReason(e.target.value)}
+                      rows={2}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={{ borderColor: t.border, backgroundColor: t.pageBg, color: t.textPrimary }}
+                    />
+                  </div>
+
+                  {formError && <p className="text-xs font-semibold" style={{ color: '#dc2626' }}>{formError}</p>}
+
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={submitRequest}
+                    className="w-full rounded-xl py-2.5 text-xs font-bold text-white disabled:opacity-70"
+                    style={{ backgroundColor: t.accentPrimary }}
+                  >
+                    {submitting ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </div>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
 
@@ -237,8 +481,15 @@ const TimetableSection = ({ t, classPermissions = {}, onTakePermission }) => {
 
           {changes?.map((change) => {
             const badge = CHANGE_BADGE[change.badgeColor] || { bg: t.chipBg, text: t.textMuted };
+            const originalStr = `${change.originalDay}, ${change.originalStartTime}–${change.originalEndTime} · ${change.originalRoom}`;
+            const newParts = [];
+            if (change.newDay) newParts.push(change.newDay);
+            if (change.newStartTime && change.newEndTime) newParts.push(`${change.newStartTime}–${change.newEndTime}`);
+            if (change.newRoom) newParts.push(change.newRoom);
+            const newStr = newParts.length > 0 ? newParts.join(' · ') : 'Cancelled';
+
             return (
-              <div key={change.id || change._id} className="rounded-2xl border p-4 sm:p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <div key={change._id} className="rounded-2xl border p-4 sm:p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
@@ -254,9 +505,9 @@ const TimetableSection = ({ t, classPermissions = {}, onTakePermission }) => {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" style={{ color: t.textMuted }}>
-                  <span className="rounded-lg px-2.5 py-1" style={{ backgroundColor: t.pageBg }}>{change.originalSchedule}</span>
+                  <span className="rounded-lg px-2.5 py-1" style={{ backgroundColor: t.pageBg }}>{originalStr}</span>
                   <ArrowRightLeft size={13} />
-                  <span className="rounded-lg px-2.5 py-1 font-semibold" style={{ backgroundColor: t.pageBg, color: t.textPrimary }}>{change.newSchedule}</span>
+                  <span className="rounded-lg px-2.5 py-1 font-semibold" style={{ backgroundColor: t.pageBg, color: t.textPrimary }}>{newStr}</span>
                 </div>
 
                 {change.reason && (

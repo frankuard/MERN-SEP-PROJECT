@@ -22,7 +22,7 @@ const adminOnly = roleMiddleware('admin');
 router.get('/', authMiddleware, allRoles, getTimetable);
 router.get('/changes', authMiddleware, allRoles, getScheduleChanges);
 
-// -------- Admin — Periods (above any bare '/:id' pattern isn't an issue here since base path has none) --------
+// -------- Admin — Periods (registered before '/:id' patterns) --------
 router.get('/admin', authMiddleware, adminOnly, getTimetableAdmin);
 router.post('/', authMiddleware, adminOnly, createPeriod);
 router.patch('/:id', authMiddleware, adminOnly, updatePeriod);

@@ -16,6 +16,7 @@ const timetableApi = {
     const res = await axiosInstance.get('/timetable/admin');
     return res.data;
   },
+  // payload: { day, startTime, endTime, classType, moduleId, lecturer, groupId, roomId, order }
   createPeriod: async (payload) => {
     const res = await axiosInstance.post('/timetable', payload);
     return res.data;
@@ -34,6 +35,7 @@ const timetableApi = {
     const res = await axiosInstance.get('/timetable/changes/admin');
     return res.data;
   },
+  // payload: { periodId, newDay, newStartTime, newEndTime, newRoom, reason, effectiveDate, publishedBy, status, badgeColor }
   createScheduleChange: async (payload) => {
     const res = await axiosInstance.post('/timetable/changes', payload);
     return res.data;

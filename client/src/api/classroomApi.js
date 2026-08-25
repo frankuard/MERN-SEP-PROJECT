@@ -1,82 +1,32 @@
-import axiosInstance from "./axiosInstance";
+import axiosInstance from './axiosInstance';
 
 const classroomApi = {
-  // Student
+  getClassrooms: async () => {
+    const res = await axiosInstance.get('/classrooms');
+    return res.data;
+  },
   getVacantClassrooms: async (day) => {
-    const res = await axiosInstance.get("/classrooms", {
-      params: day ? { day } : {},
-    });
-
+    const res = await axiosInstance.get('/classrooms/vacant', { params: { day } });
     return res.data;
   },
-
-  requestClassroom: async (payload) => {
-    const res = await axiosInstance.post(
-      "/classrooms/requests",
-      payload
-    );
-
+  createClassroom: async (payload) => {
+    const res = await axiosInstance.post('/classrooms', payload);
     return res.data;
   },
-
-  getMyRequests: async () => {
-    const res = await axiosInstance.get(
-      "/classrooms/my-requests"
-    );
-
+  updateClassroom: async (id, payload) => {
+    const res = await axiosInstance.patch(`/classrooms/${id}`, payload);
     return res.data;
   },
-
-  // Admin - classrooms
-  getAllVacantClassrooms: async () => {
-    const res = await axiosInstance.get(
-      "/classrooms/admin"
-    );
-
+  deleteClassroom: async (id) => {
+    const res = await axiosInstance.delete(`/classrooms/${id}`);
     return res.data;
   },
-
-  createVacantClassroom: async (payload) => {
-    const res = await axiosInstance.post(
-      "/classrooms",
-      payload
-    );
-
+  addManualBlock: async (classroomId, payload) => {
+    const res = await axiosInstance.post(`/classrooms/${classroomId}/block`, payload);
     return res.data;
   },
-
-  updateVacantClassroom: async (id, payload) => {
-    const res = await axiosInstance.patch(
-      `/classrooms/${id}`,
-      payload
-    );
-
-    return res.data;
-  },
-
-  deleteVacantClassroom: async (id) => {
-    const res = await axiosInstance.delete(
-      `/classrooms/${id}`
-    );
-
-    return res.data;
-  },
-
-  // Admin - requests
-  getClassroomRequests: async () => {
-    const res = await axiosInstance.get(
-      "/classrooms/requests/admin"
-    );
-
-    return res.data;
-  },
-
-  updateRequestStatus: async (id, payload) => {
-    const res = await axiosInstance.patch(
-      `/classrooms/requests/${id}`,
-      payload
-    );
-
+  removeManualBlock: async (classroomId, blockId) => {
+    const res = await axiosInstance.delete(`/classrooms/${classroomId}/block/${blockId}`);
     return res.data;
   },
 };

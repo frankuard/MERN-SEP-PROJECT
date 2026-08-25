@@ -9,9 +9,14 @@ const timetableSchema = new mongoose.Schema(
       enum: DAY_ENUM,
       required: [true, 'Day is required'],
     },
-    time: {
-      type: String,
-      required: [true, 'Time slot is required'],
+    startTime: {
+      type: String, // e.g. "8:00 AM"
+      required: [true, 'Start time is required'],
+      trim: true,
+    },
+    endTime: {
+      type: String, // e.g. "10:00 AM"
+      required: [true, 'End time is required'],
       trim: true,
     },
     classType: {
@@ -19,42 +24,46 @@ const timetableSchema = new mongoose.Schema(
       enum: ['Lecture', 'Tutorial', 'Workshop'],
       required: [true, 'Class type is required'],
     },
-    moduleCode: {
-      type: String,
-      required: [true, 'Module code is required'],
-      trim: true,
+
+    // Linked to the Module master list so code/name always match.
+    module: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Module',
+      required: [true, 'Module is required'],
     },
-    moduleName: {
-      type: String,
-      required: [true, 'Module name is required'],
-      trim: true,
-    },
+    moduleCode: { type: String, required: true, trim: true }, // snapshot, kept for fast reads
+    moduleName: { type: String, required: true, trim: true },
+
     lecturer: {
       type: String,
       required: [true, 'Lecturer is required'],
       trim: true,
     },
+
+    // Linked to the Group master list (e.g. "Section A + Section B").
     group: {
-      type: String,
-      trim: true,
-      default: '',
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Group',
+      default: null,
     },
+    groupName: { type: String, trim: true, default: '' }, // snapshot
+
+    // Linked to the Classroom master list.
     room: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Classroom',
       required: [true, 'Room is required'],
-      trim: true,
     },
+    roomName: { type: String, required: true, trim: true }, // snapshot
+
     order: {
       type: Number,
-      default: 0, // controls sort order within a day when times overlap alphabetically
+      default: 0, // controls card order within a day when times overlap/tie
     },
   },
   { timestamps: true }
 );
 
-timetableSchema.index({ day: 1, order: 1 });
-
 const Timetable = mongoose.models.Timetable || mongoose.model('Timetable', timetableSchema);
 
 module.exports = Timetable;
-module.exports.DAY_ENUM = DAY_ENUM;

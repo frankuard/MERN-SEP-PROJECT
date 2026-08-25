@@ -25,9 +25,11 @@ const attendanceRoutes = require('./routes/attendance.routes');
 const helpRoutes = require('./routes/help.routes');
 const resourceRoutes = require('./routes/resource.routes');
 const timetableRoutes = require('./routes/timetable.routes');
-const classroomRoutes = require("./routes/classroom.routes");
 
-
+const moduleRoutes = require('./routes/modules.routes');
+const groupRoutes = require('./routes/groups.routes');
+const classroomRoutes = require('./routes/classrooms.routes');
+const classroomRequestRoutes = require('./routes/classroomRequests.routes');
 
 
 const app = express();
@@ -117,8 +119,11 @@ app.use('/api/resources', resourceRoutes);
 
 app.use('/api/timetable', timetableRoutes);
 
-app.use("/api/classrooms", classroomRoutes);
 
+app.use('/api/modules', moduleRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/classrooms', classroomRoutes);
+app.use('/api/classroom-requests', classroomRequestRoutes);
 
 connectDB();
 
