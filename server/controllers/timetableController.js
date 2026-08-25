@@ -1,5 +1,8 @@
 const Timetable = require('../models/Timetable');
 const ScheduleChange = require('../models/ScheduleChange');
+const Module = require('../models/Module');
+const Group = require('../models/Group');
+const Classroom = require('../models/Classroom');
 
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -7,26 +10,23 @@ const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 // STUDENT — Timetable
 // ========================================================
 
-/**
- * GET /timetable
- * Returns periods grouped by day, in DAY_ORDER, with isOffDay computed.
- */
 const getTimetable = async (req, res) => {
   try {
-    const periods = await Timetable.find({}).sort({ day: 1, order: 1, time: 1 });
+    const periods = await Timetable.find({}).sort({ day: 1, order: 1, startTime: 1 });
 
     const grouped = DAY_ORDER.map((day) => {
       const dayPeriods = periods
         .filter((p) => p.day === day)
         .map((p) => ({
           id: p._id,
-          time: p.time,
+          startTime: p.startTime,
+          endTime: p.endTime,
           classType: p.classType,
           moduleCode: p.moduleCode,
           moduleName: p.moduleName,
           lecturer: p.lecturer,
-          group: p.group,
-          room: p.room,
+          group: p.groupName,
+          room: p.roomName,
         }));
 
       return {
@@ -42,10 +42,6 @@ const getTimetable = async (req, res) => {
   }
 };
 
-/**
- * GET /timetable/changes
- * Returns active schedule changes only, newest first.
- */
 const getScheduleChanges = async (req, res) => {
   try {
     const changes = await ScheduleChange.find({ isActive: true }).sort({ createdAt: -1 });
@@ -59,13 +55,9 @@ const getScheduleChanges = async (req, res) => {
 // ADMIN — Timetable Periods
 // ========================================================
 
-/**
- * GET /timetable/admin
- * Flat list (not grouped) so the admin UI can edit individual periods.
- */
 const getTimetableAdmin = async (req, res) => {
   try {
-    const periods = await Timetable.find({}).sort({ day: 1, order: 1, time: 1 });
+    const periods = await Timetable.find({}).sort({ day: 1, order: 1, startTime: 1 });
     res.status(200).json(periods);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -74,23 +66,39 @@ const getTimetableAdmin = async (req, res) => {
 
 const createPeriod = async (req, res) => {
   try {
-    const { day, time, classType, moduleCode, moduleName, lecturer, group, room, order } = req.body;
+    const { day, startTime, endTime, classType, moduleId, lecturer, groupId, roomId, order } = req.body;
 
-    if (!day || !time || !classType || !moduleCode || !moduleName || !lecturer || !room) {
+    if (!day || !startTime || !endTime || !classType || !moduleId || !lecturer || !roomId) {
       return res.status(400).json({
-        message: 'day, time, classType, moduleCode, moduleName, lecturer, and room are required',
+        message: 'day, startTime, endTime, classType, moduleId, lecturer, and roomId are required',
       });
+    }
+
+    const moduleDoc = await Module.findById(moduleId);
+    if (!moduleDoc) return res.status(404).json({ message: 'Module not found' });
+
+    const roomDoc = await Classroom.findById(roomId);
+    if (!roomDoc) return res.status(404).json({ message: 'Classroom not found' });
+
+    let groupDoc = null;
+    if (groupId) {
+      groupDoc = await Group.findById(groupId);
+      if (!groupDoc) return res.status(404).json({ message: 'Group not found' });
     }
 
     const period = await Timetable.create({
       day,
-      time: time.trim(),
+      startTime: startTime.trim(),
+      endTime: endTime.trim(),
       classType,
-      moduleCode: moduleCode.trim(),
-      moduleName: moduleName.trim(),
+      module: moduleDoc._id,
+      moduleCode: moduleDoc.code,
+      moduleName: moduleDoc.name,
       lecturer: lecturer.trim(),
-      group: group?.trim() || '',
-      room: room.trim(),
+      group: groupDoc?._id || null,
+      groupName: groupDoc?.name || '',
+      room: roomDoc._id,
+      roomName: roomDoc.name,
       order: order != null ? Number(order) : 0,
     });
 
@@ -106,10 +114,41 @@ const updatePeriod = async (req, res) => {
     const period = await Timetable.findById(req.params.id);
     if (!period) return res.status(404).json({ message: 'Period not found' });
 
-    const allowedFields = ['day', 'time', 'classType', 'moduleCode', 'moduleName', 'lecturer', 'group', 'room', 'order'];
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) period[field] = req.body[field];
-    });
+    const { day, startTime, endTime, classType, moduleId, lecturer, groupId, roomId, order } = req.body;
+
+    if (day !== undefined) period.day = day;
+    if (startTime !== undefined) period.startTime = startTime.trim();
+    if (endTime !== undefined) period.endTime = endTime.trim();
+    if (classType !== undefined) period.classType = classType;
+    if (lecturer !== undefined) period.lecturer = lecturer.trim();
+    if (order !== undefined) period.order = Number(order);
+
+    if (moduleId !== undefined) {
+      const moduleDoc = await Module.findById(moduleId);
+      if (!moduleDoc) return res.status(404).json({ message: 'Module not found' });
+      period.module = moduleDoc._id;
+      period.moduleCode = moduleDoc.code;
+      period.moduleName = moduleDoc.name;
+    }
+
+    if (roomId !== undefined) {
+      const roomDoc = await Classroom.findById(roomId);
+      if (!roomDoc) return res.status(404).json({ message: 'Classroom not found' });
+      period.room = roomDoc._id;
+      period.roomName = roomDoc.name;
+    }
+
+    if (groupId !== undefined) {
+      if (groupId === null || groupId === '') {
+        period.group = null;
+        period.groupName = '';
+      } else {
+        const groupDoc = await Group.findById(groupId);
+        if (!groupDoc) return res.status(404).json({ message: 'Group not found' });
+        period.group = groupDoc._id;
+        period.groupName = groupDoc.name;
+      }
+    }
 
     const updated = await period.save();
     res.status(200).json(updated);
@@ -137,10 +176,6 @@ const deletePeriod = async (req, res) => {
 // ADMIN — Schedule Changes
 // ========================================================
 
-/**
- * GET /timetable/changes/admin
- * All changes including archived (isActive: false), for management view.
- */
 const getScheduleChangesAdmin = async (req, res) => {
   try {
     const changes = await ScheduleChange.find({}).sort({ createdAt: -1 });
@@ -153,24 +188,33 @@ const getScheduleChangesAdmin = async (req, res) => {
 const createScheduleChange = async (req, res) => {
   try {
     const {
-      moduleCode, moduleName, classType, group,
-      originalSchedule, newSchedule, reason,
-      effectiveDate, publishedBy, status, badgeColor,
+      periodId, newDay, newStartTime, newEndTime, newRoom,
+      reason, effectiveDate, publishedBy, status, badgeColor,
     } = req.body;
 
-    if (!moduleCode || !moduleName || !classType || !originalSchedule || !newSchedule || !effectiveDate || !status) {
-      return res.status(400).json({
-        message: 'moduleCode, moduleName, classType, originalSchedule, newSchedule, effectiveDate, and status are required',
-      });
+    if (!periodId || !effectiveDate || !status) {
+      return res.status(400).json({ message: 'periodId, effectiveDate, and status are required' });
     }
 
+    const period = await Timetable.findById(periodId);
+    if (!period) return res.status(404).json({ message: 'Original period not found' });
+
     const change = await ScheduleChange.create({
-      moduleCode: moduleCode.trim(),
-      moduleName: moduleName.trim(),
-      classType,
-      group: group?.trim() || '',
-      originalSchedule: originalSchedule.trim(),
-      newSchedule: newSchedule.trim(),
+      period: period._id,
+      moduleCode: period.moduleCode,
+      moduleName: period.moduleName,
+      classType: period.classType,
+      group: period.groupName,
+      originalDay: period.day,
+      originalStartTime: period.startTime,
+      originalEndTime: period.endTime,
+      originalRoom: period.roomName,
+
+      newDay: newDay?.trim() || '',
+      newStartTime: newStartTime?.trim() || '',
+      newEndTime: newEndTime?.trim() || '',
+      newRoom: newRoom?.trim() || '',
+
       reason: reason?.trim() || '',
       effectiveDate: effectiveDate.trim(),
       publishedBy: publishedBy?.trim() || 'RTE Department (Registry & Timetabling)',
@@ -191,9 +235,8 @@ const updateScheduleChange = async (req, res) => {
     if (!change) return res.status(404).json({ message: 'Schedule change not found' });
 
     const allowedFields = [
-      'moduleCode', 'moduleName', 'classType', 'group',
-      'originalSchedule', 'newSchedule', 'reason',
-      'effectiveDate', 'publishedBy', 'status', 'badgeColor', 'isActive',
+      'newDay', 'newStartTime', 'newEndTime', 'newRoom',
+      'reason', 'effectiveDate', 'publishedBy', 'status', 'badgeColor', 'isActive',
     ];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) change[field] = req.body[field];
@@ -222,15 +265,12 @@ const deleteScheduleChange = async (req, res) => {
 };
 
 module.exports = {
-  // Student
   getTimetable,
   getScheduleChanges,
-  // Admin — periods
   getTimetableAdmin,
   createPeriod,
   updatePeriod,
   deletePeriod,
-  // Admin — schedule changes
   getScheduleChangesAdmin,
   createScheduleChange,
   updateScheduleChange,

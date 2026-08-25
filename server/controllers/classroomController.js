@@ -1,250 +1,193 @@
-const VacantClassroom = require("../models/VacantClassroom");
-const ClassroomRequest = require("../models/ClassroomRequest");
+const Classroom = require('../models/Classroom');
+const Timetable = require('../models/Timetable');
 
-// ==========================================
-// STUDENT
-// ==========================================
+// GET /api/classrooms
+const getClassrooms = async (req, res) => {
+  try {
+    const classrooms = await Classroom.find({}).sort({ name: 1 });
+    res.status(200).json(classrooms);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
-// Get vacant classrooms for a particular day
+// GET /api/classrooms/vacant?day=Monday
+// Automatic: cross-checks real Timetable periods for that day.
+// Also excludes rooms with an active manual block for that day.
 const getVacantClassrooms = async (req, res) => {
   try {
     const { day } = req.query;
-
-    const filter = {
-      isAvailable: true,
-    };
-
-    if (day) {
-      filter.day = day;
+    if (!day) {
+      return res.status(400).json({ message: 'day is required, e.g. ?day=Monday' });
     }
 
-    const classrooms = await VacantClassroom.find(filter).sort({
-      availableFrom: 1,
+    const classrooms = await Classroom.find({}).sort({ name: 1 });
+    const periods = await Timetable.find({ day });
+
+    const result = classrooms.map((room) => {
+      const roomIdStr = room._id.toString();
+
+      const occupyingPeriod = periods.find((p) => p.room.toString() === roomIdStr);
+      const activeBlock = (room.manualBlocks || []).find((b) => b.day === day);
+
+      let status = 'vacant'; // 'vacant' | 'class' | 'blocked'
+      let occupiedBy = null;
+
+      if (occupyingPeriod) {
+        status = 'class';
+        occupiedBy = {
+          type: 'class',
+          startTime: occupyingPeriod.startTime,
+          endTime: occupyingPeriod.endTime,
+          moduleCode: occupyingPeriod.moduleCode,
+          moduleName: occupyingPeriod.moduleName,
+        };
+      } else if (activeBlock) {
+        status = 'blocked';
+        occupiedBy = {
+          type: 'blocked',
+          blockId: activeBlock._id,
+          startTime: activeBlock.startTime,
+          endTime: activeBlock.endTime,
+          reason: activeBlock.reason,
+        };
+      }
+
+      return {
+        _id: room._id,
+        name: room.name,
+        capacity: room.capacity,
+        facilities: room.facilities,
+        status,
+        occupiedBy,
+        manualBlocks: room.manualBlocks || [],
+      };
     });
 
-    res.status(200).json(classrooms);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-
-// Student requests a classroom
-const requestClassroom = async (req, res) => {
+// POST /api/classrooms
+const createClassroom = async (req, res) => {
   try {
-    const {
-      classroomId,
-      purpose,
-      requestDate,
-      requestedFrom,
-      requestedTo,
-    } = req.body;
+    const { name, capacity, facilities } = req.body;
 
-    if (
-      !classroomId ||
-      !purpose ||
-      !requestDate ||
-      !requestedFrom ||
-      !requestedTo
-    ) {
-      return res.status(400).json({
-        message: "All request fields are required",
-      });
+    if (!name || !capacity) {
+      return res.status(400).json({ message: 'name and capacity are required' });
     }
 
-    const classroom = await VacantClassroom.findById(classroomId);
-
-    if (!classroom) {
-      return res.status(404).json({
-        message: "Classroom not found",
-      });
+    const exists = await Classroom.findOne({ name: name.trim() });
+    if (exists) {
+      return res.status(400).json({ message: 'A classroom with this name already exists' });
     }
 
-    const request = await ClassroomRequest.create({
-      classroom: classroomId,
-      requestedBy: req.user.id,
-      purpose,
-      requestDate,
-      requestedFrom,
-      requestedTo,
+    const classroom = await Classroom.create({
+      name: name.trim(),
+      capacity: Number(capacity),
+      facilities: facilities?.trim() || '',
     });
-
-    res.status(201).json(request);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-
-// Student sees their own requests
-const getMyClassroomRequests = async (req, res) => {
-  try {
-    const requests = await ClassroomRequest.find({
-      requestedBy: req.user.id,
-    })
-      .populate("classroom")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(requests);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-
-// ==========================================
-// ADMIN - VACANT CLASSROOM MANAGEMENT
-// ==========================================
-
-const getAllVacantClassrooms = async (req, res) => {
-  try {
-    const classrooms = await VacantClassroom.find().sort({
-      day: 1,
-      availableFrom: 1,
-    });
-
-    res.status(200).json(classrooms);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-
-const createVacantClassroom = async (req, res) => {
-  try {
-    const classroom = await VacantClassroom.create(req.body);
 
     res.status(201).json(classroom);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
+  } catch (err) {
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
-
-const updateVacantClassroom = async (req, res) => {
+// PATCH /api/classrooms/:id
+const updateClassroom = async (req, res) => {
   try {
-    const classroom = await VacantClassroom.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
+    const classroom = await Classroom.findById(req.params.id);
+    if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
+
+    const { name, capacity, facilities } = req.body;
+    if (name !== undefined) classroom.name = name.trim();
+    if (capacity !== undefined) classroom.capacity = Number(capacity);
+    if (facilities !== undefined) classroom.facilities = facilities.trim();
+
+    const updated = await classroom.save();
+    res.status(200).json(updated);
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid classroom ID' });
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// DELETE /api/classrooms/:id
+const deleteClassroom = async (req, res) => {
+  try {
+    const classroom = await Classroom.findById(req.params.id);
+    if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
+
+    await classroom.deleteOne();
+    res.status(200).json({ message: 'Classroom deleted' });
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid classroom ID' });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /api/classrooms/:id/block  (admin — manual override)
+const addManualBlock = async (req, res) => {
+  try {
+    const classroom = await Classroom.findById(req.params.id);
+    if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
+
+    const { day, startTime, endTime, reason, createdBy } = req.body;
+    if (!day || !startTime || !endTime) {
+      return res.status(400).json({ message: 'day, startTime, and endTime are required' });
+    }
+
+    classroom.manualBlocks.push({
+      day,
+      startTime: startTime.trim(),
+      endTime: endTime.trim(),
+      reason: reason?.trim() || '',
+      createdBy: createdBy?.trim() || '',
+    });
+
+    const updated = await classroom.save();
+    res.status(201).json(updated);
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid classroom ID' });
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// DELETE /api/classrooms/:id/block/:blockId  (admin — remove manual override)
+const removeManualBlock = async (req, res) => {
+  try {
+    const classroom = await Classroom.findById(req.params.id);
+    if (!classroom) return res.status(404).json({ message: 'Classroom not found' });
+
+    const before = classroom.manualBlocks.length;
+    classroom.manualBlocks = classroom.manualBlocks.filter(
+      (b) => b._id.toString() !== req.params.blockId
     );
 
-    if (!classroom) {
-      return res.status(404).json({
-        message: "Classroom not found",
-      });
+    if (classroom.manualBlocks.length === before) {
+      return res.status(404).json({ message: 'Block not found' });
     }
 
-    res.status(200).json(classroom);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
+    const updated = await classroom.save();
+    res.status(200).json(updated);
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid ID' });
+    res.status(500).json({ message: err.message });
   }
 };
-
-
-const deleteVacantClassroom = async (req, res) => {
-  try {
-    const classroom = await VacantClassroom.findByIdAndDelete(
-      req.params.id
-    );
-
-    if (!classroom) {
-      return res.status(404).json({
-        message: "Classroom not found",
-      });
-    }
-
-    res.status(200).json({
-      message: "Vacant classroom deleted",
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-
-// ==========================================
-// ADMIN - REQUEST MANAGEMENT
-// ==========================================
-
-const getClassroomRequests = async (req, res) => {
-  try {
-    const requests = await ClassroomRequest.find()
-      .populate("classroom")
-      .populate("requestedBy", "username email")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(requests);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-
-const updateRequestStatus = async (req, res) => {
-  try {
-    const { status, adminRemark } = req.body;
-
-    if (!["approved", "rejected"].includes(status)) {
-      return res.status(400).json({
-        message: "Status must be approved or rejected",
-      });
-    }
-
-    const request = await ClassroomRequest.findById(req.params.id);
-
-    if (!request) {
-      return res.status(404).json({
-        message: "Request not found",
-      });
-    }
-
-    request.status = status;
-
-    if (adminRemark !== undefined) {
-      request.adminRemark = adminRemark;
-    }
-
-    await request.save();
-
-    res.status(200).json(request);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
 
 module.exports = {
+  getClassrooms,
   getVacantClassrooms,
-  requestClassroom,
-  getMyClassroomRequests,
-
-  getAllVacantClassrooms,
-  createVacantClassroom,
-  updateVacantClassroom,
-  deleteVacantClassroom,
-
-  getClassroomRequests,
-  updateRequestStatus,
+  createClassroom,
+  updateClassroom,
+  deleteClassroom,
+  addManualBlock,
+  removeManualBlock,
 };

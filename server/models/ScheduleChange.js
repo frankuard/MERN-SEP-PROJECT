@@ -2,43 +2,40 @@ const mongoose = require('mongoose');
 
 const scheduleChangeSchema = new mongoose.Schema(
   {
-    moduleCode: {
-      type: String,
-      required: [true, 'Module code is required'],
-      trim: true,
+    // Link to the real period this change is about. Admin picks this from
+    // a list (populated from Timetable) instead of typing module info.
+    period: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Timetable',
+      required: [true, 'Original period is required'],
     },
-    moduleName: {
-      type: String,
-      required: [true, 'Module name is required'],
-      trim: true,
-    },
-    classType: {
-      type: String,
-      enum: ['Lecture', 'Tutorial', 'Workshop'],
-      required: true,
-    },
-    group: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    originalSchedule: {
-      type: String,
-      required: [true, 'Original schedule is required'],
-      trim: true,
-    },
-    newSchedule: {
-      type: String,
-      required: [true, 'New schedule is required'],
-      trim: true,
-    },
+
+    // Snapshot fields copied from the period at creation time, so the card
+    // still displays correctly even if the original period is later edited
+    // or deleted.
+    moduleCode: { type: String, required: true, trim: true },
+    moduleName: { type: String, required: true, trim: true },
+    classType: { type: String, required: true, trim: true },
+    group: { type: String, trim: true, default: '' },
+    originalDay: { type: String, required: true, trim: true },
+    originalStartTime: { type: String, required: true, trim: true },
+    originalEndTime: { type: String, required: true, trim: true },
+    originalRoom: { type: String, required: true, trim: true },
+
+    // What's changing. Only the fields relevant to `status` need to be
+    // filled in on the frontend (e.g. Cancelled only needs a reason).
+    newDay: { type: String, trim: true, default: '' },
+    newStartTime: { type: String, trim: true, default: '' },
+    newEndTime: { type: String, trim: true, default: '' },
+    newRoom: { type: String, trim: true, default: '' },
+
     reason: {
       type: String,
       trim: true,
       default: '',
     },
     effectiveDate: {
-      type: String, // stored as display string ("Aug 24, 2026") to match how it's shown
+      type: String, // display string ("Aug 24, 2026"), matches existing UI
       required: [true, 'Effective date is required'],
       trim: true,
     },
