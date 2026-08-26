@@ -146,7 +146,7 @@ const TimetableSection = ({ t }) => {
         </div>
         <div>
           <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-            Semester 1 Timetable
+            Semester 2 Timetable
           </h2>
           <p className="mt-0.5 text-sm font-semibold" style={{ color: t.textMuted }}>
             Class schedule, vacant rooms &amp; temporary changes
