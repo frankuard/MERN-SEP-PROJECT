@@ -32,8 +32,9 @@ const groupRoutes = require('./routes/groups.routes');
 const classroomRoutes = require('./routes/classrooms.routes');
 const classroomRequestRoutes = require('./routes/classroomRequests.routes');
 const volunteerRecordRoutes = require('./routes/volunteerRecords.routes');
-
+const adminUsersRoutes = require('./routes/adminUsers.routes');
 const app = express();
+
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -129,6 +130,9 @@ app.use('/api/classroom-requests', classroomRequestRoutes);
 app.use('/api/volunteer-records', volunteerRecordRoutes);
 
 app.use('/api/volunteer-opportunities', require('./routes/volunteerOpportunity.routes'));
+
+app.use('/api/admin/users', adminUsersRoutes);
+
 
 connectDB();
 

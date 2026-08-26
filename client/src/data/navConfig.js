@@ -3,7 +3,7 @@ import {
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
   AlertTriangle, ClipboardList, CheckSquare, Settings, LogOut,
    PlusCircle, TrendingUp, Bell,
-  Building2, School, GraduationCap, Clock, Video, UtensilsCrossed   // ← add UtensilsCrossed here
+  Building2, School, GraduationCap, Clock, Video, UtensilsCrossed, Users    // ← add UtensilsCrossed here
 } from "lucide-react";
 
 const navConfig = {
@@ -22,23 +22,10 @@ const navConfig = {
     { id: "announcements", label: "Announcements", icon: Megaphone },
     { id: "events", label: "Events", icon: Calendar },
     { id: "requests", label: "Student Requests", icon: Inbox },
-    {
-      id: "polls", label: "Polls", icon: BarChart3,
-      children: [
-        { id: "poll-create", label: "Create Poll", icon: PlusCircle },
-        { id: "poll-results", label: "Poll Results", icon: TrendingUp },
-      ],
-    },
-    { id: "qna", label: "Q & A", icon: MessageSquare },
     { id: "resources", label: "Resources", icon: BookOpen },
   ],
-  staff: [
-    { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "report", label: "Report Problem", icon: AlertTriangle },
-    { id: "tracker", label: "Complaint Tracker", icon: ClipboardList },
-    { id: "notices", label: "Notices", icon: FileText },
-  ],
-  admin: [
+
+    admin: [
   { id: "dashboard", label: "Dashboard", icon: Home },
   { id: "manage-attendance", label: "Manage Attendance", icon: ClipboardList },
   { id: "manage-announcements", label: "Manage Announcements", icon: Megaphone },
@@ -49,6 +36,7 @@ const navConfig = {
   { id: "manage-timetable", label: "Manage Timetable", icon: Clock },
   { id: "manage-ssd", label: "Manage SSD", icon: GraduationCap },
   { id: "manage-lost-found", label: "Manage Lost & Found", icon: Search }, 
+  { id: 'manage-users',label: 'Manage Users',icon: Users},
   { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
 ],
 };
