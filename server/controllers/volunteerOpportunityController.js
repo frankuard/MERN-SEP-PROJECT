@@ -1,5 +1,6 @@
 const VolunteerOpportunity = require('../models/VolunteerOpportunity');
 const VolunteerApplication = require('../models/VolunteerApplication');
+const Event = require('../models/Event');
 
 // ========================================================
 // STUDENT
@@ -76,23 +77,55 @@ const applyToOpportunity = async (req, res) => {
 // ADMIN
 // ========================================================
 
+// body: either
+//   { eventId, role, slotsAvailable, description }                <- linked to a real event
+//   { eventTitle, role, date, slotsAvailable, description,
+//     organizer: { name, logo } }                                  <- fully manual
 const createOpportunity = async (req, res) => {
   try {
-    const { eventTitle, role, date, slotsAvailable, description } = req.body;
-    if (!eventTitle || !role || !date) {
-      return res.status(400).json({ message: 'eventTitle, role, and date are required' });
+    const { eventId, eventTitle, role, date, slotsAvailable, description, organizer } = req.body;
+
+    if (!role || !role.trim()) {
+      return res.status(400).json({ message: 'role is required' });
     }
-    const opportunity = await VolunteerOpportunity.create({
-      eventTitle: eventTitle.trim(),
+
+    let payload = {
       role: role.trim(),
-      date: date.trim(),
-      slotsAvailable: slotsAvailable ?? null,
+      slotsAvailable: slotsAvailable === undefined || slotsAvailable === '' ? null : slotsAvailable,
       description: description?.trim() || '',
       createdBy: req.user._id,
-    });
+    };
+
+    if (eventId) {
+      const linkedEvent = await Event.findById(eventId);
+      if (!linkedEvent) return res.status(404).json({ message: 'Linked event not found' });
+
+      payload.event = linkedEvent._id;
+      payload.eventTitle = linkedEvent.title;
+      payload.date = new Date(linkedEvent.date).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+      });
+      payload.organizer = {
+        name: linkedEvent.organizer?.name || '',
+        logo: linkedEvent.organizer?.logo || '',
+      };
+    } else {
+      if (!eventTitle || !eventTitle.trim() || !date || !date.trim()) {
+        return res.status(400).json({ message: 'eventTitle and date are required when not linking to an event' });
+      }
+      payload.eventTitle = eventTitle.trim();
+      payload.date = date.trim();
+      payload.organizer = {
+        name: organizer?.name?.trim() || '',
+        logo: organizer?.logo?.trim() || '',
+      };
+    }
+
+    const opportunity = await VolunteerOpportunity.create(payload);
     res.status(201).json(opportunity);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid event ID' });
     res.status(500).json({ message: err.message });
   }
 };
@@ -102,13 +135,19 @@ const updateOpportunity = async (req, res) => {
     const opportunity = await VolunteerOpportunity.findById(req.params.id);
     if (!opportunity) return res.status(404).json({ message: 'Opportunity not found' });
 
-    const { eventTitle, role, date, slotsAvailable, description, isOpen } = req.body;
+    const { eventTitle, role, date, slotsAvailable, description, isOpen, organizer } = req.body;
     if (eventTitle !== undefined) opportunity.eventTitle = eventTitle.trim();
     if (role !== undefined) opportunity.role = role.trim();
     if (date !== undefined) opportunity.date = date.trim();
     if (slotsAvailable !== undefined) opportunity.slotsAvailable = slotsAvailable;
     if (description !== undefined) opportunity.description = description.trim();
     if (isOpen !== undefined) opportunity.isOpen = isOpen;
+    if (organizer !== undefined) {
+      opportunity.organizer = {
+        name: organizer.name?.trim() || opportunity.organizer?.name || '',
+        logo: organizer.logo?.trim() || opportunity.organizer?.logo || '',
+      };
+    }
 
     const updated = await opportunity.save();
     res.status(200).json(updated);
