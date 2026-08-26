@@ -5,23 +5,37 @@ const attendanceSchema = new mongoose.Schema(
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      required: [true, 'Student is required'],
+    },
+    date: {
+      type: String, // display string, e.g. "Aug 24, 2026" — matches rest of the app's date style
+      required: [true, 'Date is required'],
+      trim: true,
+    },
+    time: {
+      type: String, // e.g. "10:00 AM"
+      trim: true,
+      default: '',
+    },
+    room: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    status: {
+      type: String,
+      enum: ['Present', 'Absent'],
       required: true,
-      unique: true, // one summary record per student
     },
-    totalDays: {
-      type: Number,
-      default: 0,
-    },
-    present: {
-      type: Number,
-      default: 0,
-    },
-    absent: {
-      type: Number,
-      default: 0,
+    markedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null, // admin/teacher who marked it
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Attendance', attendanceSchema);
+const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', attendanceSchema);
+
+module.exports = Attendance;

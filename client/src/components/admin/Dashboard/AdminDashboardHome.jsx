@@ -5,7 +5,11 @@ import {
 import attendanceApi from '../../../api/attendanceApi';
 import eventsApi from '../../../api/eventsApi';
 
+
+
 const StatCard = ({ icon, label, value, sublabel, t }) => (
+
+  
   <div
     className="rounded-2xl border p-5"
     style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowSoft }}
@@ -46,9 +50,9 @@ const AdminDashboardHome = ({ t, adminName = 'Admin', onNavigate }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+    useEffect(() => {
     Promise.all([
-      attendanceApi.getAllStudents().catch(() => []),
+      attendanceApi.getAttendanceSummaryAdmin().catch(() => []),
       eventsApi.getAllEventsAdmin().catch(() => []),
     ]).then(([attendance, allEvents]) => {
       setAttendanceSummary(Array.isArray(attendance) ? attendance : []);

@@ -13,6 +13,8 @@ import ManageLostFoundSection from '../components/admin/ManageLostFound/ManageLo
 import ManageCampusHelpSection from '../components/admin/ManageCampusHelp/ManageCampusHelpSection';
 import ManageResourcesSection from '../components/admin/ManageResources/ManageResourcesSection';
 import ManageTimetableSection from "../components/admin/ManageTimetable/ManageTimetableSection";
+import ManageSSDSection from '../components/admin/ManageSSD/ManageSSDSection';
+
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -59,6 +61,10 @@ const AdminDashboard = () => {
 
 {activeTab === 'manage-campus-help' && (
   <ManageCampusHelpSection t={t} />
+)}
+
+{activeTab === 'manage-ssd' && (
+  <ManageSSDSection t={t} />
 )}
 
 {activeTab === "manage-timetable" && (

@@ -12,7 +12,7 @@ const ManageAttendanceSection = ({ t }) => {
 
   const loadStudents = () => {
     setLoading(true);
-    attendanceApi.getAllStudents()
+    attendanceApi.getAttendanceSummaryAdmin()
       .then((data) => { if (Array.isArray(data)) setStudents(data); })
       .catch(() => toast.error('Failed to load attendance data'))
       .finally(() => setLoading(false));
@@ -68,7 +68,7 @@ const ManageAttendanceSection = ({ t }) => {
 
     setSavingId(student.studentId);
     try {
-      await attendanceApi.updateStudentAttendance(student.studentId, { totalDays, present, absent });
+      await attendanceApi.quickSetAttendance(student.studentId, { totalDays, present, absent });
       toast.success(`Attendance updated for ${student.username}`);
       setEditValues((prev) => {
         const next = { ...prev };
