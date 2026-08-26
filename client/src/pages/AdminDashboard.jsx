@@ -14,7 +14,7 @@ import ManageCampusHelpSection from '../components/admin/ManageCampusHelp/Manage
 import ManageResourcesSection from '../components/admin/ManageResources/ManageResourcesSection';
 import ManageTimetableSection from "../components/admin/ManageTimetable/ManageTimetableSection";
 import ManageSSDSection from '../components/admin/ManageSSD/ManageSSDSection';
-
+import ManageUsersSection from '../components/admin/ManageUsers/ManageUsersSection';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -57,6 +57,10 @@ const AdminDashboard = () => {
 
 {activeTab === 'manage-resources' && (
   <ManageResourcesSection t={t} />
+)}
+
+{activeTab === "manage-users" && (
+  <ManageUsersSection t={t} />
 )}
 
 {activeTab === 'manage-campus-help' && (
