@@ -1,4 +1,5 @@
-
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 require("dotenv").config();
 
@@ -30,7 +31,7 @@ const moduleRoutes = require('./routes/modules.routes');
 const groupRoutes = require('./routes/groups.routes');
 const classroomRoutes = require('./routes/classrooms.routes');
 const classroomRequestRoutes = require('./routes/classroomRequests.routes');
-
+const volunteerRecordRoutes = require('./routes/volunteerRecords.routes');
 
 const app = express();
 
@@ -124,6 +125,9 @@ app.use('/api/modules', moduleRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/classrooms', classroomRoutes);
 app.use('/api/classroom-requests', classroomRequestRoutes);
+app.use('/api/volunteer-records', volunteerRecordRoutes);
+
+app.use('/api/volunteer-opportunities', require('./routes/volunteerOpportunity.routes'));
 
 connectDB();
 

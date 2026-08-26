@@ -449,10 +449,53 @@ const getAllEventsAdmin = async (req, res) => {
 };
 
 
+/**
+ * GET EVENT REGISTRANTS (ADMIN)
+ *
+ * GET /events/:id/registrations
+ *
+ * Returns the list of students currently registered for this event.
+ */
+const getEventRegistrations = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id).select('title date');
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const registrations = await EventRegistration.find({
+      event: req.params.id,
+      status: 'registered',
+    })
+      .populate('user', 'username email department semester')
+      .sort({ registeredAt: 1 });
+
+    res.status(200).json({
+      event: { _id: event._id, title: event.title, date: event.date },
+      count: registrations.length,
+      registrants: registrations.map((r) => ({
+        registrationId: r._id,
+        registeredAt: r.registeredAt,
+        student: r.user,
+      })),
+    });
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid event ID' });
+    }
+    res.status(500).json({
+      message: 'Failed to fetch event registrations',
+      error: error.message,
+    });
+  }
+};
+
+
 module.exports = {
   getEvents,
   getEventById,
   getAllEventsAdmin,
+  getEventRegistrations,
   createEvent,
   updateEvent,
   deleteEvent,

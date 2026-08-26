@@ -1,209 +1,283 @@
 import React, { useState, useEffect } from 'react';
 import {
-  GraduationCap, Calendar, Clock,
-  FileText, Users, Award
+  Calendar, FileText, HeartHandshake, CalendarCheck2, Clock,
+  CheckCircle2, MapPin, ShieldCheck, User, Building2, Users,
 } from 'lucide-react';
-import RequestAttendanceReportModal from './modals/RequestAttendanceReportModal';
+import RequestAttendanceReportModal from '../../components/student/modals/RequestAttendanceReportModal';
 import attendanceApi from '../../api/attendanceApi';
+import volunteerApi from '../../api/volunteerApi';
+import volunteerOpportunityApi from '../../api/volunteerOpportunityApi';
+import eventsApi from '../../api/eventsApi';
 
-const SSDHelpSection = ({
-  t,
-  user,
-  studentName,
-  attendanceRecords,
-  volunteeringHistory,
-  volunteerRequests,
-  onToggleApplyVolunteer,
-}) => {
-  const [ssdActiveSubTab, setSsdActiveSubTab] = useState('attendance'); // 'attendance' | 'volunteering' | 'volunteer-requests'
+const SUB_TABS = [
+  { id: 'attendance', label: 'Attendance Records', icon: CheckCircle2 },
+  { id: 'volunteering', label: 'Volunteering', icon: HeartHandshake },
+  { id: 'events', label: 'Upcoming Events', icon: CalendarCheck2 },
+];
+
+const SSDHelpSection = ({ t, user, studentName }) => {
+  const [ssdActiveSubTab, setSsdActiveSubTab] = useState('attendance');
   const [showReportModal, setShowReportModal] = useState(false);
 
-  // Real attendance summary from the backend — replaces the old hardcoded
-  // 87% / 42 / 6. Defaults to zeros until the fetch resolves.
+  // -------- Attendance --------
   const [attendanceSummary, setAttendanceSummary] = useState({
-    percentage: 0,
-    present: 0,
-    absent: 0,
-    totalDays: 0,
+    percentage: 0, present: 0, absent: 0, totalDays: 0,
   });
+  const [attendanceLog, setAttendanceLog] = useState(null);
 
   useEffect(() => {
     let mounted = true;
     attendanceApi.getMyAttendance()
-      .then((data) => {
-        if (mounted && data) setAttendanceSummary(data);
-      })
+      .then((data) => { if (mounted && data) setAttendanceSummary(data); })
       .catch(() => {});
+    attendanceApi.getMyAttendanceLog()
+      .then((data) => { if (mounted) setAttendanceLog(Array.isArray(data) ? data : []); })
+      .catch(() => { if (mounted) setAttendanceLog([]); });
     return () => { mounted = false; };
   }, []);
 
+  const submitReportRequest = async (payload) => {
+    await attendanceApi.createReportRequest(payload);
+  };
+
+  // Displays a clean date for every row, whether it's a real day-by-day
+  // record or one of the older bulk/migrated entries that only stored a
+  // placeholder label — falls back to the record's createdAt timestamp.
+  const getDisplayDate = (rec) => {
+    const isPlaceholder = rec.date && (rec.date.startsWith('Migrated') || rec.date.startsWith('Bulk Entry'));
+    if (isPlaceholder && rec.createdAt) {
+      return new Date(rec.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return rec.date;
+  };
+
+  // -------- Volunteering: history (verified, past) --------
+  const [volunteerHistory, setVolunteerHistory] = useState(null);
+
+  useEffect(() => {
+    if (ssdActiveSubTab !== 'volunteering' || volunteerHistory !== null) return;
+    let mounted = true;
+    volunteerApi.getMyVolunteerHistory()
+      .then((data) => { if (mounted) setVolunteerHistory(Array.isArray(data) ? data : []); })
+      .catch(() => { if (mounted) setVolunteerHistory([]); });
+    return () => { mounted = false; };
+  }, [ssdActiveSubTab, volunteerHistory]);
+
+  const totalVolunteerHours = (volunteerHistory || []).reduce((sum, r) => sum + (r.hours || 0), 0);
+
+  // -------- Volunteering: open opportunities (apply/withdraw) --------
+  const [opportunities, setOpportunities] = useState(null);
+  const [applyingId, setApplyingId] = useState(null);
+
+  const loadOpportunities = () => {
+    setOpportunities(null);
+    volunteerOpportunityApi.getOpportunities()
+      .then((data) => setOpportunities(Array.isArray(data) ? data : []))
+      .catch(() => setOpportunities([]));
+  };
+
+  useEffect(() => {
+    if (ssdActiveSubTab !== 'volunteering' || opportunities !== null) return;
+    loadOpportunities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ssdActiveSubTab]);
+
+  const handleToggleApply = async (opportunity) => {
+    setApplyingId(opportunity._id);
+    const nextApplied = !opportunity.applied;
+    try {
+      await volunteerOpportunityApi.applyToOpportunity(opportunity._id, nextApplied);
+      setOpportunities((prev) =>
+        prev.map((o) => (o._id === opportunity._id ? { ...o, applied: nextApplied } : o))
+      );
+    } catch {
+      // stays clickable so the student can retry
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
+  // -------- Upcoming events --------
+  const [events, setEvents] = useState(null);
+  const [myRegisteredEventIds, setMyRegisteredEventIds] = useState(new Set());
+  const [registeringId, setRegisteringId] = useState(null);
+
+  const loadEvents = () => {
+    setEvents(null);
+    eventsApi.getEvents()
+      .then((data) => setEvents(Array.isArray(data) ? data : []))
+      .catch(() => setEvents([]));
+  };
+
+  useEffect(() => {
+    if (ssdActiveSubTab !== 'events' || events !== null) return;
+    loadEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ssdActiveSubTab]);
+
+  // Only future events, soonest first — past events are dropped entirely
+  const upcomingEvents = (events || [])
+    .filter((ev) => new Date(ev.date) >= new Date(new Date().toDateString()))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const handleRegister = async (eventId) => {
+    setRegisteringId(eventId);
+    try {
+      await eventsApi.registerEvent(eventId);
+      setMyRegisteredEventIds((prev) => new Set(prev).add(eventId));
+      loadEvents();
+    } catch {
+      // stays clickable so the student can retry
+    } finally {
+      setRegisteringId(null);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Sub-Tabs Selector */}
-      <div className="flex items-center justify-start">
-        <div
-          className="flex items-center gap-1 rounded-2xl border p-1.5 shadow-xs overflow-x-auto"
-          style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-        >
-          <button
-            type="button"
-            onClick={() => setSsdActiveSubTab('attendance')}
-            className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-colors shrink-0 ${
-              ssdActiveSubTab === 'attendance'
-                ? 'bg-[#2f4336] text-white shadow-xs'
-                : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-          >
-            Attendance Records
-          </button>
-          <button
-            type="button"
-            onClick={() => setSsdActiveSubTab('volunteering')}
-            className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-colors shrink-0 ${
-              ssdActiveSubTab === 'volunteering'
-                ? 'bg-[#2f4336] text-white shadow-xs'
-                : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-          >
-            Volunteering History
-          </button>
-          <button
-            type="button"
-            onClick={() => setSsdActiveSubTab('volunteer-requests')}
-            className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-colors shrink-0 ${
-              ssdActiveSubTab === 'volunteer-requests'
-                ? 'bg-[#2f4336] text-white shadow-xs'
-                : 'text-gray-600 hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-          >
-            Upcoming Events / Volunteer Requests
-          </button>
+      {/* Header */}
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.chipBg }}>
+          <ShieldCheck size={19} style={{ color: t.textPrimary }} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+            Student Services (SSD)
+          </h2>
+          <p className="mt-0.5 text-sm font-semibold" style={{ color: t.textMuted }}>
+            Attendance, volunteering &amp; community engagement
+          </p>
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* SUBTAB 1: ATTENDANCE RECORDS & ATTENDANCE PERCENTAGE */}
-      {/* ========================================================================= */}
+      {/* Student info card */}
+      <div className="flex items-center gap-4 rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: t.chipBg }}>
+          <User size={20} style={{ color: t.textPrimary }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-base font-bold" style={{ color: t.textPrimary }}>{studentName || 'Student'}</p>
+          <p className="truncate text-sm" style={{ color: t.textMuted }}>{user?.email}</p>
+        </div>
+        {(user?.department || user?.semester) && (
+          <div className="hidden shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold sm:flex" style={{ borderColor: t.border, color: t.textMuted }}>
+            <Building2 size={13} />
+            {user?.department}{user?.semester ? ` · Sem ${user.semester}` : ''}
+          </div>
+        )}
+      </div>
+
+      {/* Sub-Tabs Selector */}
+      <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
+        {SUB_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSsdActiveSubTab(id)}
+            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-colors sm:text-sm"
+            style={{
+              backgroundColor: ssdActiveSubTab === id ? t.accentPrimary : 'transparent',
+              color: ssdActiveSubTab === id ? t.pageBg : t.textPrimary,
+            }}
+          >
+            <Icon size={14} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ===================== ATTENDANCE RECORDS ===================== */}
       {ssdActiveSubTab === 'attendance' && (
-        <div className="space-y-6">
-          {/* Quick Metrics Bar with Attendance Percentage (3-Column Grid) */}
+        <div className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {/* Main Attendance Percentage */}
-            <div
-              className="rounded-2xl border p-5 shadow-xs text-center relative overflow-hidden"
-              style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-            >
-              <div className="absolute top-2 right-2">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
-              </div>
-              <p className="text-3xl font-extrabold text-emerald-600">{attendanceSummary.percentage}%</p>
-              <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
-                Overall Attendance
-              </p>
-              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                Above 75% Academic Requirement
+            <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <p className="text-3xl font-extrabold" style={{ color: '#16a34a' }}>{attendanceSummary.percentage}%</p>
+              <p className="mt-1.5 text-sm font-bold" style={{ color: t.textPrimary }}>Overall Attendance</p>
+              <p className="mt-0.5 text-xs font-semibold" style={{ color: '#16a34a' }}>
+                {attendanceSummary.percentage >= 75 ? 'Above 75% requirement' : 'Below 75% requirement'}
               </p>
             </div>
 
-            {/* Present Days */}
-            <div
-              className="rounded-2xl border p-5 shadow-xs text-center"
-              style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-            >
-              <p className="text-3xl font-extrabold text-blue-600">{attendanceSummary.present}</p>
-              <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
-                Present Days
-              </p>
-              <p className="text-[10px]" style={{ color: t.textMuted }}>Total sessions attended</p>
+            <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <p className="text-3xl font-extrabold" style={{ color: '#2563eb' }}>{attendanceSummary.present}</p>
+              <p className="mt-1.5 text-sm font-bold" style={{ color: t.textPrimary }}>Present Days</p>
+              <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>Total sessions attended</p>
             </div>
 
-            {/* Absent Days */}
-            <div
-              className="rounded-2xl border p-5 shadow-xs text-center"
-              style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-            >
-              <p className="text-3xl font-extrabold text-red-500">{attendanceSummary.absent}</p>
-              <p className="mt-1 text-xs font-bold" style={{ color: t.textPrimary }}>
-                Absent Days
-              </p>
-              <p className="text-[10px]" style={{ color: t.textMuted }}>Excused/Unexcused</p>
+            <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <p className="text-3xl font-extrabold" style={{ color: '#dc2626' }}>{attendanceSummary.absent}</p>
+              <p className="mt-1.5 text-sm font-bold" style={{ color: t.textPrimary }}>Absent Days</p>
+              <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>Out of {attendanceSummary.totalDays} total</p>
             </div>
           </div>
 
-          {/* Request Attendance Report Callout Banner */}
+          {/* Request report banner */}
           <div
-            className="rounded-3xl border p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4"
-            style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+            className="flex flex-col items-center justify-between gap-4 rounded-2xl border p-5 sm:flex-row"
+            style={{ backgroundColor: t.cardBg, borderColor: t.border }}
           >
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 shadow-xs shrink-0">
-                <FileText size={24} />
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: t.chipBg }}>
+                <FileText size={19} style={{ color: t.textPrimary }} />
               </div>
               <div>
-                <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                  Need an Official Attendance Certificate or Report?
+                <h3 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                  Need an official attendance report?
                 </h3>
-                <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>
-                  Request formal stamped and signed attendance transcripts for scholarship renewal, visa verifications, or medical exemptions.
+                <p className="mt-1 text-sm leading-relaxed" style={{ color: t.textMuted }}>
+                  Request a signed transcript for scholarships, visas, or exemptions.
                 </p>
               </div>
             </div>
-
             <button
               type="button"
               onClick={() => setShowReportModal(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 shrink-0 transition-transform active:scale-95"
+              className="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 sm:w-auto"
+              style={{ backgroundColor: t.accentPrimary }}
             >
-              <FileText size={14} /> Request Attendance Report
+              <FileText size={14} /> Request Report
             </button>
           </div>
 
-          {/* Attendance Log Table */}
-          <div
-            className="rounded-2xl border p-6 shadow-xs"
-            style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-          >
-            <div className="flex items-center justify-between border-b pb-4 mb-4" style={{ borderColor: t.border }}>
-              <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                Recent Attendance Activity Log
-              </h3>
-              <span className="text-xs font-semibold text-emerald-600">
-                {attendanceSummary.percentage}% Aggregate Record
-              </span>
-            </div>
+          {/* Log */}
+          <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+            <h3 className="mb-4 border-b pb-3 text-base font-bold" style={{ color: t.textPrimary, borderColor: t.border }}>
+              Recent Attendance Activity
+            </h3>
+
+            {attendanceLog === null && (
+              <p className="py-6 text-center text-sm" style={{ color: t.textMuted }}>Loading...</p>
+            )}
+            {attendanceLog !== null && attendanceLog.length === 0 && (
+              <p className="py-6 text-center text-sm" style={{ color: t.textMuted }}>No attendance records yet.</p>
+            )}
 
             <div className="space-y-2.5">
-              {attendanceRecords.map((rec, i) => (
+              {attendanceLog?.map((rec) => (
                 <div
-                  key={i}
-                  className="flex items-center justify-between rounded-xl border p-3.5 text-xs"
+                  key={rec._id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
                   style={{ backgroundColor: t.pageBg, borderColor: t.border }}
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className={`flex h-2.5 w-2.5 rounded-full ${
-                        rec.status === 'Present' ? 'bg-emerald-500' : 'bg-red-500'
-                      }`}
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: rec.status === 'Present' ? '#22c55e' : '#ef4444' }}
                     />
                     <div>
-                      <p className="font-bold" style={{ color: t.textPrimary }}>
-                        {rec.date}
-                      </p>
-                      <p className="text-[11px]" style={{ color: t.textMuted }}>
-                        {rec.room !== '-' ? `Room: ${rec.room}` : 'No entry recorded'}
-                      </p>
+                      <p className="text-sm font-bold" style={{ color: t.textPrimary }}>{getDisplayDate(rec)}</p>
+                      {rec.room && (
+                        <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>Room: {rec.room}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-[11px]" style={{ color: t.textMuted }}>
-                      {rec.time}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    {rec.time && <span className="text-xs font-semibold" style={{ color: t.textMuted }}>{rec.time}</span>}
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                        rec.status === 'Present'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-red-100 text-red-700'
-                      }`}
+                      className="rounded-full px-3 py-1 text-xs font-bold"
+                      style={{
+                        backgroundColor: rec.status === 'Present' ? '#dcfce7' : '#fee2e2',
+                        color: rec.status === 'Present' ? '#15803d' : '#dc2626',
+                      }}
                     >
                       {rec.status}
                     </span>
@@ -215,58 +289,117 @@ const SSDHelpSection = ({
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SUBTAB 2: VOLUNTEERING HISTORY */}
-      {/* ========================================================================= */}
+      {/* ===================== VOLUNTEERING (opportunities + history) ===================== */}
       {ssdActiveSubTab === 'volunteering' && (
-        <div className="space-y-6">
-          <div
-            className="rounded-2xl border p-6 shadow-xs"
-            style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-          >
-            <div className="flex items-center justify-between border-b pb-4 mb-5" style={{ borderColor: t.border }}>
+        <div className="space-y-5">
+          {/* ---- Open opportunities: apply / withdraw ---- */}
+          <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-3" style={{ borderColor: t.border }}>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>Open Volunteer Opportunities</h3>
+                <p className="mt-1 text-sm" style={{ color: t.textMuted }}>Apply for a slot — SSD verifies hours after the event.</p>
+              </div>
+              {opportunities !== null && (
+                <span className="rounded-full px-3 py-1.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                  {opportunities.length} open
+                </span>
+              )}
+            </div>
+
+            {opportunities === null && (
+              <p className="py-6 text-center text-sm" style={{ color: t.textMuted }}>Loading...</p>
+            )}
+            {opportunities !== null && opportunities.length === 0 && (
+              <p className="py-6 text-center text-sm" style={{ color: t.textMuted }}>No open opportunities right now — check back soon.</p>
+            )}
+
+            <div className="space-y-3">
+              {opportunities?.map((opp) => (
+                <div
+                  key={opp._id}
+                  className="flex flex-col justify-between gap-3 rounded-xl border p-4 sm:flex-row sm:items-center"
+                  style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>{opp.eventTitle}</h4>
+                      <span className="rounded-md px-2 py-0.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                        {opp.role}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-xs" style={{ color: t.textMuted }}>
+                      {opp.date}
+                      {opp.slotsAvailable != null ? ` · ${opp.slotsAvailable} slots` : ''}
+                    </p>
+                    {opp.description && (
+                      <p className="mt-1 text-xs" style={{ color: t.textMuted }}>{opp.description}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={applyingId === opp._id}
+                    onClick={() => handleToggleApply(opp)}
+                    className="shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      backgroundColor: opp.applied ? '#16a34a' : t.accentPrimary,
+                      color: '#fff',
+                    }}
+                  >
+                    {applyingId === opp._id
+                      ? 'Saving...'
+                      : opp.applied
+                      ? 'Applied ✅ (tap to withdraw)'
+                      : 'Apply'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ---- Verified history ---- */}
+          <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b pb-4" style={{ borderColor: t.border }}>
               <div>
                 <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
                   Community Volunteering &amp; Service Hours
                 </h3>
-                <p className="text-xs" style={{ color: t.textMuted }}>
-                  Official verified records registered with Student Services Department (SSD)
+                <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                  Verified records registered with Student Services (SSD)
                 </p>
               </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">
-                36 Total Hours Completed
+              <span className="rounded-full px-3 py-1.5 text-sm font-bold" style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
+                {totalVolunteerHours} total hours
               </span>
             </div>
 
-            <div className="space-y-3.5">
-              {volunteeringHistory.map((item) => (
+            {volunteerHistory === null && (
+              <p className="py-6 text-center text-sm" style={{ color: t.textMuted }}>Loading...</p>
+            )}
+            {volunteerHistory !== null && volunteerHistory.length === 0 && (
+              <p className="py-6 text-center text-sm" style={{ color: t.textMuted }}>
+                No volunteering history yet — apply above to get started.
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {volunteerHistory?.map((item) => (
                 <div
-                  key={item.id}
+                  key={item._id}
                   className="flex flex-col justify-between gap-3 rounded-xl border p-4 sm:flex-row sm:items-center"
                   style={{ backgroundColor: t.pageBg, borderColor: t.border }}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
-                        {item.role}
-                      </h4>
-                      <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
-                        {item.event}
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>{item.role}</h4>
+                      <span className="rounded-md px-2 py-0.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                        {item.eventTitle}
                       </span>
                     </div>
-                    <p className="text-xs" style={{ color: t.textMuted }}>
-                      Date: {item.date} · Verified by SSD Campus Coordinator
-                    </p>
+                    <p className="mt-1.5 text-xs" style={{ color: t.textMuted }}>Date: {item.date} · Verified by SSD</p>
                   </div>
-
-                  <div className="flex items-center gap-3 self-end sm:self-center">
-                    <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-800">
-                      +{item.hours} Hours
-                    </span>
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                      Verified ✅
-                    </span>
-                  </div>
+                  <span className="self-start rounded-lg border px-3 py-1.5 text-sm font-bold sm:self-center" style={{ borderColor: '#bbf7d0', backgroundColor: '#f0fdf4', color: '#15803d' }}>
+                    +{item.hours} hrs
+                  </span>
                 </div>
               ))}
             </div>
@@ -274,86 +407,125 @@ const SSDHelpSection = ({
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SUBTAB 3: UPCOMING EVENTS / VOLUNTEER REQUESTS */}
-      {/* ========================================================================= */}
-      {ssdActiveSubTab === 'volunteer-requests' && (
-        <div className="space-y-6">
-          <div
-            className="rounded-2xl border p-6 shadow-xs"
-            style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 mb-5 gap-2" style={{ borderColor: t.border }}>
-              <div>
-                <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>
-                  Upcoming Events / Volunteer Opportunities
-                </h3>
-                <p className="text-xs" style={{ color: t.textMuted }}>
-                  Sign up as a student volunteer to gain leadership experience, event credentials, and recognized service hours.
-                </p>
-              </div>
-              <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-extrabold text-purple-800 self-start sm:self-auto">
-                {volunteerRequests.length} Active Callouts
-              </span>
+      {/* ===================== UPCOMING EVENTS ===================== */}
+      {ssdActiveSubTab === 'events' && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>Upcoming Events</h3>
+              <p className="mt-1 text-sm" style={{ color: t.textMuted }}>
+                Register to attend or volunteer — service hours are logged after the event.
+              </p>
             </div>
+            {events !== null && (
+              <span className="rounded-full px-3 py-1.5 text-sm font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                {upcomingEvents.length} upcoming
+              </span>
+            )}
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {volunteerRequests.map((req) => (
+          {events === null && (
+            <div className="rounded-2xl border p-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              Loading...
+            </div>
+          )}
+          {events !== null && upcomingEvents.length === 0 && (
+            <div className="rounded-2xl border p-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              No upcoming events right now.
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {upcomingEvents.map((ev) => {
+              const isRegistered = ev.registered || myRegisteredEventIds.has(ev._id);
+              const isFull = ev.capacity != null && ev.registeredCount >= ev.capacity;
+
+              return (
                 <div
-                  key={req.id}
-                  className="flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md"
-                  style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                  key={ev._id}
+                  className="flex flex-col overflow-hidden rounded-2xl border"
+                  style={{ backgroundColor: t.cardBg, borderColor: t.border }}
                 >
-                  <div className="space-y-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="rounded-md bg-purple-100 dark:bg-purple-950 px-2 py-0.5 text-[10px] font-bold text-purple-800 dark:text-purple-300">
-                        {req.department}
+                  {ev.eventImage && (
+                    <div className="h-36 w-full overflow-hidden" style={{ backgroundColor: t.pageBg }}>
+                      <img src={ev.eventImage} alt={ev.title} className="h-full w-full object-cover" />
+                    </div>
+                  )}
+
+                  <div className="flex flex-1 flex-col p-5">
+                    <div className="flex items-center gap-2.5">
+                      {ev.organizer?.logo ? (
+                        <img
+                          src={ev.organizer.logo}
+                          alt={ev.organizer.name}
+                          className="h-7 w-7 shrink-0 rounded-lg object-cover"
+                          style={{ border: `1px solid ${t.border}` }}
+                        />
+                      ) : (
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: t.chipBg }}>
+                          <ShieldCheck size={13} style={{ color: t.textMuted }} />
+                        </div>
+                      )}
+                      <span className="truncate text-xs font-semibold" style={{ color: t.textMuted }}>
+                        {ev.organizer?.name}
                       </span>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        {req.slotsOpen} slots open
-                      </span>
+                      {ev.capacity != null && (
+                        <span className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: '#fef3c7', color: '#b45309' }}>
+                          Cap: {ev.capacity}
+                        </span>
+                      )}
                     </div>
 
-                    <h4 className="text-sm font-bold leading-snug" style={{ color: t.textPrimary }}>
-                      {req.eventTitle}
-                    </h4>
+                    <h4 className="mt-3 text-base font-bold leading-snug" style={{ color: t.textPrimary }}>{ev.title}</h4>
+                    <span
+                      className="mt-1.5 inline-block w-fit rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide"
+                      style={{ backgroundColor: t.chipBg, color: t.textMuted }}
+                    >
+                      {ev.type}
+                    </span>
 
-                    <p className="text-xs" style={{ color: t.textMuted }}>
-                      Role: {req.role}
-                    </p>
+                    <p className="mt-3 line-clamp-2 text-sm leading-relaxed" style={{ color: t.textMuted }}>{ev.description}</p>
 
-                    <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: t.textMuted }}>
-                      <Calendar size={13} /> {req.date}
+                    <div className="mt-3 border-t pt-3 text-sm" style={{ borderColor: t.border }}>
+                      <p className="flex items-center gap-2" style={{ color: t.textMuted }}>
+                        <Calendar size={13} />
+                        <span className="font-semibold" style={{ color: t.textPrimary }}>
+                          {new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </p>
+                      <p className="mt-1 flex items-center gap-2" style={{ color: t.textMuted }}>
+                        <Clock size={13} /> {ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}
+                      </p>
+                      <p className="mt-1 flex items-center gap-2" style={{ color: t.textMuted }}>
+                        <MapPin size={13} /> {ev.venue}
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="mt-4 border-t pt-3" style={{ borderColor: t.border }}>
                     <button
                       type="button"
-                      onClick={() => onToggleApplyVolunteer(req.id)}
-                      className={`w-full rounded-xl py-2 text-xs font-bold transition-all shadow-xs ${
-                        req.applied
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                          : 'bg-[#2f4336] text-white hover:bg-[#25362b]'
-                      }`}
+                      disabled={isRegistered || isFull || registeringId === ev._id}
+                      onClick={() => handleRegister(ev._id)}
+                      className="mt-4 w-full rounded-xl py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-70"
+                      style={{ backgroundColor: isRegistered ? '#16a34a' : t.accentPrimary }}
                     >
-                      {req.applied ? 'Application Submitted ✅' : 'Sign Up to Volunteer →'}
+                      {isRegistered ? 'Registered ✅' : isFull ? 'Event Full' : registeringId === ev._id ? 'Registering...' : 'Register for Event'}
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Request Attendance Report Modal */}
       <RequestAttendanceReportModal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
+        onSubmit={submitReportRequest}
         t={t}
         studentName={studentName}
         userEmail={user?.email}
+        studentInfo={user}
       />
     </div>
   );
