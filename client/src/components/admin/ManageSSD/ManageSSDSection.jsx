@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   FileText, HeartHandshake, CalendarCheck2, Search,
-  CheckCircle2, XCircle, Clock, Users, Mail, Plus, Trash2, Lock, Unlock,
+  CheckCircle2, XCircle, Clock, Users, Mail, Plus, Trash2, Lock, Unlock, Link2,
 } from 'lucide-react';
 import attendanceApi from '../../../api/attendanceApi';
 import eventsApi from '../../../api/eventsApi';
@@ -306,12 +306,17 @@ const EventRegistrantsPanel = ({ t }) => {
 };
 
 // ============================================================
-// PANEL 3 — Volunteer Opportunities (create / manage / applicants)
+// PANEL 3 — Volunteer Opportunities (link to real event OR manual, + organizer)
 // ============================================================
 const VolunteerOpportunitiesPanel = ({ t }) => {
   const [opportunities, setOpportunities] = useState(null);
+  const [allEvents, setAllEvents] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ eventTitle: '', role: '', date: '', slotsAvailable: '', description: '' });
+  const [linkedEventId, setLinkedEventId] = useState(''); // '' = manual entry
+  const [form, setForm] = useState({
+    eventTitle: '', role: '', date: '', slotsAvailable: '', description: '',
+    organizerName: '', organizerLogo: '',
+  });
   const [creating, setCreating] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [applicantsById, setApplicantsById] = useState({});
@@ -326,23 +331,63 @@ const VolunteerOpportunitiesPanel = ({ t }) => {
 
   useEffect(() => { load(); }, []);
 
+  // Populates the "link to existing event" dropdown
+  useEffect(() => {
+    eventsApi.getAllEventsAdmin()
+      .then((data) => setAllEvents(Array.isArray(data) ? data : []))
+      .catch(() => setAllEvents([]));
+  }, []);
+
+  const resetForm = () => {
+    setForm({ eventTitle: '', role: '', date: '', slotsAvailable: '', description: '', organizerName: '', organizerLogo: '' });
+    setLinkedEventId('');
+  };
+
+  // Picking an existing event auto-fills title/date/organizer from it
+  const handleLinkedEventChange = (eventId) => {
+    setLinkedEventId(eventId);
+    if (!eventId) return;
+    const ev = (allEvents || []).find((e) => e._id === eventId);
+    if (!ev) return;
+    setForm((f) => ({
+      ...f,
+      eventTitle: ev.title,
+      date: new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      organizerName: ev.organizer?.name || '',
+      organizerLogo: ev.organizer?.logo || '',
+    }));
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!form.eventTitle.trim() || !form.role.trim() || !form.date.trim()) {
-      toast.error('Event title, role, and date are required');
+    if (!form.role.trim()) {
+      toast.error('Role is required');
       return;
     }
+    if (!linkedEventId && (!form.eventTitle.trim() || !form.date.trim())) {
+      toast.error('Event title and date are required when not linking to an event');
+      return;
+    }
+
     setCreating(true);
     try {
-      await volunteerOpportunityApi.createOpportunity({
-        eventTitle: form.eventTitle.trim(),
+      const payload = {
         role: form.role.trim(),
-        date: form.date.trim(),
         slotsAvailable: form.slotsAvailable === '' ? null : Number(form.slotsAvailable),
         description: form.description.trim(),
-      });
+      };
+
+      if (linkedEventId) {
+        payload.eventId = linkedEventId;
+      } else {
+        payload.eventTitle = form.eventTitle.trim();
+        payload.date = form.date.trim();
+        payload.organizer = { name: form.organizerName.trim(), logo: form.organizerLogo.trim() };
+      }
+
+      await volunteerOpportunityApi.createOpportunity(payload);
       toast.success('Opportunity created');
-      setForm({ eventTitle: '', role: '', date: '', slotsAvailable: '', description: '' });
+      resetForm();
       setShowForm(false);
       load();
     } catch (err) {
@@ -393,10 +438,10 @@ const VolunteerOpportunitiesPanel = ({ t }) => {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm" style={{ color: t.textMuted }}>Create opportunities for students to apply to.</p>
+        <p className="text-sm" style={{ color: t.textMuted }}>Link an opportunity to an existing event, or create one manually.</p>
         <button
           type="button"
-          onClick={() => setShowForm((s) => !s)}
+          onClick={() => { setShowForm((s) => !s); if (showForm) resetForm(); }}
           className="flex items-center gap-1.5 rounded-xl bg-black px-3.5 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
         >
           <Plus size={14} /> {showForm ? 'Cancel' : 'New Opportunity'}
@@ -405,13 +450,33 @@ const VolunteerOpportunitiesPanel = ({ t }) => {
 
       {showForm && (
         <form onSubmit={handleCreate} className="space-y-3 rounded-2xl border p-4" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+          <div>
+            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
+              <Link2 size={12} /> Link to an existing event (optional)
+            </label>
+            <select
+              value={linkedEventId}
+              onChange={(e) => handleLinkedEventChange(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+            >
+              <option value="">-- Manual entry (no linked event) --</option>
+              {(allEvents || []).map((ev) => (
+                <option key={ev._id} value={ev._id}>
+                  {ev.title} — {new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input
               type="text"
               placeholder="Event title (e.g. XPERIA 2026)"
               value={form.eventTitle}
               onChange={(e) => setForm((f) => ({ ...f, eventTitle: e.target.value }))}
-              className="rounded-lg border px-3 py-2 text-sm"
+              disabled={!!linkedEventId}
+              className="rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
               style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
             />
             <input
@@ -427,7 +492,8 @@ const VolunteerOpportunitiesPanel = ({ t }) => {
               placeholder="Date (e.g. Aug 26 - Aug 27)"
               value={form.date}
               onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-              className="rounded-lg border px-3 py-2 text-sm"
+              disabled={!!linkedEventId}
+              className="rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
               style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
             />
             <input
@@ -439,7 +505,32 @@ const VolunteerOpportunitiesPanel = ({ t }) => {
               className="rounded-lg border px-3 py-2 text-sm"
               style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
             />
+            <input
+              type="text"
+              placeholder="Organizer name"
+              value={form.organizerName}
+              onChange={(e) => setForm((f) => ({ ...f, organizerName: e.target.value }))}
+              disabled={!!linkedEventId}
+              className="rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
+              style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+            />
+            <input
+              type="text"
+              placeholder="Organizer logo URL"
+              value={form.organizerLogo}
+              onChange={(e) => setForm((f) => ({ ...f, organizerLogo: e.target.value }))}
+              disabled={!!linkedEventId}
+              className="rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
+              style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+            />
           </div>
+
+          {linkedEventId && (
+            <p className="text-xs" style={{ color: t.textMuted }}>
+              Title, date, and organizer are pulled from the linked event — unlink to enter them manually.
+            </p>
+          )}
+
           <textarea
             placeholder="Description (optional)"
             value={form.description}
@@ -473,22 +564,37 @@ const VolunteerOpportunitiesPanel = ({ t }) => {
         {opportunities?.map((opp) => (
           <div key={opp._id} className="rounded-2xl border p-4" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="font-bold" style={{ color: t.textPrimary }}>{opp.eventTitle}</h4>
-                  <span className="rounded-md px-2 py-0.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
-                    {opp.role}
-                  </span>
-                  <span
-                    className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                    style={{ backgroundColor: opp.isOpen ? '#dcfce7' : '#fee2e2', color: opp.isOpen ? '#15803d' : '#dc2626' }}
-                  >
-                    {opp.isOpen ? 'Open' : 'Closed'}
-                  </span>
+              <div className="flex items-start gap-3">
+                {opp.organizer?.logo ? (
+                  <img src={opp.organizer.logo} alt={opp.organizer.name} className="h-9 w-9 shrink-0 rounded-lg object-cover" style={{ border: `1px solid ${t.border}` }} />
+                ) : (
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: t.chipBg }}>
+                    <Users size={14} style={{ color: t.textMuted }} />
+                  </div>
+                )}
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-bold" style={{ color: t.textPrimary }}>{opp.eventTitle}</h4>
+                    <span className="rounded-md px-2 py-0.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                      {opp.role}
+                    </span>
+                    {opp.event && (
+                      <span className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
+                        <Link2 size={10} /> Linked event
+                      </span>
+                    )}
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                      style={{ backgroundColor: opp.isOpen ? '#dcfce7' : '#fee2e2', color: opp.isOpen ? '#15803d' : '#dc2626' }}
+                    >
+                      {opp.isOpen ? 'Open' : 'Closed'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs" style={{ color: t.textMuted }}>
+                    {opp.date}{opp.slotsAvailable != null ? ` · ${opp.slotsAvailable} slots` : ''}
+                    {opp.organizer?.name ? ` · ${opp.organizer.name}` : ''}
+                  </p>
                 </div>
-                <p className="mt-1 text-xs" style={{ color: t.textMuted }}>
-                  {opp.date}{opp.slotsAvailable != null ? ` · ${opp.slotsAvailable} slots` : ''}
-                </p>
               </div>
 
               <div className="flex shrink-0 gap-2">

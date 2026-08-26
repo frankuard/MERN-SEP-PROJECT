@@ -44,6 +44,7 @@ const allowedOrigins = [
   'http://localhost:5178',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5178',
+  'http://192.168.100.200:5178',
 ];
 
 app.use(
@@ -131,7 +132,7 @@ app.use('/api/volunteer-opportunities', require('./routes/volunteerOpportunity.r
 
 connectDB();
 
-app.listen(3000,() => {
+app.listen(3000,"0.0.0.0",() => {
     console.log("Server is running on port 3000");
 });
 
