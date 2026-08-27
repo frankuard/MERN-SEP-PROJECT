@@ -33,6 +33,8 @@ const classroomRoutes = require('./routes/classrooms.routes');
 const classroomRequestRoutes = require('./routes/classroomRequests.routes');
 const volunteerRecordRoutes = require('./routes/volunteerRecords.routes');
 const adminUsersRoutes = require('./routes/adminUsers.routes');
+
+const notificationRoutes = require('./routes/notification.routes');
 const app = express();
 
 
@@ -133,6 +135,7 @@ app.use('/api/volunteer-opportunities', require('./routes/volunteerOpportunity.r
 
 app.use('/api/admin/users', adminUsersRoutes);
 
+app.use('/api/notifications', notificationRoutes);
 
 connectDB();
 
