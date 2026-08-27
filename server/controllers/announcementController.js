@@ -1,5 +1,5 @@
 const Announcement = require('../models/Announcement');
-
+const { createNotificationForRole } = require('../utils/createNotification');
 /**
  * 1. Get all announcements (optional department / priority filters)
  * GET /api/announcements
@@ -48,12 +48,19 @@ const createAnnouncement = async (req, res) => {
       return res.status(400).json({ message: 'title and department are required' });
     }
 
-    const announcement = await Announcement.create({
+        const announcement = await Announcement.create({
       title,
       message,
       priority,
       department,
       publishedAt: publishedAt || Date.now(),
+    });
+
+    createNotificationForRole('student', {
+      type: 'announcement',
+      title: 'New Announcement',
+      message: announcement.title,
+      link: `/announcements/${announcement._id}`,
     });
 
     res.status(201).json(announcement);
@@ -81,7 +88,15 @@ const updateAnnouncement = async (req, res) => {
       }
     });
 
-    const updated = await announcement.save();
+        const updated = await announcement.save();
+
+    createNotificationForRole('student', {
+      type: 'announcement',
+      title: 'Announcement Updated',
+      message: updated.title,
+      link: `/announcements/${updated._id}`,
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid announcement ID' });
