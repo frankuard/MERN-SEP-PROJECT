@@ -7,6 +7,11 @@ import toast from 'react-hot-toast';
 const CARD_TINTS = ['pastelBlue', 'pastelPink', 'pastelYellow', 'pastelCyan', 'pastelPurple', 'pastelOrange'];
 const ACCENT = '#5c8a72';
 
+// Preferred display order for known categories. Anything else found in the data
+// (e.g. a brand-new category added straight in Compass) gets appended alphabetically,
+// with 'General' (the fallback for books with no category set) always shown last.
+const CATEGORY_ORDER = ['Computer Science', 'Business', 'Philosophy', 'Self Help', 'Fantasy'];
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -164,6 +169,7 @@ const YourBooksLog = ({ myBorrows, t }) => {
 const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
   const [resourcesActiveCategory, setResourcesActiveCategory] = useState('library');
   const [bookSearchQuery, setBookSearchQuery] = useState('');
+  const [activeBookCategory, setActiveBookCategory] = useState('All');
 
   const [books, setBooks] = useState([]);
   const [myBorrows, setMyBorrows] = useState([]);
@@ -193,15 +199,36 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
     note: '',
   });
 
+  // All categories present in the data right now, in a sensible order:
+  // known categories first (CATEGORY_ORDER), then any new ones alphabetically,
+  // then 'General' (books with no category set) last.
+  const availableCategories = useMemo(() => {
+    const set = new Set();
+    books.forEach((b) => set.add((b.category || '').trim() || 'General'));
+    const known = CATEGORY_ORDER.filter((c) => set.has(c));
+    const rest = [...set].filter((c) => c !== 'General' && !CATEGORY_ORDER.includes(c)).sort();
+    return [...known, ...rest, ...(set.has('General') ? ['General'] : [])];
+  }, [books]);
+
   const filteredBooks = useMemo(() => {
-    if (!bookSearchQuery.trim()) return books;
-    return books.filter(
-      (b) =>
-        b.name.toLowerCase().includes(bookSearchQuery.toLowerCase()) ||
-        b.author.toLowerCase().includes(bookSearchQuery.toLowerCase()) ||
-        b.shelf.toLowerCase().includes(bookSearchQuery.toLowerCase())
-    );
-  }, [books, bookSearchQuery]);
+    let result = books;
+
+    if (activeBookCategory !== 'All') {
+      result = result.filter((b) => ((b.category || '').trim() || 'General') === activeBookCategory);
+    }
+
+    if (bookSearchQuery.trim()) {
+      const q = bookSearchQuery.toLowerCase();
+      result = result.filter(
+        (b) =>
+          b.name.toLowerCase().includes(q) ||
+          b.author.toLowerCase().includes(q) ||
+          b.shelf.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [books, bookSearchQuery, activeBookCategory]);
 
   const handleBorrowRequestSubmit = async ({ returnBy, studentId }) => {
     try {
@@ -257,7 +284,7 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
       {resourcesActiveCategory === 'library' && (
         <div className="space-y-6">
           <div className="rounded-[28px] p-5 sm:p-7" style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}>
-            <div className="flex items-center gap-3 pb-5">
+            <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white">
                 <BookOpen size={20} strokeWidth={2.5} />
               </div>
@@ -274,27 +301,60 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
               </div>
             </div>
 
-            {loadingBooks && (
-              <p className="py-6 text-center text-sm font-semibold" style={{ color: t.textMuted }}>Loading books...</p>
-            )}
+            {/* Category filter pills — "All" + one per category found in the data */}
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4" style={{ borderColor: t.border }}>
+              <button
+                type="button"
+                onClick={() => setActiveBookCategory('All')}
+                className="cursor-pointer rounded-full px-4 py-2 text-xs font-extrabold transition-all"
+                style={{
+                  backgroundColor: activeBookCategory === 'All' ? '#111111' : t.pageBg,
+                  color: activeBookCategory === 'All' ? '#ffffff' : t.textSecondary,
+                  border: activeBookCategory === 'All' ? 'none' : `1px solid ${t.border}`,
+                }}
+              >
+                All
+              </button>
+              {availableCategories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setActiveBookCategory(cat)}
+                  className="cursor-pointer rounded-full px-4 py-2 text-xs font-extrabold transition-all"
+                  style={{
+                    backgroundColor: activeBookCategory === cat ? '#111111' : t.pageBg,
+                    color: activeBookCategory === cat ? '#ffffff' : t.textSecondary,
+                    border: activeBookCategory === cat ? 'none' : `1px solid ${t.border}`,
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
 
-            {!loadingBooks && filteredBooks.length === 0 && (
-              <p className="py-6 text-center text-sm font-semibold" style={{ color: t.textMuted }}>No books found.</p>
-            )}
+            <div className="mt-6">
+              {loadingBooks && (
+                <p className="py-6 text-center text-sm font-semibold" style={{ color: t.textMuted }}>Loading books...</p>
+              )}
 
-            {!loadingBooks && filteredBooks.length > 0 && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredBooks.map((book, i) => (
-                  <BookCard
-                    key={book._id}
-                    book={book}
-                    tint={t[CARD_TINTS[i % CARD_TINTS.length]]}
-                    onRequestBorrow={setModalBook}
-                    t={t}
-                  />
-                ))}
-              </div>
-            )}
+              {!loadingBooks && filteredBooks.length === 0 && (
+                <p className="py-6 text-center text-sm font-semibold" style={{ color: t.textMuted }}>No books found.</p>
+              )}
+
+              {!loadingBooks && filteredBooks.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredBooks.map((book, i) => (
+                    <BookCard
+                      key={book._id}
+                      book={book}
+                      tint={t[CARD_TINTS[i % CARD_TINTS.length]]}
+                      onRequestBorrow={setModalBook}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <YourBooksLog myBorrows={myBorrows} t={t} />
