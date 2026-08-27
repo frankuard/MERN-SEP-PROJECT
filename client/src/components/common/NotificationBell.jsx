@@ -34,7 +34,11 @@ const NotificationBell = ({ t, onNavigate }) => {
   const handleItemClick = (n) => {
     if (!n.isRead) markAsRead(n._id);
     if (n.link && onNavigate) {
-      onNavigate(n.link);
+      // Notification links are sometimes stored with a leading slash
+      // ('/events', '/ssd-help') while activeTab checks expect the bare
+      // tab id ('events', 'ssd-help'). Strip it here so both forms work,
+      // regardless of which format any given controller wrote.
+      onNavigate(n.link.replace(/^\//, ''));
       setOpen(false);
     }
   };

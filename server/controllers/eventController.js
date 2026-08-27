@@ -1,5 +1,7 @@
 const Event = require('../models/Event');
 const EventRegistration = require('../models/EventRegistration');
+const { createNotification, createNotificationForRole } = require('../utils/createNotification');
+
 
 /**
  * GET EVENTS
@@ -168,6 +170,15 @@ const createEvent = async (req, res) => {
       createdBy: req.user._id,
     });
 
+    if (event.isPublished) {
+      createNotificationForRole('student', {
+        type: 'event',
+        title: 'New Event Added',
+        message: `${event.title} — ${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+        link: 'events',
+      });
+    }
+
     res.status(201).json({
       message: 'Event created successfully',
       event,
@@ -197,6 +208,17 @@ const updateEvent = async (req, res) => {
     Object.assign(event, req.body);
 
     await event.save();
+
+    // Only notify students for events that are actually visible to them —
+    // an edit to a draft (isPublished: false) shouldn't notify anyone yet.
+    if (event.isPublished) {
+      createNotificationForRole('student', {
+        type: 'event',
+        title: 'Event Updated',
+        message: `${event.title} was updated — check the latest details`,
+        link: 'events',
+      });
+    }
 
     res.status(200).json({
       message: 'Event updated successfully',

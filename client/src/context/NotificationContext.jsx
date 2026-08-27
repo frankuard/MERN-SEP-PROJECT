@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext(null);
 
-const POLL_INTERVAL_MS = 30000; // 30 seconds
+const POLL_INTERVAL_MS = 3000; // 5 seconds
 
 export const NotificationProvider = ({ children }) => {
   const { user } = useAuth();
