@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bell, Home } from 'lucide-react';
 import NavbarMeta from './NavbarMeta';
+import NotificationBell from '../../common/NotificationBell';
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard',
@@ -22,11 +23,9 @@ const StudentNavbar = ({
   onNavigateHome,
   studentName,
   username,
-  showNotifications,
-  onToggleNotifications,
   showProfileMenu,
   onToggleProfileMenu,
-  notificationsList,
+  onNavigateTab,
   creditDue,
   profileMenuContent,
 }) => {
@@ -79,61 +78,7 @@ const StudentNavbar = ({
 
         <NavbarMeta t={t} />
 
-        {/* Notifications */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={onToggleNotifications}
-            className="relative flex h-12 w-12 items-center justify-center rounded-xl transition-transform hover:scale-105"
-            style={{
-              backgroundColor: t.navbarChip || t.chipBg,
-              color: t.navbarChipText || t.textPrimary,
-            }}
-            aria-label="Notifications"
-          >
-            <Bell size={22} strokeWidth={2} />
-            <span
-              className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold"
-              style={{
-                backgroundColor: t.navbarDateBg || '#111',
-                color: t.navbarDateText || '#fff',
-              }}
-            >
-              3
-            </span>
-          </button>
-
-          {showNotifications && (
-            <div
-              className="absolute right-0 mt-2 w-80 rounded-2xl border p-4 shadow-xl z-50"
-              style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowCard }}
-            >
-              <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: t.border }}>
-                <h3 className="text-sm font-extrabold" style={{ color: t.textPrimary }}>Notifications</h3>
-                <span
-                  className="rounded-full px-2 py-0.5 text-[11px] font-extrabold"
-                  style={{ backgroundColor: t.navbarDateBg || '#111', color: t.navbarDateText || '#fff' }}
-                >
-                  3 new
-                </span>
-              </div>
-              <div className="mt-2.5 flex max-h-64 flex-col gap-2 overflow-y-auto">
-                {notificationsList.map((n) => (
-                  <div
-                    key={n.id}
-                    className="rounded-xl p-2.5 text-xs"
-                    style={{
-                      backgroundColor: n.unread ? (t.chipBg) : 'transparent',
-                    }}
-                  >
-                    <p className="font-semibold" style={{ color: t.textPrimary }}>{n.text}</p>
-                    <span className="mt-1 block text-[10px]" style={{ color: t.textMuted }}>{n.time}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <NotificationBell t={t} onNavigate={onNavigateTab} />
 
         {/* Profile pill */}
         <div className="relative">

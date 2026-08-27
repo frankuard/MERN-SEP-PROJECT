@@ -115,7 +115,6 @@ const StudentDashboard = () => {
   const [randomRoomIndex, setRandomRoomIndex] = useState(0);
 
   // Header Dropdowns
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   useEffect(() => {
@@ -337,13 +336,7 @@ const StudentDashboard = () => {
 
   const studentName = user?.username ? user.username.split(' ')[0] : 'Suraj';
 
-  const notificationsList = [
-    { id: 1, text: 'Devfest registration is now open', time: '10m ago', unread: true },
-    { id: 2, text: 'Class SR01 Wolves permission granted', time: '1h ago', unread: true },
-    { id: 3, text: 'RTE: Friday Workshop time adjusted to 8:30 AM', time: '2h ago', unread: true },
-    { id: 4, text: 'Canteen Credit balance updated', time: '3h ago', unread: false },
-    { id: 5, text: 'SSD Attendance verified for Spring Semester', time: '4h ago', unread: false },
-  ];
+
 
   const renderEventIcon = (type) => {
     switch (type) {
@@ -377,17 +370,15 @@ const StudentDashboard = () => {
 
       {/* Main Content View */}
       <div className="flex flex-1 flex-col overflow-x-hidden">
-        <StudentNavbar
+                <StudentNavbar
           t={t}
           activeTab={activeTab}
           onNavigateHome={() => setActiveTab('dashboard')}
           studentName={studentName}
-          username={user?.username || 'Suraj Poddar'}
-          showNotifications={showNotifications}
-          onToggleNotifications={() => setShowNotifications(!showNotifications)}
+          username={user?.username || ''}
+                  onNavigateTab={setActiveTab}
           showProfileMenu={showProfileMenu}
           onToggleProfileMenu={() => setShowProfileMenu(!showProfileMenu)}
-          notificationsList={notificationsList}
           creditDue={null}
           profileMenuContent={
             showProfileMenu && (
