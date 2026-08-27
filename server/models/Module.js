@@ -3,13 +3,13 @@ const mongoose = require('mongoose');
 const moduleSchema = new mongoose.Schema(
   {
     code: {
-      type: String, // e.g. "4CS001"
+      type: String,
       required: [true, 'Module code is required'],
       trim: true,
       unique: true,
     },
     name: {
-      type: String, // e.g. "Introductory Programming and Problem Solving"
+      type: String,
       required: [true, 'Module name is required'],
       trim: true,
     },
@@ -17,6 +17,4 @@ const moduleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Module = mongoose.models.Module || mongoose.model('Module', moduleSchema);
-
-module.exports = Module;
+module.exports = mongoose.models.Module || mongoose.model('Module', moduleSchema);
