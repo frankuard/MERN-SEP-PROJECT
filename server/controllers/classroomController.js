@@ -11,9 +11,53 @@ const getClassrooms = async (req, res) => {
   }
 };
 
+const CAMPUS_START = '7:00 AM';
+const CAMPUS_END = '6:00 PM';
+
+const parseTimeToMinutes = (str) => {
+  if (!str) return null;
+  const m = str.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const ap = m[3].toUpperCase();
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+};
+
+const minutesToTime = (mins) => {
+  let h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const ap = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
+};
+
+// Merge a list of {start, end} minute ranges that may overlap/touch into
+// the minimum set of non-overlapping occupied ranges.
+const mergeRanges = (ranges) => {
+  const sorted = ranges
+    .filter((r) => r.start !== null && r.end !== null && r.end > r.start)
+    .sort((a, b) => a.start - b.start);
+
+  const merged = [];
+  for (const r of sorted) {
+    const last = merged[merged.length - 1];
+    if (last && r.start <= last.end) {
+      last.end = Math.max(last.end, r.end);
+    } else {
+      merged.push({ ...r });
+    }
+  }
+  return merged;
+};
+
 // GET /api/classrooms/vacant?day=Monday
-// Automatic: cross-checks real Timetable periods for that day.
-// Also excludes rooms with an active manual block for that day.
+// Returns each classroom with its actual free time windows for that day,
+// computed by subtracting real class periods + manual blocks from the
+// campus operating hours — not just a whole-day vacant/occupied flag.
 const getVacantClassrooms = async (req, res) => {
   try {
     const { day } = req.query;
@@ -24,33 +68,74 @@ const getVacantClassrooms = async (req, res) => {
     const classrooms = await Classroom.find({}).sort({ name: 1 });
     const periods = await Timetable.find({ day });
 
+    const dayStart = parseTimeToMinutes(CAMPUS_START);
+    const dayEnd = parseTimeToMinutes(CAMPUS_END);
+
     const result = classrooms.map((room) => {
       const roomIdStr = room._id.toString();
 
-      const occupyingPeriod = periods.find((p) => p.room.toString() === roomIdStr);
-      const activeBlock = (room.manualBlocks || []).find((b) => b.day === day);
+      const roomPeriods = periods.filter((p) => p.room && p.room.toString() === roomIdStr);
+      const roomBlocks = (room.manualBlocks || []).filter((b) => b.day === day);
 
-      let status = 'vacant'; // 'vacant' | 'class' | 'blocked'
-      let occupiedBy = null;
-
-      if (occupyingPeriod) {
-        status = 'class';
-        occupiedBy = {
+      const occupiedRanges = mergeRanges([
+        ...roomPeriods.map((p) => ({
+          start: parseTimeToMinutes(p.startTime),
+          end: parseTimeToMinutes(p.endTime),
           type: 'class',
-          startTime: occupyingPeriod.startTime,
-          endTime: occupyingPeriod.endTime,
-          moduleCode: occupyingPeriod.moduleCode,
-          moduleName: occupyingPeriod.moduleName,
-        };
-      } else if (activeBlock) {
-        status = 'blocked';
-        occupiedBy = {
+          moduleCode: p.moduleCode,
+          moduleName: p.moduleName,
+        })),
+        ...roomBlocks.map((b) => ({
+          start: parseTimeToMinutes(b.startTime),
+          end: parseTimeToMinutes(b.endTime),
           type: 'blocked',
-          blockId: activeBlock._id,
-          startTime: activeBlock.startTime,
-          endTime: activeBlock.endTime,
-          reason: activeBlock.reason,
-        };
+          reason: b.reason,
+        })),
+      ]);
+
+      // Free windows = gaps between campus start/end not covered by any occupied range.
+      const freeWindows = [];
+      let cursor = dayStart;
+      for (const occ of occupiedRanges) {
+        if (occ.start > cursor) {
+          freeWindows.push({ startTime: minutesToTime(cursor), endTime: minutesToTime(occ.start) });
+        }
+        cursor = Math.max(cursor, occ.end);
+      }
+      if (cursor < dayEnd) {
+        freeWindows.push({ startTime: minutesToTime(cursor), endTime: minutesToTime(dayEnd) });
+      }
+
+      // If the requested day is today (real calendar date), figure out
+      // whether the room is free right now, and until when.
+      const todayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
+      let currentStatus = null;
+      if (day === todayName) {
+        const now = new Date();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+
+        const currentFree = freeWindows.find((w) => {
+          const s = parseTimeToMinutes(w.startTime);
+          const e = parseTimeToMinutes(w.endTime);
+          return nowMins >= s && nowMins < e;
+        });
+
+        if (currentFree) {
+          currentStatus = { state: 'vacant', until: currentFree.endTime };
+        } else {
+          const occ = occupiedRanges.find((o) => nowMins >= o.start && nowMins < o.end);
+          if (occ) {
+            currentStatus = {
+              state: occ.type === 'class' ? 'class' : 'blocked',
+              until: minutesToTime(occ.end),
+              moduleCode: occ.moduleCode,
+              moduleName: occ.moduleName,
+              reason: occ.reason,
+            };
+          } else if (nowMins < dayStart || nowMins >= dayEnd) {
+            currentStatus = { state: 'closed' };
+          }
+        }
       }
 
       return {
@@ -58,9 +143,8 @@ const getVacantClassrooms = async (req, res) => {
         name: room.name,
         capacity: room.capacity,
         facilities: room.facilities,
-        status,
-        occupiedBy,
-        manualBlocks: room.manualBlocks || [],
+        freeWindows,
+        currentStatus, // null if `day` isn't today — frontend just shows the window list
       };
     });
 
@@ -69,6 +153,7 @@ const getVacantClassrooms = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // POST /api/classrooms
 const createClassroom = async (req, res) => {
