@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Calendar, Timer, MapPin, User, BookOpen, School, History, CheckCircle2,
-  ArrowRightLeft, Clock, X, Users, Lock, GraduationCap,
+  ArrowRightLeft, Clock, X, Users, Lock, GraduationCap, CalendarX,
 } from 'lucide-react';
 import timetableApi from '../../api/timetableApi';
 import classroomApi from '../../api/classroomApi';
@@ -24,6 +24,13 @@ const CHANGE_BADGE = {
   red: { bg: '#fee2e2', text: '#dc2626' },
 };
 
+const CURRENT_STATUS_STYLE = {
+  vacant: { bg: '#dcfce7', text: '#15803d', label: 'Vacant Now', icon: CheckCircle2 },
+  class: { bg: '#dbeafe', text: '#1d4ed8', label: 'In Class', icon: GraduationCap },
+  blocked: { bg: '#f3f4f6', text: '#4b5563', label: 'Reserved', icon: Lock },
+  closed: { bg: '#f3f4f6', text: '#4b5563', label: 'Closed', icon: CalendarX },
+};
+
 const SUB_TABS = [
   { id: 'schedule', label: 'Class Schedule', icon: Calendar },
   { id: 'vacant', label: 'Vacant Classrooms', icon: School },
@@ -39,7 +46,7 @@ const TimetableSection = ({ t }) => {
 
   // -------- Vacant classrooms (per-day, backend-computed) --------
   const [vacantDay, setVacantDay] = useState(DAY_ORDER[new Date().getDay()]);
-  const [rooms, setRooms] = useState(null); // array from getVacantClassrooms(day)
+  const [rooms, setRooms] = useState(null); // array from getVacantClassrooms(day) — each room has freeWindows + currentStatus
   const [myRequests, setMyRequests] = useState(null);
   const [requestForm, setRequestForm] = useState(null); // { classroomId, roomName } or null
   const [formDay, setFormDay] = useState(DAY_ORDER[new Date().getDay()]);
@@ -48,6 +55,8 @@ const TimetableSection = ({ t }) => {
   const [formReason, setFormReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  const isVacantDayClosed = vacantDay === 'Saturday';
 
   // -------- Load class schedule --------
   useEffect(() => {
@@ -77,6 +86,7 @@ const TimetableSection = ({ t }) => {
 
   useEffect(() => {
     if (subTab !== 'vacant') return;
+    if (isVacantDayClosed) { setRooms([]); setMyRequests([]); return; }
     loadVacantData(vacantDay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subTab, vacantDay]);
@@ -277,111 +287,116 @@ const TimetableSection = ({ t }) => {
             ))}
           </div>
 
-          {rooms === null && (
+          {isVacantDayClosed && (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border px-4 py-8 text-center text-sm font-semibold" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              <CalendarX size={20} />
+              College is closed on Saturdays — no classrooms to show.
+            </div>
+          )}
+
+          {!isVacantDayClosed && rooms === null && (
             <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
               Checking room availability for {vacantDay}...
             </div>
           )}
 
-          {rooms !== null && rooms.length === 0 && (
+          {!isVacantDayClosed && rooms !== null && rooms.length === 0 && (
             <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
               No classrooms have been added yet.
             </div>
           )}
 
-          {rooms !== null && rooms.length > 0 && (
+          {!isVacantDayClosed && rooms !== null && rooms.length > 0 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rooms.map((room) => {
-                // room.status: 'class' | 'blocked' | 'vacant' (from backend, real occupancy for vacantDay)
-                if (room.status === 'class') {
-                  return (
-                    <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
-                          <span className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
-                            <GraduationCap size={12} /> In Class
-                          </span>
-                        </div>
-                        <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
-                          <p className="flex items-center gap-1.5"><Users size={12} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
-                          <p>{room.occupiedBy?.moduleCode} · {room.occupiedBy?.startTime}–{room.occupiedBy?.endTime}</p>
-                        </div>
-                      </div>
-                      <button type="button" disabled className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white opacity-60" style={{ backgroundColor: t.accentPrimary }}>
-                        Occupied
-                      </button>
-                    </div>
-                  );
-                }
+                // New backend shape: room.freeWindows = [{startTime, endTime}, ...]
+                // room.currentStatus = null unless vacantDay is today, else {state, until, moduleCode?, moduleName?, reason?}
+                const freeWindows = room.freeWindows || [];
+                const hasFreeTime = freeWindows.length > 0;
+                const current = room.currentStatus;
+                const currentBadge = current ? (CURRENT_STATUS_STYLE[current.state] || CURRENT_STATUS_STYLE.vacant) : null;
+                const CurrentIcon = currentBadge?.icon;
 
-                if (room.status === 'blocked') {
-                  return (
-                    <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
-                          <span className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: '#f3f4f6', color: '#4b5563' }}>
-                            <Lock size={12} /> Reserved
-                          </span>
-                        </div>
-                        <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
-                          <p className="flex items-center gap-1.5"><Users size={12} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
-                          <p>{room.occupiedBy?.startTime}–{room.occupiedBy?.endTime}</p>
-                          {room.occupiedBy?.reason && <p>Reason: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.occupiedBy.reason}</span></p>}
-                        </div>
-                      </div>
-                      <button type="button" disabled className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white opacity-60" style={{ backgroundColor: '#6b7280' }}>
-                        Reserved by Admin
-                      </button>
-                    </div>
-                  );
-                }
-
-                // status === 'vacant' — check personal request status on top
+                // Personal request status layered on top, same as before
                 const myReq = latestRequestFor(room._id);
-                const status = myReq?.status || 'vacant'; // vacant | pending | approved | rejected
-                const statusBadge = {
-                  vacant: { bg: '#dcfce7', text: '#15803d', label: 'Vacant' },
-                  pending: { bg: '#fef3c7', text: '#b45309', label: 'Pending' },
-                  approved: { bg: '#dbeafe', text: '#1d4ed8', label: 'Approved' },
-                  rejected: { bg: '#fee2e2', text: '#dc2626', label: 'Rejected' },
-                }[status];
+                const reqStatus = myReq?.status || null; // pending | approved | rejected | null
 
                 return (
                   <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <p className="min-w-0 truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
-                        <span className="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: statusBadge.bg, color: statusBadge.text }}>
-                          {statusBadge.label}
-                        </span>
+                        {currentBadge && (
+                          <span className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: currentBadge.bg, color: currentBadge.text }}>
+                            {CurrentIcon && <CurrentIcon size={12} />} {currentBadge.label}
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
                         <p className="flex items-center gap-1.5"><Users size={12} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
                         {room.facilities && <p>Amenities: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.facilities}</span></p>}
-                        {myReq && (status === 'pending' || status === 'approved') && (
-                          <p>Requested: <span className="font-semibold" style={{ color: t.textPrimary }}>{myReq.day}, {myReq.startTime}–{myReq.endTime}</span></p>
+
+                        {/* Right-now line, only when vacantDay is today */}
+                        {current && current.state === 'vacant' && (
+                          <p className="font-semibold" style={{ color: '#15803d' }}>Free right now, until {current.until}</p>
+                        )}
+                        {current && current.state === 'class' && (
+                          <p className="font-semibold" style={{ color: '#1d4ed8' }}>
+                            {current.moduleCode ? `${current.moduleCode} · in class until ${current.until}` : `In class until ${current.until}`}
+                          </p>
+                        )}
+                        {current && current.state === 'blocked' && (
+                          <p className="font-semibold" style={{ color: '#4b5563' }}>
+                            Reserved until {current.until}{current.reason ? ` (${current.reason})` : ''}
+                          </p>
+                        )}
+
+                        {/* Free windows for the selected day */}
+                        <div className="pt-1.5">
+                          <p className="font-bold" style={{ color: t.textPrimary }}>
+                            {hasFreeTime ? 'Free windows:' : 'No free windows'}
+                          </p>
+                          {hasFreeTime && (
+                            <ul className="mt-1 space-y-0.5">
+                              {freeWindows.map((w, i) => (
+                                <li key={i} className="flex items-center gap-1.5">
+                                  <Clock size={11} /> {w.startTime} – {w.endTime}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+
+                        {myReq && (reqStatus === 'pending' || reqStatus === 'approved') && (
+                          <p className="pt-1">Requested: <span className="font-semibold" style={{ color: t.textPrimary }}>{myReq.day}, {myReq.startTime}–{myReq.endTime}</span></p>
                         )}
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={status === 'pending'}
-                      onClick={() => {
-                        if (status === 'vacant' || status === 'rejected') openRequestForm(room._id, room.name);
-                        if (status === 'approved') releaseRequest(myReq._id);
-                      }}
-                      className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-70"
-                      style={{ backgroundColor: status === 'approved' ? '#16a34a' : status === 'pending' ? '#f59e0b' : t.accentPrimary }}
-                    >
-                      {status === 'vacant' && 'Take Permission'}
-                      {status === 'pending' && 'Permission Pending'}
-                      {status === 'approved' && 'Approved (Release)'}
-                      {status === 'rejected' && 'Request Again'}
-                    </button>
+                    {!hasFreeTime && (
+                      <button type="button" disabled className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white opacity-60" style={{ backgroundColor: t.textMuted }}>
+                        Not Available
+                      </button>
+                    )}
+
+                    {hasFreeTime && (
+                      <button
+                        type="button"
+                        disabled={reqStatus === 'pending'}
+                        onClick={() => {
+                          if (!reqStatus || reqStatus === 'rejected') openRequestForm(room._id, room.name);
+                          if (reqStatus === 'approved') releaseRequest(myReq._id);
+                        }}
+                        className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-70"
+                        style={{ backgroundColor: reqStatus === 'approved' ? '#16a34a' : reqStatus === 'pending' ? '#f59e0b' : t.accentPrimary }}
+                      >
+                        {!reqStatus && 'Take Permission'}
+                        {reqStatus === 'pending' && 'Permission Pending'}
+                        {reqStatus === 'approved' && 'Approved (Release)'}
+                        {reqStatus === 'rejected' && 'Request Again'}
+                      </button>
+                    )}
                   </div>
                 );
               })}
