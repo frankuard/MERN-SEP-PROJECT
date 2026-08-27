@@ -19,6 +19,7 @@ const NOTIFICATION_TYPES = [
   'cctv_request',         // your CCTV footage request approved/rejected
   'profile_update',       // your user profile was edited by an admin
   'classroom_request',    // your classroom/room request approved/rejected
+  'event', // for the event
   'general',               // fallback / anything not covered above
 ];
 

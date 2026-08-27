@@ -1,6 +1,8 @@
 const Attendance = require('../models/Attendance');
 const AttendanceReportRequest = require('../models/AttendanceReportRequest');
 const User = require('../models/User');
+const { createNotification } = require('../utils/createNotification');
+
 
 // ========================================================
 // STUDENT
@@ -92,6 +94,13 @@ const markAttendance = async (req, res) => {
       markedBy: req.user._id,
     });
 
+    createNotification(studentId, {
+      type: 'attendance',
+      title: 'Attendance Recorded',
+      message: `Marked ${status} for ${date.trim()}`,
+      link: '/ssd-help',
+    });
+
     res.status(201).json(record);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
@@ -111,6 +120,14 @@ const updateAttendance = async (req, res) => {
     if (status !== undefined) record.status = status;
 
     const updated = await record.save();
+
+    createNotification(record.student, {
+      type: 'attendance',
+      title: 'Attendance Modified',
+      message: `Your attendance for ${updated.date} was updated to ${updated.status}`,
+      link: '/ssd-help',
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid record ID' });
@@ -252,6 +269,13 @@ const quickSetAttendance = async (req, res) => {
     if (records.length > 0) {
       await Attendance.insertMany(records);
     }
+
+    createNotification(studentId, {
+      type: 'attendance',
+      title: 'Attendance Modified',
+      message: `Your attendance was updated — ${present}/${totalDays} days present`,
+      link: '/ssd-help',
+    });
 
     res.status(200).json({
       message: 'Attendance updated',
