@@ -4,7 +4,7 @@ const router = express.Router();
 
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
-
+const optionalAuthMiddleware = require('../middleware/optionalAuthMiddleware'); // ADD THIS
 const {
   getEvents,
   getEventById,
@@ -25,7 +25,7 @@ const {
 // GET /events
 // GET /events?type=college
 // GET /events?type=community
-router.get('/', getEvents);
+router.get('/', optionalAuthMiddleware, getEvents);
 
 // =====================================================
 // AUTHENTICATED USER
@@ -53,6 +53,6 @@ router.delete('/:id', authMiddleware, roleMiddleware('staff', 'admin'), deleteEv
 // SINGLE EVENT (public, must come after the admin/specific routes above)
 // =====================================================
 
-router.get('/:id', getEventById);
+router.get('/:id', optionalAuthMiddleware, getEventById);
 
 module.exports = router;

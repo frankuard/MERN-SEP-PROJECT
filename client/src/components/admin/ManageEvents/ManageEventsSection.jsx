@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Calendar, Plus, Pencil, Trash2, ArrowLeft, Search, MapPin, Clock,
 } from 'lucide-react';
@@ -8,6 +8,9 @@ import toast from 'react-hot-toast';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
 
 
+// Fixed fallback organizers — always shown even before any event uses them.
+// Anything else typed in manually on event creation is picked up automatically
+// below (see `allOrganizers`) since it's already saved on the Event document.
 const ORGANIZER_PRESETS = [
     { name: 'BIC', logo: 'https://ik.imagekit.io/ltf9bjszh/logos/bic.png?updatedAt=1787158208751' },
     { name: 'BIC AI Horizon', logo: 'https://ik.imagekit.io/ltf9bjszh/logos/bicaihorizon.jpg?updatedAt=1787158209717' },
@@ -33,8 +36,8 @@ const emptyForm = {
     isPublished: true,
 };
 
-const toFormState = (event) => {
-    const matchedPreset = ORGANIZER_PRESETS.find(
+const toFormState = (event, organizerOptions) => {
+    const matchedPreset = organizerOptions.find(
         (p) => p.name === event.organizer?.name && p.logo === event.organizer?.logo
     );
 
@@ -109,6 +112,25 @@ const ManageEventsSection = ({ t }) => {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Every unique organizer (name + logo) seen across all existing events,
+    // merged with the fixed defaults above. Whenever someone creates an event
+    // with a brand-new organizer name + logo, it becomes selectable here the
+    // next time this list is loaded — no separate "organizers" table needed.
+    const allOrganizers = useMemo(() => {
+        const map = new Map();
+        ORGANIZER_PRESETS.forEach((p) => map.set(p.name.trim().toLowerCase(), p));
+        events.forEach((ev) => {
+            const org = ev.organizer;
+            if (org?.name?.trim() && org?.logo?.trim()) {
+                const key = org.name.trim().toLowerCase();
+                if (!map.has(key)) {
+                    map.set(key, { name: org.name.trim(), logo: org.logo.trim() });
+                }
+            }
+        });
+        return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [events]);
+
     const loadEvents = () => {
         setLoading(true);
         eventsApi.getAllEventsAdmin()
@@ -126,7 +148,7 @@ const ManageEventsSection = ({ t }) => {
     };
 
     const openEdit = (event) => {
-        setForm(toFormState(event));
+        setForm(toFormState(event, allOrganizers));
         setEditingId(event._id);
         setView('form');
     };
@@ -140,7 +162,7 @@ const ManageEventsSection = ({ t }) => {
             setForm((prev) => ({ ...prev, organizerPreset: 'custom' }));
             return;
         }
-        const preset = ORGANIZER_PRESETS.find((p) => p.name === presetName);
+        const preset = allOrganizers.find((p) => p.name === presetName);
         if (preset) {
             setForm((prev) => ({
                 ...prev,
@@ -399,10 +421,14 @@ const ManageEventsSection = ({ t }) => {
                                 style={inputStyle}
                             >
                                 <option value="custom">Custom Organizer</option>
-                                {ORGANIZER_PRESETS.map((p) => (
+                                {allOrganizers.map((p) => (
                                     <option key={p.name} value={p.name}>{p.name}</option>
                                 ))}
                             </select>
+                            <p className="mt-1.5 text-xs" style={{ color: t.textMuted }}>
+                                Any organizer you enter manually below is saved with this event and will
+                                automatically show up in this list the next time you create an event.
+                            </p>
                         </div>
 
                         {form.organizerPreset === 'custom' ? (
