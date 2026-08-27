@@ -61,7 +61,7 @@ const NotificationBell = ({ t, onNavigate }) => {
 
       {open && (
         <div
-          className="absolute right-0 z-50 mt-2 w-80 max-w-[90vw] overflow-hidden rounded-2xl border shadow-lg sm:w-96"
+          className="fixed left-1/2 top-16 z-50 w-[90vw] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border shadow-lg sm:absolute sm:right-0 sm:left-auto sm:top-auto sm:mt-2 sm:w-80 sm:max-w-none sm:translate-x-0 sm:sm:w-96"
           style={{ backgroundColor: t.cardBg, borderColor: t.border }}
         >
           <div className="flex items-center justify-between border-b p-3.5" style={{ borderColor: t.border }}>
