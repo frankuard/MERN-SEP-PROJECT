@@ -1,6 +1,8 @@
 const HelpRequest = require('../models/HelpRequest');
 const DepartmentContact = require('../models/DepartmentContact');
 const User = require('../models/User');
+const { createNotificationForRole } = require('../utils/createNotification');
+
 
 const resolveUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 
@@ -46,6 +48,13 @@ const createHelpRequest = async (req, res) => {
 
     const populated = await HelpRequest.findById(newRequest._id)
       .populate('requester', 'username email department semester');
+
+    createNotificationForRole(['staff', 'admin'], {
+      type: 'campus_help',
+      title: 'New Peer Help Request',
+      message: `${newRequest.requesterName} asked: "${newRequest.request}"`,
+      link: 'campus-help',
+    }, userId);
 
     res.status(201).json(populated);
   } catch (err) {
@@ -154,6 +163,13 @@ const createDepartment = async (req, res) => {
       order: typeof order === 'number' ? order : 0,
     });
 
+    createNotificationForRole('student', {
+      type: 'department',
+      title: 'New Department Contact Added',
+      message: `${department.title} contact info is now available`,
+      link: 'campus-help',
+    });
+
     res.status(201).json(department);
   } catch (err) {
     if (err.code === 11000) {
@@ -184,6 +200,14 @@ const updateDepartment = async (req, res) => {
     if (order !== undefined) department.order = order;
 
     await department.save();
+
+    createNotificationForRole('student', {
+      type: 'department',
+      title: 'Department Contact Updated',
+      message: `${department.title} contact info was updated`,
+      link: 'campus-help',
+    });
+
     res.status(200).json(department);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid department ID' });

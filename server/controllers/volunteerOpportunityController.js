@@ -1,6 +1,8 @@
 const VolunteerOpportunity = require('../models/VolunteerOpportunity');
 const VolunteerApplication = require('../models/VolunteerApplication');
 const Event = require('../models/Event');
+const { createNotificationForRole, createNotificationForUsers } = require('../utils/createNotification');
+
 
 // ========================================================
 // STUDENT
@@ -122,6 +124,14 @@ const createOpportunity = async (req, res) => {
     }
 
     const opportunity = await VolunteerOpportunity.create(payload);
+
+    createNotificationForRole('student', {
+      type: 'volunteer_opportunity',
+      title: 'New Volunteer Opportunity',
+      message: `${opportunity.eventTitle} — ${opportunity.role}`,
+      link: 'ssd-help',
+    });
+
     res.status(201).json(opportunity);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
@@ -134,6 +144,8 @@ const updateOpportunity = async (req, res) => {
   try {
     const opportunity = await VolunteerOpportunity.findById(req.params.id);
     if (!opportunity) return res.status(404).json({ message: 'Opportunity not found' });
+
+    const wasOpen = opportunity.isOpen;
 
     const { eventTitle, role, date, slotsAvailable, description, isOpen, organizer } = req.body;
     if (eventTitle !== undefined) opportunity.eventTitle = eventTitle.trim();
@@ -150,6 +162,21 @@ const updateOpportunity = async (req, res) => {
     }
 
     const updated = await opportunity.save();
+
+    if (wasOpen && updated.isOpen === false) {
+      const applications = await VolunteerApplication.find({
+        opportunity: updated._id,
+        status: 'applied',
+      }).select('student');
+
+      createNotificationForUsers(applications.map((a) => a.student), {
+        type: 'volunteer_opportunity',
+        title: 'Volunteer Opportunity Closed',
+        message: `${updated.eventTitle} — ${updated.role} is no longer accepting applicants.`,
+        link: 'ssd-help',
+      });
+    }
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid opportunity ID' });

@@ -2,6 +2,8 @@ const Book = require('../models/Book');
 const BorrowRequest = require('../models/BorrowRequest');
 const SportsItem = require('../models/SportsItem');
 const SportsRequest = require('../models/SportsRequest');
+const { createNotificationForRole, createNotification } = require('../utils/createNotification');
+
 
 const resolveUserId = (req) => req.user?._id || req.user?.userId;
 
@@ -114,6 +116,13 @@ const createBook = async (req, res) => {
       cover: cover?.trim() || '',
     });
 
+    createNotificationForRole('student', {
+      type: 'book',
+      title: 'New Book Added',
+      message: `"${book.name}" by ${book.author} is now available in the library`,
+      link: 'resources',
+    });
+
     res.status(201).json(book);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
@@ -132,6 +141,14 @@ const updateBook = async (req, res) => {
     });
 
     const updated = await book.save();
+
+    createNotificationForRole('student', {
+      type: 'book',
+      title: 'Book Updated',
+      message: `"${updated.name}" was updated`,
+      link: 'resources',
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid book ID' });
@@ -145,6 +162,14 @@ const deleteBook = async (req, res) => {
     if (!book) return res.status(404).json({ message: 'Book not found' });
 
     await book.deleteOne();
+
+    createNotificationForRole('student', {
+      type: 'book',
+      title: 'Book Removed',
+      message: `"${book.name}" was removed from the library`,
+      link: 'resources',
+    });
+
     res.status(200).json({ message: 'Book deleted' });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid book ID' });
@@ -187,6 +212,13 @@ const approveBorrowRequest = async (req, res) => {
     request.approvedAt = new Date();
     await request.save();
 
+    createNotification(request.requestedBy, {
+      type: 'book_request',
+      title: 'Book Request Approved',
+      message: 'Your book borrow request has been approved.',
+      link: 'resources',
+    });
+
     res.status(200).json(request);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid request ID' });
@@ -206,6 +238,13 @@ const rejectBorrowRequest = async (req, res) => {
     request.approvedBy = resolveUserId(req);
     request.approvedAt = new Date();
     await request.save();
+
+    createNotification(request.requestedBy, {
+      type: 'book_request',
+      title: 'Book Request Rejected',
+      message: 'Your book borrow request was rejected.',
+      link: 'resources',
+    });
 
     res.status(200).json(request);
   } catch (err) {
@@ -306,6 +345,13 @@ const createSportsItem = async (req, res) => {
       totalQuantity: Number(totalQuantity),
     });
 
+    createNotificationForRole('student', {
+      type: 'sports_item',
+      title: 'New Sports Item Added',
+      message: `${item.name} is now available to request`,
+      link: 'resources',
+    });
+
     res.status(201).json(item);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
@@ -324,6 +370,14 @@ const updateSportsItem = async (req, res) => {
     });
 
     const updated = await item.save();
+
+    createNotificationForRole('student', {
+      type: 'sports_item',
+      title: 'Sports Item Updated',
+      message: `${updated.name} was updated`,
+      link: 'resources',
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
@@ -337,6 +391,14 @@ const deleteSportsItem = async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Sports item not found' });
 
     await item.deleteOne();
+
+    createNotificationForRole('student', {
+      type: 'sports_item',
+      title: 'Sports Item Removed',
+      message: `${item.name} is no longer available`,
+      link: 'resources',
+    });
+
     res.status(200).json({ message: 'Sports item deleted' });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
@@ -379,6 +441,13 @@ const approveSportsRequest = async (req, res) => {
     request.approvedAt = new Date();
     await request.save();
 
+    createNotification(request.requestedBy, {
+      type: 'sports_request',
+      title: 'Sports Request Approved',
+      message: 'Your sports equipment request has been approved.',
+      link: 'resources',
+    });
+
     res.status(200).json(request);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid request ID' });
@@ -398,6 +467,13 @@ const rejectSportsRequest = async (req, res) => {
     request.approvedBy = resolveUserId(req);
     request.approvedAt = new Date();
     await request.save();
+
+    createNotification(request.requestedBy, {
+      type: 'sports_request',
+      title: 'Sports Request Rejected',
+      message: 'Your sports equipment request was rejected.',
+      link: 'resources',
+    });
 
     res.status(200).json(request);
   } catch (err) {

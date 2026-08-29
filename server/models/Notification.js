@@ -20,6 +20,7 @@ const NOTIFICATION_TYPES = [
   'profile_update',       // your user profile was edited by an admin
   'classroom_request',    // your classroom/room request approved/rejected
   'event', // for the event
+  'campus_help',           // new peer help request posted
   'general',               // fallback / anything not covered above
 ];
 
