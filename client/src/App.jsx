@@ -35,14 +35,17 @@ const App = () => {
       <Route path="/signup" element={<Signup />} />
 
       <Route element={<ProtectedRoute />}>
+        {/* /student with no section -> default to the dashboard tab */}
+        <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
         <Route
-          path="/student/dashboard"
+          path="/student/:tab"
           element={
             <RoleRoute allowedRoles={['student']}>
               <StudentDashboard />
             </RoleRoute>
           }
         />
+
         <Route
           path="/teacher/dashboard"
           element={
@@ -59,8 +62,11 @@ const App = () => {
             </RoleRoute>
           }
         />
+
+        {/* /admin with no section -> default to the dashboard tab */}
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route
-          path="/admin/dashboard"
+          path="/admin/:tab"
           element={
             <RoleRoute allowedRoles={['admin']}>
               <AdminDashboard />
