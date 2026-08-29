@@ -1,6 +1,8 @@
 const CanteenMenu = require('../models/CanteenMenu');
 const CanteenCredit = require('../models/CanteenCredit');
 const User = require('../models/User');
+const { createNotificationForRole, createNotification } = require('../utils/createNotification');
+
 
 // =========================================================================
 // 1. CANTEEN MENU (FOOD) CONTROLLER
@@ -89,6 +91,13 @@ const createMenuItem = async (req, res) => {
       availability: availability !== undefined ? availability : true,
     });
 
+    createNotificationForRole('student', {
+      type: 'canteen_menu',
+      title: 'New Menu Item Added',
+      message: `${newItem.name} is now available in the canteen`,
+      link: 'canteen',
+    });
+
     res.status(201).json({ message: 'Food item added successfully', item: newItem });
   } catch (error) {
     res.status(500).json({ message: 'Failed to create food item', error: error.message });
@@ -113,6 +122,13 @@ const updateMenuItem = async (req, res) => {
       { new: true, runValidators: true }
     );
 
+    createNotificationForRole('student', {
+      type: 'canteen_menu',
+      title: 'Menu Item Updated',
+      message: `${updatedItem.name} was updated`,
+      link: 'canteen',
+    });
+
     res.status(200).json({ message: 'Food item updated successfully', item: updatedItem });
   } catch (error) {
     res.status(500).json({ message: 'Failed to update food item', error: error.message });
@@ -132,6 +148,14 @@ const deleteMenuItem = async (req, res) => {
     }
 
     await CanteenMenu.findByIdAndDelete(req.params.id);
+
+    createNotificationForRole('student', {
+      type: 'canteen_menu',
+      title: 'Menu Item Removed',
+      message: `${item.name} is no longer available`,
+      link: 'canteen',
+    });
+
     res.status(200).json({ message: 'Food item deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete food item', error: error.message });
@@ -257,6 +281,13 @@ const createOrUpdateCredit = async (req, res) => {
       });
     }
 
+    createNotification(userId, {
+      type: 'canteen_credit',
+      title: 'Canteen Due Updated',
+      message: `NPR ${Number(amountDue)} was added to your canteen due. New balance: NPR ${credit.amountDue - credit.amountPaid}`,
+      link: 'canteen',
+    });
+
     res.status(200).json({ message: 'Credit account updated successfully', credit });
   } catch (error) {
     res.status(500).json({ message: 'Failed to update credit account', error: error.message });
@@ -293,6 +324,13 @@ const recordCreditPayment = async (req, res) => {
     });
 
     await credit.save();
+
+    createNotification(credit.user, {
+      type: 'canteen_credit',
+      title: 'Payment Recorded',
+      message: `NPR ${paymentAmount} payment recorded. Remaining balance: NPR ${credit.amountDue - credit.amountPaid}`,
+      link: 'canteen',
+    });
 
     res.status(200).json({
       message: `Payment of NPR ${paymentAmount} recorded successfully`,
