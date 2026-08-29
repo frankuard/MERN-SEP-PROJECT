@@ -1,5 +1,7 @@
 const Classroom = require('../models/Classroom');
 const Timetable = require('../models/Timetable');
+const ClassroomRequest = require('../models/ClassroomRequest');
+const { createNotification } = require('../utils/createNotification');
 
 // GET /api/classrooms
 const getClassrooms = async (req, res) => {

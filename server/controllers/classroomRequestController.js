@@ -1,5 +1,7 @@
 const Classroom = require('../models/Classroom');
 const ClassroomRequest = require('../models/ClassroomRequest');
+const { createNotification } = require('../utils/createNotification');
+
 
 // ========================================================
 // STUDENT
@@ -112,6 +114,16 @@ const reviewRequest = async (req, res) => {
     request.reviewNote = reviewNote?.trim() || '';
 
     const updated = await request.save();
+
+    createNotification(updated.requestedBy, {
+      type: 'classroom_request',
+      title: status === 'approved' ? 'Classroom Request Approved' : 'Classroom Request Rejected',
+      message: status === 'approved'
+        ? `Your request for ${updated.roomName} on ${updated.day} (${updated.startTime}–${updated.endTime}) was approved.`
+        : `Your request for ${updated.roomName} on ${updated.day} was rejected.${updated.reviewNote ? ` Reason: ${updated.reviewNote}` : ''}`,
+      link: 'rte',
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid request ID' });

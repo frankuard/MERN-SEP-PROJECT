@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const { createNotification } = require('../utils/createNotification');
+
 
 // GET /api/admin/users
 const getAllUsers = async (req, res) => {
@@ -40,6 +42,12 @@ const updateUser = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    const previous = {
+      username: user.username,
+      department: user.department,
+      semester: user.semester,
+    };
+
     const { username, department, semester } = req.body;
 
     if (username !== undefined) {
@@ -55,6 +63,21 @@ const updateUser = async (req, res) => {
     if (semester !== undefined) user.semester = semester.trim();
 
     const updated = await user.save();
+
+    const changes = [];
+    if (previous.username !== updated.username) changes.push(`username to "${updated.username}"`);
+    if (previous.department !== updated.department) changes.push(`department to "${updated.department}"`);
+    if (previous.semester !== updated.semester) changes.push(`semester to "${updated.semester}"`);
+
+    if (changes.length > 0) {
+      createNotification(updated._id, {
+        type: 'profile_update',
+        title: 'Profile Updated',
+        message: `An admin updated your ${changes.join(', ')}.`,
+        link: 'dashboard',
+      });
+    }
+
     const { password, ...safeUser } = updated.toObject();
     res.status(200).json(safeUser);
   } catch (err) {

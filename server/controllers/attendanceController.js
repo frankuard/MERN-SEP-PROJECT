@@ -170,6 +170,18 @@ const updateReportRequest = async (req, res) => {
     if (status === 'fulfilled') request.fulfilledBy = req.user._id;
 
     const updated = await request.save();
+
+    if (status === 'fulfilled' || status === 'rejected') {
+      createNotification(updated.student, {
+        type: 'attendance',
+        title: status === 'fulfilled' ? 'Report Request Approved' : 'Report Request Rejected',
+        message: status === 'fulfilled'
+          ? 'Your attendance report request has been approved.'
+          : `Your attendance report request was rejected.${updated.adminNote ? ` Reason: ${updated.adminNote}` : ''}`,
+        link: 'ssd-help',
+      });
+    }
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid request ID' });
