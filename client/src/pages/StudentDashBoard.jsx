@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Calendar, User, Mic2, Cpu, Trophy,
   BrainCircuit, Code, Palette, CheckCircle2, Clock
@@ -34,13 +35,32 @@ import CampusHelpSection from '../components/student/CampusHelpSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import lostFoundApi from '../api/lostFoundApi';
 
+// Every valid section for /student/:tab. Anything else in the URL
+// (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'
+// without forcing a redirect.
+const VALID_STUDENT_TABS = [
+  'dashboard', 'resources', 'lost-found', 'canteen', 'ssd-help',
+  'events', 'rte', 'campus-help',
+];
+
 const StudentDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const t = themes[theme] || themes.light;
 
-  // Active section tab
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Active section tab now lives in the URL itself (/student/:tab) instead
+  // of React state or sessionStorage — a reload just re-requests the same
+  // URL, so you land back on the same section automatically.
+  const { tab } = useParams();
+  const navigate = useNavigate();
+  const activeTab = VALID_STUDENT_TABS.includes(tab) ? tab : 'dashboard';
+
+  // Same name/signature as before (`setActiveTab('lost-found')`), so every
+  // existing caller — Sidebar, StudentNavbar, DashboardHome's onNavigateTab,
+  // TimetableSection's onNavigateTab, etc. — keeps working unchanged.
+  const setActiveTab = (nextTab) => {
+    navigate(`/student/${nextTab}`);
+  };
 
   // Shared state variables
   const [collegeEvents, setCollegeEvents] = useState(INITIAL_COLLEGE_EVENTS);

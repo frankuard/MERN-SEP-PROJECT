@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -16,12 +16,35 @@ import ManageTimetableSection from "../components/admin/ManageTimetable/ManageTi
 import ManageSSDSection from '../components/admin/ManageSSD/ManageSSDSection';
 import ManageUsersSection from '../components/admin/ManageUsers/ManageUsersSection';
 
+// Every valid section for /admin/:tab. Includes 'manage-ssd' and
+// 'manage-users' which were previously missing from this list — those two
+// tabs would have silently bounced back to 'dashboard' before this fix.
+const VALID_ADMIN_TABS = [
+  'dashboard', 'manage-attendance', 'manage-events', 'manage-announcements',
+  'manage-canteen', 'manage-lost-found', 'manage-resources',
+  'manage-campus-help', 'manage-timetable', 'manage-ssd', 'manage-users',
+  'approvals',
+];
+
 const AdminDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const t = themes[theme];
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Active section tab now lives in the URL itself (/admin/:tab) instead of
+  // React state or sessionStorage — a reload just re-requests the same URL,
+  // so you land back on the same section automatically.
+  const { tab } = useParams();
+  const navigate = useNavigate();
+  const activeTab = VALID_ADMIN_TABS.includes(tab) ? tab : 'dashboard';
+
+  // Same name/signature as before (`setActiveTab('manage-events')`), so
+  // Sidebar's onTabChange and AdminDashboardHome's onNavigate keep working
+  // unchanged.
+  const setActiveTab = (nextTab) => {
+    navigate(`/admin/${nextTab}`);
+  };
+
   const adminName = user?.username || 'Admin';
 
   return (
