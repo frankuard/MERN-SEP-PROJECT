@@ -1,6 +1,8 @@
 const LostFoundItem = require('../models/LostFoundItem');
 const CctvRequest = require('../models/CctvRequest');
 const User = require('../models/User');
+const { createNotification } = require('../utils/createNotification');
+
 
 const resolveUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
 
@@ -213,15 +215,25 @@ const markItemReturned = async (req, res) => {
       return res.status(403).json({ message: 'Only authorized staff or the item owner can mark this as returned' });
     }
 
-    item.status = 'Returned';
+        item.status = 'Returned';
     item.returnedAt = new Date();
     item.returnedBy = userId;
 
     await item.save();
 
+    if (item.createdBy) {
+      createNotification(item.createdBy, {
+        type: 'lost_found',
+        title: 'Item Marked as Returned',
+        message: `Your item "${item.title}" has been marked as returned.`,
+        link: 'lost-found',
+      });
+    }
+
     const populated = await LostFoundItem.findById(item._id)
       .populate('createdBy', 'username email role')
-      .populate('claimedBy', 'username email role');
+      .populate('claimedBy', 'username email role')
+      .populate('claims.user', 'username email role');
 
     res.status(200).json(populated);
   } catch (err) {
@@ -295,6 +307,17 @@ const updateCctvStatus = async (req, res) => {
 
     await request.save();
 
+    if (status === 'Approved' || status === 'Rejected') {
+      createNotification(request.user, {
+        type: 'cctv_request',
+        title: status === 'Approved' ? 'CCTV Request Approved' : 'CCTV Request Rejected',
+        message: status === 'Approved'
+          ? `Your CCTV footage request for ${request.location} was approved.`
+          : `Your CCTV footage request for ${request.location} was rejected.`,
+        link: 'lost-found',
+      });
+    }
+
     const updated = await CctvRequest.findById(id)
       .populate('user', 'username email role')
       .populate('reviewedBy', 'username email role');
@@ -349,7 +372,28 @@ const updateClaimStatus = async (req, res) => {
           c.status = 'Rejected';
         }
       });
+
+      if (item.createdBy) {
+        createNotification(item.createdBy, {
+          type: 'lost_found',
+          title: 'Item Claimed',
+          message: `"${item.title}" has been claimed by ${claim.userName}.`,
+          link: 'lost-found',
+        });
+      }
+      createNotification(claim.user, {
+        type: 'lost_found',
+        title: 'Claim Approved',
+        message: `Your claim for "${item.title}" was approved.`,
+        link: 'lost-found',
+      });
     } else {
+      createNotification(claim.user, {
+        type: 'lost_found',
+        title: 'Claim Rejected',
+        message: `Your claim for "${item.title}" was rejected.`,
+        link: 'lost-found',
+      });
       const wasActiveClaimant =
         item.claimedBy && claim.user && item.claimedBy.toString() === claim.user.toString();
       if (wasActiveClaimant) {

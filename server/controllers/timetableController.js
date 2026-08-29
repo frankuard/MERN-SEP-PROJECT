@@ -3,7 +3,7 @@ const ScheduleChange = require('../models/ScheduleChange');
 const Module = require('../models/Module');
 const Group = require('../models/Group');
 const Classroom = require('../models/Classroom');
-
+const { createNotificationForRole } = require('../utils/createNotification');
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // ========================================================
@@ -102,6 +102,13 @@ const createPeriod = async (req, res) => {
       order: order != null ? Number(order) : 0,
     });
 
+        createNotificationForRole('student', {
+      type: 'timetable',
+      title: 'New Class Added',
+      message: `${period.moduleCode} (${period.classType}) added on ${period.day}, ${period.startTime}–${period.endTime}`,
+      link: 'rte',
+    });
+
     res.status(201).json(period);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
@@ -151,6 +158,14 @@ const updatePeriod = async (req, res) => {
     }
 
     const updated = await period.save();
+
+    createNotificationForRole('student', {
+      type: 'timetable',
+      title: 'Class Period Updated',
+      message: `${updated.moduleCode} (${updated.classType}) on ${updated.day} was updated`,
+      link: 'rte',
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid period ID' });
@@ -222,6 +237,20 @@ const createScheduleChange = async (req, res) => {
       badgeColor: badgeColor || 'amber',
     });
 
+    createNotificationForRole('student', {
+      type: 'timetable',
+      title: 'Schedule Change Published',
+      message: `${change.moduleCode} — ${change.status} (${change.originalDay})`,
+      link: 'rte',
+    });
+
+    createNotificationForRole('student', {
+      type: 'timetable',
+      title: 'Schedule Change Published',
+      message: `${change.moduleCode} — ${change.status} (${change.originalDay})`,
+      link: 'rte',
+    });
+
     res.status(201).json(change);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
@@ -243,6 +272,14 @@ const updateScheduleChange = async (req, res) => {
     });
 
     const updated = await change.save();
+
+    createNotificationForRole('student', {
+      type: 'timetable',
+      title: 'Schedule Change Updated',
+      message: `${updated.moduleCode} — ${updated.status} (${updated.originalDay})`,
+      link: 'rte',
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid schedule change ID' });
