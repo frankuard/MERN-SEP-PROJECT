@@ -39,6 +39,17 @@ const userSchema = new mongoose.Schema(
       default: '',
     },
 
+    // Admin-only. Which of the 5 new department admin panels this account
+    // belongs to (super/canteen/ssd/rte/resources). Left unset (null) for
+    // every existing admin account — their /admin route keeps going to the
+    // original, unchanged admin dashboard. Only accounts that explicitly
+    // have this set get routed to the new department-picker system.
+    adminSection: {
+      type: String,
+      enum: ['super', 'canteen', 'ssd', 'rte', 'resources'],
+      default: null,
+    },
+
     semester: {
       type: String,
       default: '',

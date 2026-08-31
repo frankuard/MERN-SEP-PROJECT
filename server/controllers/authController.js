@@ -163,6 +163,7 @@ const loginUser = async (req, res) => {
         status: user.status,
         department: user.department,
         semester: user.semester,
+        adminSection: user.adminSection,
         profileImage: user.profileImage,
       },
     });
@@ -205,6 +206,7 @@ const getMe = async (req, res) => {
         status: req.user.status,
         department: req.user.department,
         semester: req.user.semester,
+        adminSection: req.user.adminSection,
         profileImage: req.user.profileImage,
       },
     });
