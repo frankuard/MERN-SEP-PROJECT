@@ -8,6 +8,7 @@ import AuthProvider from './context/AuthContext.jsx';
 import ThemeProvider from './context/ThemeContext.jsx';
 import { NotificationProvider } from './context/NotificationContext.jsx';
 import { ChatProvider } from './context/ChatContext.jsx';
+import { AIChatProvider } from './context/AIChatContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -16,6 +17,7 @@ createRoot(document.getElementById('root')).render(
         <AuthProvider>
   <NotificationProvider>
     <ChatProvider>
+    <AIChatProvider>
     <App />
           <Toaster
             position="top-right"
@@ -23,6 +25,7 @@ createRoot(document.getElementById('root')).render(
               duration: 3500,
             }}
           />
+          </AIChatProvider>
           </ChatProvider>
   </NotificationProvider>
 </AuthProvider>
