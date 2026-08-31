@@ -9,7 +9,8 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const { getDbStatus } = require('./config/db');
 const {notFound, errorHandler} = require("./middleware/errorHandler");
-
+const socketHandler = require('./socket/socketHandler');
+const http = require('http');
 // ROUTE and middleware IMPORTS
 
 const uploadRoutes = require('./routes/upload.routes')
@@ -35,24 +36,15 @@ const volunteerRecordRoutes = require('./routes/volunteerRecords.routes');
 const adminUsersRoutes = require('./routes/adminUsers.routes');
 
 const notificationRoutes = require('./routes/notification.routes');
+const friendRoutes = require('./routes/friend.routes');
 const app = express();
 
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  'http://localhost:5176',
-  'http://localhost:5177',
-  'http://localhost:5178',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5178',
-  'http://100.68.184.17:5178',
-];
+const { corsOriginCheck } = require('./utils/corsOrigin');
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: corsOriginCheck,
     credentials: true,
   })
 );
@@ -136,10 +128,15 @@ app.use('/api/volunteer-opportunities', require('./routes/volunteerOpportunity.r
 app.use('/api/admin/users', adminUsersRoutes);
 
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/chat', require('./routes/chat.routes'));
+app.use('/api/friends', friendRoutes);
 
 connectDB();
 
-app.listen(3000,() => {
+const server = http.createServer(app);
+socketHandler.init(server, corsOriginCheck);
+
+server.listen(3000, '0.0.0.0', () => {
     console.log("Server is running on port 3000");
 });
 
