@@ -97,7 +97,7 @@ const respondToFriendRequest = async (req, res) => {
         type: 'friend',
         title: 'Friend Request Accepted',
         message: `${me.username || me.email} accepted your friend request`,
-        link: 'chat',
+        link: 'chat:friend-requests',
       });
     }
 

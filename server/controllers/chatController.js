@@ -28,6 +28,27 @@ const emitToRoom = (room, event, payload) => {
   }
 };
 
+// Checks whether a given user currently has this conversation's room open
+// (i.e. their socket already ran 'conversation:join' for it) — used to
+// skip sending a redundant notification to someone already watching the
+// thread live.
+const isUserViewingConversation = (conversationId, userId) => {
+  if (!getIO) return false;
+  try {
+    const io = getIO();
+    if (!io) return false;
+    const room = io.sockets.adapter.rooms.get(`conversation:${conversationId}`);
+    if (!room) return false;
+    for (const socketId of room) {
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket?.user?._id?.toString() === userId) return true;
+    }
+    return false;
+  } catch (err) {
+    return false;
+  }
+};
+
 // ========================================================
 // User search — for sending a friend request or inviting to a group
 // ========================================================
@@ -409,9 +430,25 @@ const sendMessage = async (req, res) => {
     // Also nudge every participant's personal room — this is what lets the
     // conversation list / unread badge update even for people who don't
     // currently have this specific thread open.
+    const me = req.user;
+    const senderLabel = me.username || me.email || 'Someone';
+    const messagePreview = message.text || (message.attachment?.url ? `📎 ${message.attachment.name}` : 'sent a message');
+
     conversation.participants.forEach((p) => {
       const pid = p.toString();
-      if (pid !== myId) emitToRoom(pid, 'conversation:bump', { conversationId: id, message: populated });
+      if (pid === myId) return;
+
+      emitToRoom(pid, 'conversation:bump', { conversationId: id, message: populated });
+
+      // Only notify if they're not already looking at this thread live.
+      if (!isUserViewingConversation(id, pid)) {
+        createNotification(pid, {
+          type: 'message',
+          title: conversation.isGroup ? `New message in ${conversation.groupName}` : 'New Message',
+          message: conversation.isGroup ? `${senderLabel}: ${messagePreview}` : `${senderLabel}: ${messagePreview}`,
+          link: `chat:conversation:${id}`,
+        });
+      }
     });
 
     res.status(201).json(populated);

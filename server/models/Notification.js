@@ -23,6 +23,7 @@ const NOTIFICATION_TYPES = [
   'campus_help',           // new peer help request posted
   'friend',                // friend request received / accepted
   'group',                 // group invite received / accepted
+  'message',                // someone sent you a message / a message in a group you're in
   'general',               // fallback / anything not covered above
 ];
 
