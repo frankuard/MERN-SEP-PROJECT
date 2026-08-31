@@ -21,6 +21,8 @@ const NOTIFICATION_TYPES = [
   'classroom_request',    // your classroom/room request approved/rejected
   'event', // for the event
   'campus_help',           // new peer help request posted
+  'friend',                // friend request received / accepted
+  'group',                 // group invite received / accepted
   'general',               // fallback / anything not covered above
 ];
 

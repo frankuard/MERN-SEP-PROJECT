@@ -2,6 +2,8 @@ import React from 'react';
 import { Bell, Home } from 'lucide-react';
 import NavbarMeta from './NavbarMeta';
 import NotificationBell from '../../common/NotificationBell';
+import ChatButton from '../../common/ChatButton';
+
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard',
@@ -78,6 +80,7 @@ const StudentNavbar = ({
 
         <NavbarMeta t={t} />
 
+        <ChatButton t={t} />
         <NotificationBell t={t} onNavigate={onNavigateTab} />
 
         {/* Profile pill */}

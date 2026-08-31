@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import axiosInstance from '../api/axiosInstance';
+import { connectSocket, disconnectSocket } from '../socket/socket';
 
 const AuthContext = createContext(null);
 
@@ -38,6 +39,7 @@ const AuthProvider = ({ children }) => {
 
         if (mounted && response.data?.user) {
           setUser(response.data.user);
+          connectSocket();
         }
       } catch (error) {
         if (mounted) {
@@ -65,6 +67,7 @@ const AuthProvider = ({ children }) => {
 
     if (response.data?.user) {
       setUser(response.data.user);
+      connectSocket();
     }
 
     return response.data;
@@ -75,6 +78,7 @@ const AuthProvider = ({ children }) => {
 
     if (response.data?.user && response.data.user.status === 'approved') {
       setUser(response.data.user);
+      connectSocket();
     }
 
     return response.data;
@@ -87,6 +91,7 @@ const AuthProvider = ({ children }) => {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
+      disconnectSocket();
     }
   }, []);
 

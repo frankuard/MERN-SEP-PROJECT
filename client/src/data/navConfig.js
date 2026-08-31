@@ -10,6 +10,7 @@ const navConfig = {
   student: [
     { id: "dashboard", label: "Dashboard", icon: Home },
     { id: "events", label: "Events", icon: Calendar },
+    { id: "chat", label: "Chat", icon: MessageSquare },
     { id: "canteen", label: "Canteen", icon: Coffee },
     { id: "lost-found", label: "Lost & Found", icon: Search },
     { id: "campus-help", label: "Help", icon: HelpCircle },

@@ -34,6 +34,7 @@ import CanteenSection from '../components/student/CanteenSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import lostFoundApi from '../api/lostFoundApi';
+import { useChat } from '../context/ChatContext';
 
 // Every valid section for /student/:tab. Anything else in the URL
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'
@@ -42,6 +43,7 @@ const VALID_STUDENT_TABS = [
   'dashboard', 'resources', 'lost-found', 'canteen', 'ssd-help',
   'events', 'rte', 'campus-help',
 ];
+
 
 const StudentDashboard = () => {
   const { user } = useAuth();
@@ -60,6 +62,16 @@ const StudentDashboard = () => {
   // TimetableSection's onNavigateTab, etc. — keeps working unchanged.
   const setActiveTab = (nextTab) => {
     navigate(`/student/${nextTab}`);
+  };
+
+    const { openChat } = useChat();
+
+  const handleSidebarTabChange = (tabId) => {
+    if (tabId === 'chat') {
+      openChat('chats');
+      return;
+    }
+    setActiveTab(tabId);
   };
 
   // Shared state variables
@@ -386,7 +398,7 @@ const StudentDashboard = () => {
       }}
     >
       {/* Sidebar Navigation */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar activeTab={activeTab} onTabChange={handleSidebarTabChange} />
 
       {/* Main Content View */}
       <div className="flex flex-1 flex-col overflow-x-hidden">
