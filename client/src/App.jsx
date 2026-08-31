@@ -3,6 +3,8 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import RoleRoute from './auth/RoleRoute';
 import { getDashboardPath, useAuth } from './context/AuthContext';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminDepartmentPicker from './pages/AdminDepartmentPicker';
+import AdminDeptSection from './pages/AdminDeptSection';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import StaffDashboard from './pages/StaffDashboard';
@@ -27,12 +29,21 @@ const RootRedirect = () => {
   return <Navigate to="/login" replace />;
 };
 
+
+
 const App = () => {
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+
+      {/* Public — reachable without being logged in. /admin always lands
+          here now; the department login itself happens per-card in
+          AdminDeptSection, not via ProtectedRoute. */}
+      <Route path="/admin" element={<Navigate to="/admin/dept" replace />} />
+      <Route path="/admin/dept" element={<AdminDepartmentPicker />} />
+      <Route path="/admin/dept/:section" element={<AdminDeptSection />} />
 
       <Route element={<ProtectedRoute />}>
         {/* /student with no section -> default to the dashboard tab */}
@@ -63,8 +74,8 @@ const App = () => {
           }
         />
 
-        {/* /admin with no section -> default to the dashboard tab */}
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        {/* Untouched — direct URL access to the actual super-admin panel
+            still requires login, same as always. */}
         <Route
           path="/admin/:tab"
           element={
