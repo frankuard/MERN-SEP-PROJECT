@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare, Send, X } from 'lucide-react';
 import aiChatApi from '../../api/aiChatApi';
 import { useAIChat } from '../../context/AIChatContext';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { themes } from '../../data/themes';
 
-// Typing indicator
+// ── Typing dots ──────────────────────────────────────────
 const TypingDots = ({ color }) => (
   <span style={{ display: 'inline-flex', gap: '3px', alignItems: 'center' }}>
     {[0, 1, 2].map((i) => (
@@ -22,7 +23,7 @@ const TypingDots = ({ color }) => (
   </span>
 );
 
-// Message bubble
+// ── Message bubble ───────────────────────────────────────
 const Bubble = ({ msg, t }) => {
   const isUser = msg.role === 'user';
   return (
@@ -48,13 +49,16 @@ const Bubble = ({ msg, t }) => {
   );
 };
 
+// ── Main widget ──────────────────────────────────────────
 const AIChatWidget = () => {
+  // ALL hooks must be called first — before any conditional return
+  const { isAuthenticated } = useAuth();
   const { isOpen, toggleChat, closeChat } = useAIChat();
   const { theme } = useTheme();
   const t = themes[theme] || themes.light;
 
   const [messages, setMessages] = useState([
-    { id: 'welcome', role: 'assistant', content: "Hi! I'm Chauttari AI.\nAsk anything about campus — timetable, events, canteen, announcements, and more." },
+    { id: 'welcome', role: 'assistant', content: "Hi! I'm Chauttari AI.\nAsk anything about campus — timetable, attendance, canteen prices, events, and more." },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,23 +74,35 @@ const AIChatWidget = () => {
   }, [isOpen]);
 
   const buildHistory = useCallback((msgs) =>
-    msgs.filter(m => m.role === 'user' || m.role === 'assistant').slice(-8).map(m => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      parts: m.content,
-    })), []);
+    msgs
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .slice(-8)
+      .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', parts: m.content })),
+    []
+  );
 
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || loading) return;
     setInput('');
-    setMessages(prev => [...prev, { id: `u${Date.now()}`, role: 'user', content: text }, { id: 'loading', role: 'loading', content: '' }]);
+    setMessages(prev => [
+      ...prev,
+      { id: `u${Date.now()}`, role: 'user', content: text },
+      { id: 'loading', role: 'loading', content: '' },
+    ]);
     setLoading(true);
     try {
       const { reply } = await aiChatApi.sendAIMessage(text, buildHistory(messages));
-      setMessages(prev => [...prev.filter(m => m.id !== 'loading'), { id: `a${Date.now()}`, role: 'assistant', content: reply }]);
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== 'loading'),
+        { id: `a${Date.now()}`, role: 'assistant', content: reply },
+      ]);
     } catch (err) {
       const msg = err?.response?.data?.error || 'Could not reach server. Please try again.';
-      setMessages(prev => [...prev.filter(m => m.id !== 'loading'), { id: `e${Date.now()}`, role: 'assistant', content: `⚠️ ${msg}` }]);
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== 'loading'),
+        { id: `e${Date.now()}`, role: 'assistant', content: `⚠️ ${msg}` },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -108,6 +124,10 @@ const AIChatWidget = () => {
     document.head.appendChild(s);
   }, []);
 
+  // ── Auth guard: hide on login / signup / public pages ──
+  // Placed AFTER all hooks to satisfy React's rules of hooks
+  if (!isAuthenticated) return null;
+
   const isDark = theme === 'dark';
 
   return (
@@ -119,27 +139,19 @@ const AIChatWidget = () => {
         aria-label="Chauttari AI"
         title="Chauttari AI"
         style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 9999,
-          width: '52px',
-          height: '52px',
-          borderRadius: '50%',
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          width: '52px', height: '52px', borderRadius: '50%',
           border: `1.5px solid ${t.border}`,
           background: t.sidebarActiveBg,
           color: t.sidebarActiveText,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: t.shadowCard,
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', boxShadow: t.shadowCard,
           transition: 'transform 0.15s ease',
         }}
-        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.06)'}
+        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.07)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
         onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
-        onMouseUp={e => e.currentTarget.style.transform = 'scale(1.06)'}
+        onMouseUp={e => e.currentTarget.style.transform = 'scale(1.07)'}
       >
         {isOpen ? <X size={20} /> : <MessageSquare size={20} />}
       </button>
@@ -150,34 +162,22 @@ const AIChatWidget = () => {
           role="dialog"
           aria-label="Chauttari AI"
           style={{
-            position: 'fixed',
-            bottom: '88px',
-            right: '24px',
-            zIndex: 9998,
-            width: 'min(340px, 92vw)',
-            height: 'min(460px, 72vh)',
-            display: 'flex',
-            flexDirection: 'column',
+            position: 'fixed', bottom: '88px', right: '24px', zIndex: 9998,
+            width: 'min(340px, 92vw)', height: 'min(460px, 72vh)',
+            display: 'flex', flexDirection: 'column',
             background: t.cardBg,
             border: `1px solid ${t.border}`,
-            borderRadius: '16px',
-            boxShadow: t.shadowCard,
+            borderRadius: '16px', boxShadow: t.shadowCard,
             overflow: 'hidden',
             animation: 'chSlideUp 0.2s ease',
           }}
         >
           {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 14px',
-              borderBottom: `1px solid ${t.border}`,
-              background: t.sidebarActiveBg,
-              flexShrink: 0,
-            }}
-          >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 14px', borderBottom: `1px solid ${t.border}`,
+            background: t.sidebarActiveBg, flexShrink: 0,
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <MessageSquare size={16} color={t.sidebarActiveText} />
               <div>
@@ -190,14 +190,8 @@ const AIChatWidget = () => {
               </div>
             </div>
             <button
-              type="button"
-              onClick={closeChat}
-              aria-label="Close"
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: t.sidebarActiveText, opacity: 0.7, padding: '3px',
-                display: 'flex', alignItems: 'center', borderRadius: '6px',
-              }}
+              type="button" onClick={closeChat} aria-label="Close"
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: t.sidebarActiveText, opacity: 0.7, padding: '3px', display: 'flex', alignItems: 'center', borderRadius: '6px' }}
               onMouseEnter={e => e.currentTarget.style.opacity = '1'}
               onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
             >
@@ -206,27 +200,22 @@ const AIChatWidget = () => {
           </div>
 
           {/* Messages */}
-          <div
-            style={{
-              flex: 1, overflowY: 'auto', padding: '12px 10px 6px',
-              display: 'flex', flexDirection: 'column', scrollbarWidth: 'none',
-              background: isDark ? t.pageBg : '#f9f9f9',
-            }}
-          >
+          <div style={{
+            flex: 1, overflowY: 'auto', padding: '12px 10px 6px',
+            display: 'flex', flexDirection: 'column',
+            scrollbarWidth: 'none',
+            background: isDark ? t.pageBg : '#f9f9f9',
+          }}>
             {messages.map(msg => <Bubble key={msg.id} msg={msg} t={t} />)}
             <div ref={bottomRef} />
           </div>
 
           {/* Input */}
-          <div
-            style={{
-              display: 'flex', alignItems: 'flex-end', gap: '7px',
-              padding: '9px 10px 10px',
-              borderTop: `1px solid ${t.border}`,
-              background: t.cardBg,
-              flexShrink: 0,
-            }}
-          >
+          <div style={{
+            display: 'flex', alignItems: 'flex-end', gap: '7px',
+            padding: '9px 10px 10px', borderTop: `1px solid ${t.border}`,
+            background: t.cardBg, flexShrink: 0,
+          }}>
             <textarea
               ref={inputRef}
               value={input}
@@ -237,32 +226,25 @@ const AIChatWidget = () => {
               disabled={loading}
               style={{
                 flex: 1, resize: 'none',
-                border: `1px solid ${t.border}`,
-                borderRadius: '10px',
-                padding: '7px 11px',
-                fontSize: '13px',
+                border: `1px solid ${t.border}`, borderRadius: '10px',
+                padding: '7px 11px', fontSize: '13px',
                 fontFamily: '"Nunito", sans-serif',
                 background: isDark ? t.pageBg : '#fff',
-                color: t.textPrimary,
-                outline: 'none',
-                maxHeight: '80px',
-                overflowY: 'auto',
-                lineHeight: '1.4',
-                scrollbarWidth: 'none',
+                color: t.textPrimary, outline: 'none',
+                maxHeight: '80px', overflowY: 'auto',
+                lineHeight: '1.4', scrollbarWidth: 'none',
                 opacity: loading ? 0.6 : 1,
               }}
               onFocus={e => e.currentTarget.style.borderColor = t.sidebarActiveBg}
               onBlur={e => e.currentTarget.style.borderColor = t.border}
             />
             <button
-              type="button"
-              onClick={send}
+              type="button" onClick={send}
               disabled={!input.trim() || loading}
               aria-label="Send"
               style={{
-                flexShrink: 0, width: '34px', height: '34px',
-                borderRadius: '50%', border: 'none',
-                cursor: !input.trim() || loading ? 'default' : 'pointer',
+                flexShrink: 0, width: '34px', height: '34px', borderRadius: '50%',
+                border: 'none', cursor: !input.trim() || loading ? 'default' : 'pointer',
                 background: !input.trim() || loading ? t.border : t.sidebarActiveBg,
                 color: !input.trim() || loading ? t.textMuted : t.sidebarActiveText,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
