@@ -1,4 +1,4 @@
-#### Hello This is Roshan
-#### This is Aayush
+#### Kailash-UI Designer
+#### Deeya - Frontend Developer 
 
-#### This is kailash
+#### Rojika - Backend Developer 
