@@ -33,16 +33,16 @@ import ResourcesSection from '../components/student/ResourcesSection';
 import CanteenSection from '../components/student/CanteenSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 import ProfileSection from '../components/student/ProfileSection';
+import ChatSection from '../components/student/ChatSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import lostFoundApi from '../api/lostFoundApi';
-import { useChat } from '../context/ChatContext';
 
 // Every valid section for /student/:tab. Anything else in the URL
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'
 // without forcing a redirect.
 const VALID_STUDENT_TABS = [
   'dashboard', 'resources', 'lost-found', 'canteen', 'ssd-help',
-  'events', 'rte', 'campus-help', 'profile',
+  'events', 'rte', 'campus-help', 'profile', 'chat',
 ];
 
 
@@ -66,13 +66,11 @@ const StudentDashboard = () => {
     navigate(`/student/${nextTab}`);
   };
 
-const { openChat } = useChat();
   const [autoOpenFriendRequests, setAutoOpenFriendRequests] = useState(false);
 
   const handleOpenFriendRequests = () => {
-    setViewingProfileId(null);
-    setActiveTab('profile');
-    setAutoOpenFriendRequests(true);
+    // Navigate to the Chat section which has the Requests tab
+    setActiveTab('chat');
   };
   const handleLogout = () => {
     disconnectSocket();
@@ -81,10 +79,6 @@ const { openChat } = useChat();
   };
 
   const handleSidebarTabChange = (tabId) => {
-    if (tabId === 'chat') {
-      openChat('chats');
-      return;
-    }
     setActiveTab(tabId);
   };
 
@@ -514,8 +508,12 @@ const { openChat } = useChat();
         />
 
         {/* Scrollable Main Body */}
-        <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
-          <div className={`mx-auto space-y-8 ${activeTab === 'dashboard' ? 'max-w-5xl' : 'max-w-6xl'}`} style={activeTab === 'dashboard' ? { fontFamily: '"Nunito", sans-serif' } : undefined}>
+        <main className={`flex-1 overflow-y-auto ${activeTab === 'chat' ? 'p-0 flex flex-col' : 'px-6 py-8 sm:px-8 lg:px-10'}`}>
+          <div className={
+            activeTab === 'chat'
+              ? 'flex flex-1 flex-col p-4 sm:p-6'
+              : `mx-auto space-y-8 ${activeTab === 'dashboard' ? 'max-w-5xl' : 'max-w-6xl'}`
+          } style={activeTab === 'dashboard' ? { fontFamily: '"Nunito", sans-serif' } : undefined}>
             {/* 1. Resources Section */}
             {activeTab === 'resources' && (
   <ResourcesSection
@@ -587,6 +585,11 @@ const { openChat } = useChat();
                 autoOpenRequests={autoOpenFriendRequests}
                 onAutoOpenRequestsHandled={() => setAutoOpenFriendRequests(false)}
               />
+            )}
+
+            {/* 12. Chat Section — full page, not a popup */}
+            {activeTab === 'chat' && (
+              <ChatSection t={t} />
             )}
 
             {/* 10. Dashboard Home View */}
