@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  Calendar, User, Mic2, Cpu, Trophy,
-  BrainCircuit, Code, Palette, CheckCircle2, Clock
+import { Calendar, User, Mic2, Cpu, Trophy,
+  BrainCircuit, Code, Palette, CheckCircle2, Clock, LogOut
 } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { themes } from '../data/themes';
+import { disconnectSocket } from '../socket/socket';
 import toast from 'react-hot-toast';
 
 // Initial Data Constants & Endpoints
@@ -32,6 +32,7 @@ import LostFoundSection from '../components/student/LostFoundSection';
 import ResourcesSection from '../components/student/ResourcesSection';
 import CanteenSection from '../components/student/CanteenSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
+import ProfileSection from '../components/student/ProfileSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import lostFoundApi from '../api/lostFoundApi';
 import { useChat } from '../context/ChatContext';
@@ -41,12 +42,12 @@ import { useChat } from '../context/ChatContext';
 // without forcing a redirect.
 const VALID_STUDENT_TABS = [
   'dashboard', 'resources', 'lost-found', 'canteen', 'ssd-help',
-  'events', 'rte', 'campus-help',
+  'events', 'rte', 'campus-help', 'profile',
 ];
 
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme } = useTheme();
   const t = themes[theme] || themes.light;
 
@@ -55,6 +56,7 @@ const StudentDashboard = () => {
   // URL, so you land back on the same section automatically.
   const { tab } = useParams();
   const navigate = useNavigate();
+  const [viewingProfileId, setViewingProfileId] = useState(null);
   const activeTab = VALID_STUDENT_TABS.includes(tab) ? tab : 'dashboard';
 
   // Same name/signature as before (`setActiveTab('lost-found')`), so every
@@ -65,6 +67,12 @@ const StudentDashboard = () => {
   };
 
     const { openChat } = useChat();
+
+  const handleLogout = () => {
+    disconnectSocket();
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const handleSidebarTabChange = (tabId) => {
     if (tabId === 'chat') {
@@ -417,46 +425,80 @@ const StudentDashboard = () => {
           onNavigateHome={() => setActiveTab('dashboard')}
           studentName={studentName}
           username={user?.username || ''}
+          profileImage={user?.profileImage || ''}
                   onNavigateTab={setActiveTab}
           showProfileMenu={showProfileMenu}
           onToggleProfileMenu={() => setShowProfileMenu(!showProfileMenu)}
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
           creditDue={null}
-          profileMenuContent={
+                    profileMenuContent={
             showProfileMenu && (
               <div
-                className="absolute right-0 mt-2 w-56 rounded-2xl border p-3 shadow-xl z-50"
+                className="absolute right-0 mt-2 w-64 rounded-2xl border p-3 shadow-xl z-50"
                 style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowCard }}
               >
-                <div className="border-b pb-2 px-2" style={{ borderColor: t.border }}>
-                  <p className="text-sm font-bold" style={{ color: t.textPrimary }}>
-                    {user?.username || 'Suraj Poddar'}
-                  </p>
-                  <p className="text-xs capitalize" style={{ color: t.textMuted }}>
-                    {user?.email || 'suraj.student@campus.edu'}
-                  </p>
-                </div>
-                <div className="mt-2 flex flex-col gap-1 text-xs">
+                <div className="flex items-start justify-between gap-2 border-b pb-3 px-1" style={{ borderColor: t.border }}>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-extrabold" style={{ color: t.textPrimary }}>
+                      {user?.username || 'Suraj Poddar'}
+                    </p>
+                    <p className="truncate text-xs font-medium" style={{ color: t.textMuted }}>
+                      {user?.email || 'suraj.student@campus.edu'}
+                    </p>
+                  </div>
+                  {/* Mobile-only logout, right beside the name — the
+                      sidebar's own logout button lives inside its
+                      off-canvas drawer, which takes an extra tap to reach
+                      on mobile, so it's mirrored here for quick access.
+                      Desktop already has the sidebar visible at all times,
+                      so it's left untouched there. */}
                   <button
                     type="button"
-                    onClick={() => { setActiveTab('dashboard'); setShowProfileMenu(false); }}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    onClick={() => { setShowProfileMenu(false); handleLogout(); }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors lg:hidden"
+                    style={{ color: t.textMuted }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fee2e2'; e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = t.textMuted; }}
+                    aria-label="Log out"
+                    title="Log out"
                   >
-                    <User size={14} /> My Profile &amp; Bio
+                    <LogOut size={15} />
+                  </button>
+                </div>
+
+                <div className="mt-2 flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('profile'); setViewingProfileId(null); setShowProfileMenu(false); }}
+                    className="flex items-center gap-3 rounded-full px-3 py-2.5 text-left text-[13px] font-bold transition-colors"
+                    style={{ color: t.textPrimary }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = t.pageBg; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <User size={16} style={{ color: t.textMuted }} />
+                    My Profile &amp; Bio
                   </button>
                   <button
                     type="button"
                     onClick={() => { setActiveTab('rte'); setShowProfileMenu(false); }}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    className="flex items-center gap-3 rounded-full px-3 py-2.5 text-left text-[13px] font-bold transition-colors"
+                    style={{ color: t.textPrimary }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = t.pageBg; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
-                    <Clock size={14} /> View Class Timetable
+                    <Clock size={16} style={{ color: t.textMuted }} />
+                    View Class Timetable
                   </button>
                   <button
                     type="button"
                     onClick={() => { setActiveTab('ssd-help'); setShowProfileMenu(false); }}
-                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    className="flex items-center gap-3 rounded-full px-3 py-2.5 text-left text-[13px] font-bold transition-colors"
+                    style={{ color: t.textPrimary }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = t.pageBg; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
-                    <CheckCircle2 size={14} /> View Attendance in SSD
+                    <CheckCircle2 size={16} style={{ color: t.textMuted }} />
+                    View Attendance in SSD
                   </button>
                 </div>
               </div>
@@ -526,6 +568,16 @@ const StudentDashboard = () => {
 
             {activeTab === 'campus-help' && (
               <CampusHelpSection t={t} user={user} />
+            )}
+
+            {/* 11. Profile Section */}
+            {activeTab === 'profile' && (
+              <ProfileSection
+                t={t}
+                profileUserId={viewingProfileId}
+                onBack={() => setViewingProfileId(null)}
+                onViewProfile={(id) => setViewingProfileId(id)}
+              />
             )}
 
             {/* 10. Dashboard Home View */}

@@ -1,5 +1,13 @@
 const { getImageKit, isImageKitConfigured } = require('../config/imagekit');
 
+// Whitelist only — prevents the client from injecting an arbitrary ImageKit
+// path via the 'folder' field. Add new entries here as new upload contexts
+// come up (e.g. 'event-banners', 'canteen-menu-items').
+const ALLOWED_FOLDERS = {
+  'profile-photo': '/profile-photos',
+  'cover-photo': '/cover-photos',
+};
+
 const uploadFile = async (req, res) => {
   try {
     if (!req.file) {
@@ -12,10 +20,13 @@ const uploadFile = async (req, res) => {
       });
     }
 
+    const folder = ALLOWED_FOLDERS[req.body.folder] || undefined;
+
     const imagekit = getImageKit();
     const result = await imagekit.upload({
       file: req.file.buffer.toString('base64'),
       fileName: req.file.originalname,
+      ...(folder && { folder }),
     });
 
     res.status(201).json({ url: result.url, name: req.file.originalname });

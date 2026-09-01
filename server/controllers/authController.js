@@ -208,6 +208,8 @@ const getMe = async (req, res) => {
         semester: req.user.semester,
         adminSection: req.user.adminSection,
         profileImage: req.user.profileImage,
+        coverPhoto: req.user.coverPhoto,
+        bio: req.user.bio,
       },
     });
   } catch (err) {

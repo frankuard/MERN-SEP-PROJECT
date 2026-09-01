@@ -25,6 +25,7 @@ const StudentNavbar = ({
   onNavigateHome,
   studentName,
   username,
+  profileImage,
   showProfileMenu,
   onToggleProfileMenu,
   onNavigateTab,
@@ -106,13 +107,17 @@ const StudentNavbar = ({
             style={{ backgroundColor: t.navbarChip || t.chipBg }}
           >
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold"
+              className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-extrabold"
               style={{
                 backgroundColor: t.navbarDateBg || '#111',
                 color: t.navbarDateText || '#fff',
               }}
             >
-              {initial}
+              {profileImage ? (
+                <img src={profileImage} alt={username} className="h-full w-full object-cover" />
+              ) : (
+                initial
+              )}
             </div>
             <span
               className="hidden max-w-25 truncate text-sm font-bold sm:inline sm:max-w-30"

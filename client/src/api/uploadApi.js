@@ -1,9 +1,13 @@
 import axiosInstance from './axiosInstance';
 
 const uploadApi = {
-  uploadImage: async (file) => {
+  // `folder` is optional — pass one of the ALLOWED_FOLDERS keys from the
+  // backend (e.g. 'profile-photo', 'cover-photo') to route the upload into
+  // that ImageKit folder. Omit it for the existing untouched behavior.
+  uploadImage: async (file, folder) => {
     const formData = new FormData();
     formData.append('image', file);
+    if (folder) formData.append('folder', folder);
     const res = await axiosInstance.post('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

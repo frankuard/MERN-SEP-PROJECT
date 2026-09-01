@@ -60,6 +60,18 @@ const userSchema = new mongoose.Schema(
       default: '',
     },
 
+    coverPhoto: {
+      type: String,
+      default: '',
+    },
+
+    bio: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [280, 'Bio cannot exceed 280 characters'],
+    },
+
     lastLogin: {
       type: Date,
       default: Date.now,
