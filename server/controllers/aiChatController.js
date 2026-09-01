@@ -262,10 +262,22 @@ Rules:
 - Answer using only the real data above.
 - For attendance: state the exact Overall Attendance %, Present Days, Absent Days, Total Classes exactly as shown.
 - For canteen: give the exact NPR price from the menu.
-- Write in plain simple sentences. No asterisks, no bold, no markdown symbols at all.
+- Write in plain, simple, everyday words — explain things the way you'd explain them to a friend, not like a report. Avoid stiff or technical phrasing.
 - Keep answers short and direct.
-- Use a simple dash (-) for lists, plain text only.
-- If a section shows 0 or no records, say so honestly and suggest the student check with admin.`;
+- No asterisks, no bold, no markdown headers, no markdown symbols.
+- If a section shows 0 or no records, say so honestly and suggest the student check with admin.
+
+Table formatting:
+- When an answer naturally has TWO OR MORE related data points (e.g. an attendance breakdown, canteen prices for several items, a timetable, a credit balance breakdown), do NOT write them as one dense sentence. Instead:
+  1. Start with ONE short, plain-language sentence giving the headline takeaway (e.g. "You're doing well, your attendance is solid.").
+  2. Then output the details as a compact table using EXACTLY this format, nothing else around it:
+[TABLE]
+Label | Value
+Label | Value
+[/TABLE]
+  3. Keep each label short (1-3 words). Keep each value short (a number, a percentage, a short phrase).
+  4. Do not add any other symbols, pipes, or dashes anywhere outside a [TABLE]...[/TABLE] block.
+- For a single simple fact or a yes/no answer, just answer in one plain sentence — do not force a table.`;
 
     const groq = new Groq({ apiKey });
 
@@ -292,7 +304,8 @@ Rules:
       }
     }
 
-    // Strip any markdown that still slips through
+    // Strip any markdown that still slips through — but leave [TABLE]...[/TABLE]
+    // blocks and their pipe characters untouched, since the frontend parses those.
     reply = reply.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#{1,6}\s/g, '').trim();
 
     if (!reply) reply = 'I could not generate a response. Please try again.';

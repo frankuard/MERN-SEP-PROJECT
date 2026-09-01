@@ -25,6 +25,76 @@ const TypingDots = ({ color }) => (
   </span>
 );
 
+// ── Parse [TABLE]...[/TABLE] blocks out of an assistant reply ──────
+// Returns an ordered list of { type: 'text', value } / { type: 'table', rows }
+// segments so plain sentences and tables can be interleaved in one reply.
+const parseMessageContent = (content) => {
+  const segments = [];
+  const regex = /\[TABLE\]([\s\S]*?)\[\/TABLE\]/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      const text = content.slice(lastIndex, match.index).trim();
+      if (text) segments.push({ type: 'text', value: text });
+    }
+    const rows = match[1]
+      .trim()
+      .split('\n')
+      .map((line) => line.split('|').map((cell) => cell.trim()).filter(Boolean))
+      .filter((row) => row.length > 0);
+    if (rows.length > 0) segments.push({ type: 'table', rows });
+    lastIndex = regex.lastIndex;
+  }
+  const rest = content.slice(lastIndex).trim();
+  if (rest) segments.push({ type: 'text', value: rest });
+  return segments.length > 0 ? segments : [{ type: 'text', value: content }];
+};
+
+// ── Compact table renderer for assistant replies ────────────────────
+const ReplyTable = ({ rows, t }) => {
+  const [header, ...body] = rows;
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', margin: '6px 0', fontSize: '12.5px' }}>
+      <thead>
+        <tr>
+          {header.map((cell, i) => (
+            <th
+              key={i}
+              style={{
+                textAlign: 'left', padding: '5px 8px',
+                borderBottom: `1.5px solid ${t.border}`,
+                fontWeight: 800, color: t.textPrimary,
+              }}
+            >
+              {cell}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {body.map((row, ri) => (
+          <tr key={ri}>
+            {row.map((cell, ci) => (
+              <td
+                key={ci}
+                style={{
+                  padding: '5px 8px',
+                  borderBottom: ri < body.length - 1 ? `1px solid ${t.border}` : 'none',
+                  color: ci === 0 ? t.textMuted : t.textPrimary,
+                  fontWeight: ci === 0 ? 600 : 700,
+                }}
+              >
+                {cell}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
 // ── Message bubble ───────────────────────────────────────
 const Bubble = ({ msg, t, showAvatar }) => {
   const isUser = msg.role === 'user';
@@ -52,7 +122,19 @@ const Bubble = ({ msg, t, showAvatar }) => {
           fontFamily: '"Nunito", sans-serif',
         }}
       >
-        {msg.role === 'loading' ? <TypingDots color={t.textMuted} /> : msg.content}
+        {msg.role === 'loading' ? (
+          <TypingDots color={t.textMuted} />
+        ) : isBot ? (
+          parseMessageContent(msg.content).map((seg, i) =>
+            seg.type === 'table' ? (
+              <ReplyTable key={i} rows={seg.rows} t={t} />
+            ) : (
+              <div key={i} style={{ marginBottom: '2px' }}>{seg.value}</div>
+            )
+          )
+        ) : (
+          msg.content
+        )}
       </div>
     </div>
   );
