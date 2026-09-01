@@ -82,6 +82,35 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Track whether this document was new *before* save() flips isNew to false,
+// so the post-save hook below knows whether to create a credit record.
+// (No `next` parameter/call here — Mongoose 7+ removed callback-style
+// middleware; hooks just run synchronously or return a promise.)
+userSchema.pre('save', function () {
+  this._wasNew = this.isNew;
+});
+
+// Every user gets a CanteenCredit record the moment their account is
+// created — so the credit/khata section is never "missing" on the user
+// panel again, even before they've ever been charged anything.
+userSchema.post('save', async function (doc) {
+  if (!doc._wasNew) return;
+  try {
+    const CanteenCredit = require('./CanteenCredit');
+    const exists = await CanteenCredit.findOne({ user: doc._id });
+    if (!exists) {
+      await CanteenCredit.create({
+        user: doc._id,
+        studentName: doc.username,
+        amountDue: 0,
+        amountPaid: 0,
+      });
+    }
+  } catch (err) {
+    console.error(`Failed to auto-create CanteenCredit for user ${doc._id}:`, err.message);
+  }
+});
+
 const User =
   mongoose.models.User ||
   mongoose.model('User', userSchema);

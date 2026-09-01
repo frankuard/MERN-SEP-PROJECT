@@ -66,8 +66,14 @@ const StudentDashboard = () => {
     navigate(`/student/${nextTab}`);
   };
 
-    const { openChat } = useChat();
+const { openChat } = useChat();
+  const [autoOpenFriendRequests, setAutoOpenFriendRequests] = useState(false);
 
+  const handleOpenFriendRequests = () => {
+    setViewingProfileId(null);
+    setActiveTab('profile');
+    setAutoOpenFriendRequests(true);
+  };
   const handleLogout = () => {
     disconnectSocket();
     logout();
@@ -430,6 +436,7 @@ const StudentDashboard = () => {
           showProfileMenu={showProfileMenu}
           onToggleProfileMenu={() => setShowProfileMenu(!showProfileMenu)}
           onOpenMobileMenu={() => setMobileSidebarOpen(true)}
+          onOpenFriendRequests={handleOpenFriendRequests}
           creditDue={null}
                     profileMenuContent={
             showProfileMenu && (
@@ -572,11 +579,13 @@ const StudentDashboard = () => {
 
             {/* 11. Profile Section */}
             {activeTab === 'profile' && (
-              <ProfileSection
+               <ProfileSection
                 t={t}
                 profileUserId={viewingProfileId}
                 onBack={() => setViewingProfileId(null)}
                 onViewProfile={(id) => setViewingProfileId(id)}
+                autoOpenRequests={autoOpenFriendRequests}
+                onAutoOpenRequestsHandled={() => setAutoOpenFriendRequests(false)}
               />
             )}
 

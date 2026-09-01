@@ -3,6 +3,7 @@ import { Bell, Home, Menu } from 'lucide-react';
 import NavbarMeta from './NavbarMeta';
 import NotificationBell from '../../common/NotificationBell';
 import ChatButton from '../../common/ChatButton';
+import { useChat } from '../../../context/ChatContext';
 
 
 const PAGE_TITLES = {
@@ -32,9 +33,11 @@ const StudentNavbar = ({
   creditDue,
   profileMenuContent,
   onOpenMobileMenu,
+  onOpenFriendRequests,
 }) => {
-  const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
+const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
   const initial = (studentName || username || 'S').charAt(0).toUpperCase();
+  const { pendingFriendRequestCount } = useChat();
 
   return (
     <header
@@ -102,10 +105,16 @@ const StudentNavbar = ({
         <div className="relative">
           <button
             type="button"
-            onClick={onToggleProfileMenu}
-            className="flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-4 transition-transform hover:scale-[1.02] sm:pr-4.5"
+            onClick={() => (pendingFriendRequestCount > 0 ? onOpenFriendRequests?.() : onToggleProfileMenu())}
+            className="relative flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-4 transition-transform hover:scale-[1.02] sm:pr-4.5"
             style={{ backgroundColor: t.navbarChip || t.chipBg }}
           >
+            {pendingFriendRequestCount > 0 && (
+              <span
+                className="absolute -left-0.5 -top-0.5 h-3.5 w-3.5 rounded-full bg-red-500 z-10"
+                style={{ border: `2px solid ${t.navbarBg || '#fff'}` }}
+              />
+            )}
             <div
               className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-extrabold"
               style={{

@@ -37,11 +37,25 @@ export const ChatProvider = ({ children }) => {
       .finally(() => setLoadingConversations(false));
   }, [myId]);
 
+   // Guards against out-of-order responses: if two fetchFriends() calls are
+  // in flight (e.g. one from opening the Friends modal, one from just
+  // accepting a request), an older call resolving after a newer one must
+  // NOT be allowed to overwrite the newer, more correct state.
+  const friendsRequestIdRef = useRef(0);
+
   const fetchFriends = useCallback(() => {
     if (!myId) return;
+    const requestId = ++friendsRequestIdRef.current;
     friendApi.getFriends()
-      .then((data) => setFriends(Array.isArray(data) ? data : []))
-      .catch(() => setFriends([]));
+      .then((data) => {
+        if (requestId !== friendsRequestIdRef.current) return; // stale, ignore
+        setFriends(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error('Failed to load friends list:', err);
+        // Keep whatever we already have rather than silently wiping a
+        // working list to empty on a transient/network error.
+      });
   }, [myId]);
 
   const fetchFriendRequests = useCallback(() => {
@@ -84,18 +98,35 @@ export const ChatProvider = ({ children }) => {
   }, []);
 
   const respondToFriendRequest = useCallback(async (requestId, status) => {
+    // Grab the requester's data BEFORE we filter the request out of state —
+    // we need it below to add the new friend immediately, without waiting
+    // on a refetch that might race, fail, or lag behind the backend commit.
+    const requestObj = friendRequests.incoming.find((r) => r._id === requestId);
     const updated = await friendApi.respondToFriendRequest(requestId, status);
+
     // Remove it from "incoming" regardless of accept/reject — it's no
     // longer pending either way.
     setFriendRequests((prev) => ({
       ...prev,
       incoming: prev.incoming.filter((r) => r._id !== requestId),
     }));
+
     if (status === 'accepted') {
+      const newFriend =
+        requestObj?.requester || requestObj?.sender ||
+        updated?.requester || updated?.sender;
+      const newFriendId = newFriend?._id || newFriend?.id;
+      if (newFriendId) {
+        setFriends((prev) =>
+          prev.some((f) => (f._id || f.id) === newFriendId) ? prev : [newFriend, ...prev]
+        );
+      }
+      // Still refetch in the background to reconcile with the server's
+      // canonical list, in case the shape above didn't match.
       fetchFriends();
     }
     return updated;
-  }, [fetchFriends]);
+  }, [fetchFriends, friendRequests.incoming]);
 
   // ---- Group invite actions ----
   const respondToGroupInvite = useCallback(async (inviteId, status) => {

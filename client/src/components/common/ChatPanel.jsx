@@ -3,6 +3,7 @@ import { X, Send, Plus, Search, Users, MessageCircle, ArrowLeft, UserPlus, Check
 import toast from 'react-hot-toast';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAIChat } from '../../context/AIChatContext';
 import chatApi from '../../api/chatApi';
 import uploadApi from '../../api/uploadApi';
 
@@ -23,29 +24,18 @@ const getConversationLabel = (conv, myId) => {
 
 // ---------------- New chat modal (search + start DM or create group) ----------------
 const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
-  const { friends, friendRequests, sendFriendRequest } = useChat();
+  const { friends } = useChat();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [mode, setMode] = useState('dm'); // 'dm' | 'group'
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [groupName, setGroupName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [sendingRequestId, setSendingRequestId] = useState(null);
-  const debounceRef = useRef(null);
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) { setResults([]); return; }
-    setSearching(true);
-    debounceRef.current = setTimeout(() => {
-      chatApi.searchUsers(query.trim())
-        .then((data) => setResults(Array.isArray(data) ? data : []))
-        .catch(() => setResults([]))
-        .finally(() => setSearching(false));
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  const filteredFriends = friends.filter((f) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (f.username || '').toLowerCase().includes(q) || (f.email || '').toLowerCase().includes(q);
+  });
 
   const toggleSelect = (user) => {
     setSelectedUsers((prev) =>
@@ -59,29 +49,6 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
       onClose();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not start conversation');
-    }
-  };
-
-  // Friendship is required before a DM can be started (backend enforces
-  // this too — see startDM/getOrCreateDM). Figure out per-result whether
-  // this person is already a friend, already has a pending request either
-  // direction, or is a stranger who can be sent a request.
-  const getRelationship = (userId) => {
-    if (friends.some((f) => f._id === userId)) return 'friend';
-    if (friendRequests.outgoing.some((r) => (r.recipient?._id || r.recipient) === userId)) return 'requested';
-    if (friendRequests.incoming.some((r) => (r.requester?._id || r.requester) === userId)) return 'incoming';
-    return 'none';
-  };
-
-  const handleAddFriend = async (user) => {
-    setSendingRequestId(user._id);
-    try {
-      await sendFriendRequest(user._id);
-      toast.success(`Friend request sent to ${user.username}`);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Could not send friend request');
-    } finally {
-      setSendingRequestId(null);
     }
   };
 
@@ -99,7 +66,7 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
       <div className="w-full max-w-md rounded-2xl border shadow-2xl" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
         <div className="flex items-center justify-between border-b p-4" style={{ borderColor: t.border }}>
           <div className="flex gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
@@ -126,12 +93,6 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
         </div>
 
         <div className="p-4">
-          {mode === 'dm' && (
-            <p className="mb-3 text-xs" style={{ color: t.textMuted }}>
-              You can only message people you're friends with. Send a friend request first.
-            </p>
-          )}
-
           {mode === 'group' && (
             <input
               type="text"
@@ -162,7 +123,7 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
             <input
               type="text"
-              placeholder="Search by email or username..."
+              placeholder="Search your friends..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none"
@@ -171,15 +132,14 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
           </div>
 
           <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-            {searching && <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>Searching...</p>}
-            {!searching && query.trim() && results.length === 0 && (
-              <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>No users found.</p>
+            {filteredFriends.length === 0 && (
+              <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>
+                {friends.length === 0 ? "You don't have any friends yet — add some from a profile page first." : 'No matching friends.'}
+              </p>
             )}
-            {results.map((u) => {
+            {filteredFriends.map((u) => {
               const isSelected = selectedUsers.some((s) => s._id === u._id);
 
-              // Group mode: unchanged — pick members by tapping the row,
-              // no friendship requirement for group invites.
               if (mode === 'group') {
                 return (
                   <button
@@ -201,8 +161,6 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
                 );
               }
 
-              // DM mode: gated on friendship status.
-              const relationship = getRelationship(u._id);
               return (
                 <div key={u._id} className="flex w-full items-center gap-2.5 rounded-xl p-2.5">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
@@ -212,38 +170,14 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
                     <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{u.username}</p>
                     <p className="truncate text-xs" style={{ color: t.textMuted }}>{u.email}</p>
                   </div>
-
-                  {relationship === 'friend' && (
-                    <button
-                      type="button"
-                      onClick={() => handleDMClick(u)}
-                      className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
-                      style={{ backgroundColor: t.accentPrimary }}
-                    >
-                      Message
-                    </button>
-                  )}
-                  {relationship === 'requested' && (
-                    <span className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
-                      <Clock size={11} /> Requested
-                    </span>
-                  )}
-                  {relationship === 'incoming' && (
-                    <span className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
-                      Check Requests
-                    </span>
-                  )}
-                  {relationship === 'none' && (
-                    <button
-                      type="button"
-                      disabled={sendingRequestId === u._id}
-                      onClick={() => handleAddFriend(u)}
-                      className="flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-bold disabled:opacity-50"
-                      style={{ borderColor: t.border, color: t.textPrimary }}
-                    >
-                      <UserPlus size={11} /> {sendingRequestId === u._id ? '...' : 'Add Friend'}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDMClick(u)}
+                    className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+                    style={{ backgroundColor: t.accentPrimary }}
+                  >
+                    Message
+                  </button>
                 </div>
               );
             })}
@@ -268,26 +202,18 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
 
 // ---------------- Add member modal (invite someone to an existing group) ----------------
 const AddMemberModal = ({ t, conversation, onClose }) => {
+  const { friends } = useChat();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [invitingId, setInvitingId] = useState(null);
-  const debounceRef = useRef(null);
 
-  const existingIds = (conversation.participants || []).map((p) => p._id || p);
+  const existingIds = (conversation.participants || []).map((p) => String(p._id || p));
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) { setResults([]); return; }
-    setSearching(true);
-    debounceRef.current = setTimeout(() => {
-      chatApi.searchUsers(query.trim())
-        .then((data) => setResults(Array.isArray(data) ? data : []))
-        .catch(() => setResults([]))
-        .finally(() => setSearching(false));
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  const filteredFriends = friends.filter((f) => {
+    if (existingIds.includes(String(f._id))) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (f.username || '').toLowerCase().includes(q) || (f.email || '').toLowerCase().includes(q);
+  });
 
   const handleInvite = async (u) => {
     setInvitingId(u._id);
@@ -317,7 +243,7 @@ const AddMemberModal = ({ t, conversation, onClose }) => {
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
             <input
               type="text"
-              placeholder="Search by email or username..."
+              placeholder="Search your friends..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none"
@@ -325,39 +251,29 @@ const AddMemberModal = ({ t, conversation, onClose }) => {
             />
           </div>
           <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-            {searching && <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>Searching...</p>}
-            {!searching && query.trim() && results.length === 0 && (
-              <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>No users found.</p>
+            {filteredFriends.length === 0 && (
+              <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>No friends to add.</p>
             )}
-            {results.map((u) => {
-              const alreadyIn = existingIds.some((id) => String(id) === String(u._id));
-              return (
-                <div key={u._id} className="flex w-full items-center gap-2.5 rounded-xl p-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                    {(u.username || u.email || '?').charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{u.username}</p>
-                    <p className="truncate text-xs" style={{ color: t.textMuted }}>{u.email}</p>
-                  </div>
-                  {alreadyIn ? (
-                    <span className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
-                      In group
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={invitingId === u._id}
-                      onClick={() => handleInvite(u)}
-                      className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-                      style={{ backgroundColor: t.accentPrimary }}
-                    >
-                      <UserPlus size={11} /> {invitingId === u._id ? '...' : 'Invite'}
-                    </button>
-                  )}
+            {filteredFriends.map((u) => (
+              <div key={u._id} className="flex w-full items-center gap-2.5 rounded-xl p-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                  {(u.username || u.email || '?').charAt(0).toUpperCase()}
                 </div>
-              );
-            })}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{u.username}</p>
+                  <p className="truncate text-xs" style={{ color: t.textMuted }}>{u.email}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={invitingId === u._id}
+                  onClick={() => handleInvite(u)}
+                  className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                  style={{ backgroundColor: t.accentPrimary }}
+                >
+                  <UserPlus size={11} /> {invitingId === u._id ? '...' : 'Invite'}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -366,24 +282,9 @@ const AddMemberModal = ({ t, conversation, onClose }) => {
 };
 
 // ---------------- Requests view (friend requests + group invites) ----------------
-const RequestsView = ({ t }) => {
-  const {
-    friendRequests, respondToFriendRequest,
-    groupInvites, respondToGroupInvite,
-    loadingFriends, loadingGroupInvites,
-  } = useChat();
+const GroupInvitesPopover = ({ t, onClose }) => {
+  const { groupInvites, respondToGroupInvite, loadingGroupInvites } = useChat();
   const [busyId, setBusyId] = useState(null);
-
-  const handleFriendResponse = async (requestId, status) => {
-    setBusyId(requestId);
-    try {
-      await respondToFriendRequest(requestId, status);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Could not respond to request');
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const handleGroupResponse = async (inviteId, status) => {
     setBusyId(inviteId);
@@ -396,132 +297,62 @@ const RequestsView = ({ t }) => {
     }
   };
 
-  const isEmpty =
-    friendRequests.incoming.length === 0 &&
-    friendRequests.outgoing.length === 0 &&
-    groupInvites.length === 0;
-
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      {(loadingFriends || loadingGroupInvites) && (
-        <p className="py-6 text-center text-sm" style={{ color: t.textMuted }}>Loading...</p>
-      )}
-
-      {!loadingFriends && !loadingGroupInvites && isEmpty && (
-        <div className="flex flex-col items-center gap-2 py-10 text-center">
-          <UserCheck size={28} style={{ color: t.textMuted }} />
-          <p className="text-sm" style={{ color: t.textMuted }}>No pending requests or invites.</p>
-        </div>
-      )}
-
-      {friendRequests.incoming.length > 0 && (
-        <div className="mb-5">
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-            Friend Requests ({friendRequests.incoming.length})
-          </h4>
-          <div className="space-y-2">
-            {friendRequests.incoming.map((r) => (
-              <div key={r._id} className="flex items-center gap-2.5 rounded-xl border p-3" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                  {(r.requester?.username || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{r.requester?.username}</p>
-                  <p className="truncate text-xs" style={{ color: t.textMuted }}>{r.requester?.department || r.requester?.email}</p>
-                </div>
-                <button
-                  type="button"
-                  disabled={busyId === r._id}
-                  onClick={() => handleFriendResponse(r._id, 'accepted')}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white disabled:opacity-50"
-                  style={{ backgroundColor: '#16a34a' }}
-                  title="Accept"
-                >
-                  <Check size={13} />
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === r._id}
-                  onClick={() => handleFriendResponse(r._id, 'rejected')}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border disabled:opacity-50"
-                  style={{ borderColor: t.border, color: t.textMuted }}
-                  title="Decline"
-                >
-                  <X size={13} />
-                </button>
+    <div
+      className="absolute right-0 top-full z-20 mt-2 w-72 overflow-hidden rounded-2xl border shadow-xl"
+      style={{ backgroundColor: t.cardBg, borderColor: t.border }}
+    >
+      <div className="flex items-center justify-between border-b p-3" style={{ borderColor: t.border }}>
+        <p className="text-xs font-extrabold" style={{ color: t.textPrimary }}>Group Invites</p>
+        <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/5">
+          <X size={14} style={{ color: t.textMuted }} />
+        </button>
+      </div>
+      <div className="max-h-72 overflow-y-auto p-2">
+        {loadingGroupInvites && (
+          <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>Loading...</p>
+        )}
+        {!loadingGroupInvites && groupInvites.length === 0 && (
+          <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>No pending invites.</p>
+        )}
+        <div className="space-y-1.5">
+          {groupInvites.map((inv) => (
+            <div key={inv._id} className="flex items-center gap-2 rounded-xl p-2" style={{ backgroundColor: t.pageBg }}>
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: '#7c3aed' }}>
+                <Users size={13} />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {friendRequests.outgoing.length > 0 && (
-        <div className="mb-5">
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-            Sent Requests ({friendRequests.outgoing.length})
-          </h4>
-          <div className="space-y-2">
-            {friendRequests.outgoing.map((r) => (
-              <div key={r._id} className="flex items-center gap-2.5 rounded-xl border p-3" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                  {(r.recipient?.username || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{r.recipient?.username}</p>
-                </div>
-                <span className="flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
-                  <Clock size={10} /> Pending
-                </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold" style={{ color: t.textPrimary }}>
+                  {inv.conversation?.groupName || 'Group'}
+                </p>
+                <p className="truncate text-[10px]" style={{ color: t.textMuted }}>
+                  Invited by {inv.invitedBy?.username || 'someone'}
+                </p>
               </div>
-            ))}
-          </div>
+              <button
+                type="button"
+                disabled={busyId === inv._id}
+                onClick={() => handleGroupResponse(inv._id, 'accepted')}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-white disabled:opacity-50"
+                style={{ backgroundColor: '#16a34a' }}
+                title="Accept"
+              >
+                <Check size={11} />
+              </button>
+              <button
+                type="button"
+                disabled={busyId === inv._id}
+                onClick={() => handleGroupResponse(inv._id, 'rejected')}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border disabled:opacity-50"
+                style={{ borderColor: t.border, color: t.textMuted }}
+                title="Decline"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
         </div>
-      )}
-
-      {groupInvites.length > 0 && (
-        <div>
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-            Group Invites ({groupInvites.length})
-          </h4>
-          <div className="space-y-2">
-            {groupInvites.map((inv) => (
-              <div key={inv._id} className="flex items-center gap-2.5 rounded-xl border p-3" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: '#7c3aed' }}>
-                  <Users size={14} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>
-                    {inv.conversation?.groupName || 'Group'}
-                  </p>
-                  <p className="truncate text-xs" style={{ color: t.textMuted }}>
-                    Invited by {inv.invitedBy?.username || 'someone'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={busyId === inv._id}
-                  onClick={() => handleGroupResponse(inv._id, 'accepted')}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white disabled:opacity-50"
-                  style={{ backgroundColor: '#16a34a' }}
-                  title="Accept"
-                >
-                  <Check size={13} />
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === inv._id}
-                  onClick={() => handleGroupResponse(inv._id, 'rejected')}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border disabled:opacity-50"
-                  style={{ borderColor: t.border, color: t.textMuted }}
-                  title="Decline"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -530,14 +361,16 @@ const RequestsView = ({ t }) => {
 const ChatPanel = ({ t, onClose }) => {
   const { user } = useAuth();
   const myId = user?._id || user?.id;
+  const { suppressWidget, unsuppressWidget } = useAIChat();
   const {
     conversations, loadingConversations, activeConversationId, messages,
     unreadByConversation, openConversation, closeConversation, deleteConversation, leaveGroup,
     sendMessage, deleteMessages, startDM, createGroup,
-    chatView, setChatView, pendingFriendRequestCount, pendingGroupInviteCount,
+    pendingGroupInviteCount, friends,
   } = useChat();
 
   const [showNewChat, setShowNewChat] = useState(false);
+  const [showInvites, setShowInvites] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [draft, setDraft] = useState('');
@@ -574,12 +407,40 @@ const ChatPanel = ({ t, onClose }) => {
     };
   }, []);
 
+  // Hide the AI chatbot bubble for as long as this panel is open, so it
+  // never overlaps a human conversation. Restored on close/unmount.
+  useEffect(() => {
+    suppressWidget();
+    return () => unsuppressWidget();
+  }, [suppressWidget, unsuppressWidget]);
+
   const activeConversation = conversations.find((c) => c._id === activeConversationId);
-  const requestBadge = pendingFriendRequestCount + pendingGroupInviteCount;
+
+  // Friends with no DM yet — merged into the chat list so every friend is
+  // reachable without a separate "start chat" step.
+  const dmPartnerIds = new Set(
+    conversations
+      .filter((c) => !c.isGroup)
+      .map((c) => {
+        const other = c.participants?.find((p) => (p._id || p) !== myId);
+        return String(other?._id || other || '');
+      })
+  );
+  const friendsWithoutChat = friends.filter((f) => !dmPartnerIds.has(String(f._id)));
 
   const handleSelectConversation = (id) => {
     openConversation(id);
     setMobileShowThread(true);
+  };
+
+  const handleStartChatWithFriend = async (friend) => {
+    try {
+      const conv = await startDM(friend._id);
+      const convId = conv?._id || conv?.id;
+      if (convId) handleSelectConversation(convId);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not start conversation');
+    }
   };
 
   const handleSend = async (e) => {
@@ -725,45 +586,34 @@ const ChatPanel = ({ t, onClose }) => {
         className="flex h-full w-full flex-col overflow-hidden sm:h-[85vh] sm:max-w-3xl sm:rounded-2xl sm:border"
         style={{ backgroundColor: t.cardBg, borderColor: t.border }}
       >
-        {/* Top-level tab bar — Chats / Requests, always visible regardless
-            of which sub-view is active, so a notification click (which sets
-            chatView via context) always lands somewhere the user can see
-            and switch away from. */}
-        <div className="flex items-center justify-between border-b p-3" style={{ borderColor: t.border }}>
-          <div className="flex gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
+        {/* Header — title, group-invites bell (popover; friend requests are
+            handled from the profile page's Friends overlay instead), new
+            chat, close. */}
+        <div className="relative flex items-center justify-between border-b p-3" style={{ borderColor: t.border }}>
+          <p className="px-2 text-sm font-extrabold" style={{ color: t.textPrimary }}>Chats</p>
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setChatView('chats')}
-              className="rounded-full px-3.5 py-1.5 text-xs font-bold"
-              style={{ backgroundColor: chatView === 'chats' ? t.accentPrimary : 'transparent', color: chatView === 'chats' ? '#fff' : t.textPrimary }}
+              onClick={() => setShowInvites((o) => !o)}
+              className="relative rounded-lg p-2 hover:bg-black/5 dark:hover:bg-white/5"
+              title="Group invites"
             >
-              Chats
-            </button>
-            <button
-              type="button"
-              onClick={() => setChatView('requests')}
-              className="relative rounded-full px-3.5 py-1.5 text-xs font-bold"
-              style={{ backgroundColor: chatView === 'requests' ? t.accentPrimary : 'transparent', color: chatView === 'requests' ? '#fff' : t.textPrimary }}
-            >
-              Requests
-              {requestBadge > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                  {requestBadge > 9 ? '9+' : requestBadge}
+              <Users size={17} style={{ color: t.textPrimary }} />
+              {pendingGroupInviteCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {pendingGroupInviteCount > 9 ? '9+' : pendingGroupInviteCount}
                 </span>
               )}
             </button>
-          </div>
-          <div className="flex items-center gap-1">
-            {chatView === 'chats' && (
-              <button
-                type="button"
-                onClick={() => setShowNewChat(true)}
-                className="rounded-lg p-2 hover:bg-black/5 dark:hover:bg-white/5"
-                title="New chat"
-              >
-                <Plus size={17} style={{ color: t.textPrimary }} />
-              </button>
-            )}
+            {showInvites && <GroupInvitesPopover t={t} onClose={() => setShowInvites(false)} />}
+            <button
+              type="button"
+              onClick={() => setShowNewChat(true)}
+              className="rounded-lg p-2 hover:bg-black/5 dark:hover:bg-white/5"
+              title="New chat"
+            >
+              <Plus size={17} style={{ color: t.textPrimary }} />
+            </button>
             <button
               type="button"
               onClick={onClose}
@@ -774,10 +624,7 @@ const ChatPanel = ({ t, onClose }) => {
           </div>
         </div>
 
-        {chatView === 'requests' && <RequestsView t={t} />}
-
-        {chatView === 'chats' && (
-          <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden">
             {/* Conversation list */}
             <div
               className={`w-full shrink-0 flex-col border-r sm:flex sm:w-72 ${mobileShowThread ? 'hidden' : 'flex'}`}
@@ -787,10 +634,12 @@ const ChatPanel = ({ t, onClose }) => {
                 {loadingConversations && (
                   <p className="p-6 text-center text-sm" style={{ color: t.textMuted }}>Loading...</p>
                 )}
-                {!loadingConversations && conversations.length === 0 && (
+                {!loadingConversations && conversations.length === 0 && friendsWithoutChat.length === 0 && (
                   <div className="p-6 text-center">
                     <MessageCircle size={28} className="mx-auto mb-2" style={{ color: t.textMuted }} />
-                    <p className="text-sm" style={{ color: t.textMuted }}>No conversations yet.</p>
+                    <p className="text-sm" style={{ color: t.textMuted }}>
+                      No friends yet — add some from a profile page to start chatting.
+                    </p>
                   </div>
                 )}
                 {conversations.map((conv) => {
@@ -831,6 +680,27 @@ const ChatPanel = ({ t, onClose }) => {
                     </div>
                   );
                 })}
+
+                {/* Friends with no chat history yet — first tap lazily
+                    creates the DM. */}
+                {friendsWithoutChat.map((f) => (
+                  <div
+                    key={`friend-${f._id}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleStartChatWithFriend(f)}
+                    className="group flex w-full cursor-pointer items-center gap-3 border-b p-3.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                    style={{ borderColor: t.border }}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                      {(f.username || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{f.username}</p>
+                      <p className="truncate text-xs" style={{ color: t.textMuted }}>Say hi 👋</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1168,8 +1038,7 @@ const ChatPanel = ({ t, onClose }) => {
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
       {showNewChat && (
         <NewChatModal

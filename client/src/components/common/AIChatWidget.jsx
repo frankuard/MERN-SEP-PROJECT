@@ -144,7 +144,7 @@ const Bubble = ({ msg, t, showAvatar }) => {
 const AIChatWidget = () => {
   // ALL hooks must be called first — before any conditional return
   const { isAuthenticated } = useAuth();
-  const { isOpen, toggleChat, closeChat } = useAIChat();
+  const { isOpen, toggleChat, closeChat, isObstructed, isSuppressed } = useAIChat();
   const { theme } = useTheme();
   const t = themes[theme] || themes.light;
 
@@ -248,8 +248,19 @@ const AIChatWidget = () => {
   // ── Auth guard: hide on login / signup / public pages ──
   // Placed AFTER all hooks to satisfy React's rules of hooks
   if (!isAuthenticated) return null;
+  // Hide entirely while the human-to-human chat panel is open.
+  if (isSuppressed) return null;
 
   const isDark = theme === 'dark';
+  // Lift the launcher/chatbox up on small screens when a full-screen
+  // overlay (e.g. the Friends modal) is covering the bottom of the page,
+  // so this floating bubble doesn't sit on top of its buttons. Desktop
+  // layouts have room either way, so only shift on mobile widths.
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+ const lift = isObstructed && isMobile;
+  const launcherBottom = lift ? '160px' : '24px';
+  const chatboxBottom = lift ? '225px' : '88px';
+  const greetingBottom = lift ? '173px' : '32px';
 
   return (
     <>
@@ -297,8 +308,9 @@ const AIChatWidget = () => {
         aria-label="Chauttari AI"
         title="Chauttari AI"
         style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          position: 'fixed', bottom: launcherBottom, right: '24px', zIndex: 9999,
           width: '52px', height: '52px', borderRadius: '50%',
+          transition: 'bottom 0.2s ease, transform 0.15s ease',
           border: `1.5px solid ${t.border}`,
           background: t.sidebarActiveBg,
           color: t.sidebarActiveText,
@@ -326,8 +338,9 @@ const AIChatWidget = () => {
           role="dialog"
           aria-label="Chauttari AI"
           style={{
-            position: 'fixed', bottom: '88px', right: '24px', zIndex: 9998,
+           position: 'fixed', bottom: chatboxBottom, right: '24px', zIndex: 9998,
             width: 'min(340px, 92vw)', height: 'min(460px, 72vh)',
+            transition: 'bottom 0.2s ease',
             display: 'flex', flexDirection: 'column',
             background: t.cardBg,
             border: `1px solid ${t.border}`,

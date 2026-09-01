@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Camera, Lock, Users, UserPlus, Search, Check, X, Loader2, Pencil, ArrowLeft,
+  Camera, Lock, Users, UserPlus, Search, Check, X, Loader2, Pencil, ArrowLeft, MessageCircle,
 } from 'lucide-react';
 import userApi from '../../api/userApi';
 import uploadApi from '../../api/uploadApi';
-import friendApi from '../../api/friendApi';
+import { useChat } from '../../context/ChatContext';
+import { useAIChat } from '../../context/AIChatContext';
 import chatApi from '../../api/chatApi';
 import { useAuth } from '../../context/AuthContext';
 import ImageCropModal from '../common/ImageCropModal';
@@ -30,8 +31,7 @@ const Input = ({ t, ...props }) => (
 // profileUserId: optional. When set (and different from the logged-in user's
 // own id), the section renders READ-ONLY with an Add Friend button instead
 // of edit controls. onBack fires when leaving someone else's profile.
-const ProfileSection = ({ t, profileUserId, onBack, onViewProfile }) => {
-  const { user: authUser, setUser: setAuthUser } = useAuth();
+const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenRequests, onAutoOpenRequestsHandled }) => {  const { user: authUser, setUser: setAuthUser } = useAuth();
 
   const isOwnProfile = !profileUserId || profileUserId === (authUser?._id || authUser?.id);
 
@@ -147,37 +147,28 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile }) => {
     }
   };
 
-  // ── Friends + requests (own profile drives this data) ─────
-  const [friends, setFriends] = useState([]);
-  const [incomingRequests, setIncomingRequests] = useState([]);
-  const [outgoingRequestIds, setOutgoingRequestIds] = useState(new Set());
-  const [loadingFriends, setLoadingFriends] = useState(true);
+  // ── Friends + requests — shared with ChatContext ──────────
+  const {
+    friends,
+    friendRequests,
+    loadingFriends,
+    fetchFriends,
+    fetchFriendRequests,
+    sendFriendRequest: sendFriendRequestCtx,
+    respondToFriendRequest: respondToFriendRequestCtx,
+    startDM,
+    openChat,
+  } = useChat();
 
-  const loadFriendsData = useCallback(async () => {
-    setLoadingFriends(true);
-    try {
-      const [friendsList, requests] = await Promise.all([
-        friendApi.getFriends(),
-        friendApi.getFriendRequests(),
-      ]);
-      setFriends(Array.isArray(friendsList) ? friendsList : []);
-      setIncomingRequests(Array.isArray(requests?.incoming) ? requests.incoming : []);
-      const outgoing = Array.isArray(requests?.outgoing) ? requests.outgoing : [];
-      setOutgoingRequestIds(new Set(outgoing.map((r) => r.recipient?._id || r.recipient || r.userId)));
-    } catch {
-      // fails quietly until friend backend shape is confirmed
-    } finally {
-      setLoadingFriends(false);
-    }
-  }, []);
-
-  useEffect(() => { loadFriendsData(); }, [loadFriendsData]);
+  const incomingRequests = friendRequests.incoming;
+  const outgoingRequestIds = new Set(
+    friendRequests.outgoing.map((r) => r.recipient?._id || r.recipient || r.userId)
+  );
 
   const handleRespondRequest = async (requestId, status) => {
     try {
-      await friendApi.respondToFriendRequest(requestId, status);
+      await respondToFriendRequestCtx(requestId, status);
       toast.success(status === 'accepted' ? 'Friend request accepted!' : 'Request declined.');
-      loadFriendsData();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not respond to request.');
     }
@@ -185,6 +176,23 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile }) => {
 
   const isFriend = (id) => friends.some((f) => (f._id || f.id) === id);
   const isRequestSent = (id, sentSet) => sentSet.has(id) || outgoingRequestIds.has(id);
+
+// ── Message a friend from their profile page ──────────────
+  const [startingChat, setStartingChat] = useState(false);
+
+  const handleMessageFriend = async () => {
+    const targetId = user?._id || user?.id;
+    if (!targetId) return;
+    setStartingChat(true);
+    try {
+      await startDM(targetId);
+      openChat('chats');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not open chat.');
+    } finally {
+      setStartingChat(false);
+    }
+  };
 
   // ── Add friend from someone else's profile page ──────────
   const [sendingRequest, setSendingRequest] = useState(false);
@@ -195,7 +203,7 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile }) => {
     if (!targetId) return;
     setSendingRequest(true);
     try {
-      await friendApi.sendFriendRequest(targetId);
+      await sendFriendRequestCtx(targetId);
       setJustSentTo((prev) => new Set(prev).add(targetId));
       toast.success(`Friend request sent to ${user.username}!`);
     } catch (err) {
@@ -231,7 +239,7 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile }) => {
   const handleAddFriend = async (targetUser) => {
     const targetId = targetUser._id || targetUser.id;
     try {
-      await friendApi.sendFriendRequest(targetId);
+      await sendFriendRequestCtx(targetId);
       setSentTo((prev) => new Set(prev).add(targetId));
       toast.success(`Friend request sent to ${targetUser.username}!`);
     } catch (err) {
@@ -240,8 +248,28 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile }) => {
   };
 
   // ── Friends overlay (own profile only) ────────────────────
+  const { raiseWidget, lowerWidget } = useAIChat();
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [friendsTab, setFriendsTab] = useState('friends');
+
+  // Lift the floating chat launcher out of the way while this modal
+  // covers the bottom of the screen, and restore it on close/unmount.
+  useEffect(() => {
+    if (showFriendsModal) raiseWidget();
+    else lowerWidget();
+    return () => lowerWidget();
+  }, [showFriendsModal, raiseWidget, lowerWidget]);
+
+  // Arrived here via the profile pill's friend-request badge — jump
+  // straight to the Requests tab instead of landing on the base profile.
+  useEffect(() => {
+    if (!autoOpenRequests || !isOwnProfile) return;
+    setShowFriendsModal(true);
+    setFriendsTab('requests');
+    fetchFriendRequests();
+    fetchFriends();
+    onAutoOpenRequestsHandled?.();
+  }, [autoOpenRequests, isOwnProfile, fetchFriendRequests, fetchFriends, onAutoOpenRequestsHandled]);
 
   const goToProfile = (id) => {
     if (typeof onViewProfile === 'function') {
@@ -354,26 +382,45 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile }) => {
         {isOwnProfile ? (
           <button
             type="button"
-            onClick={() => { setShowFriendsModal(true); setFriendsTab('friends'); }}
-            className="inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-extrabold transition-colors"
+            onClick={() => { setShowFriendsModal(true); setFriendsTab('friends'); fetchFriendRequests(); fetchFriends(); }}
+            className="relative inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-extrabold transition-colors"
             style={{ borderColor: t.border, color: t.textPrimary, backgroundColor: t.cardBg }}
           >
+            {incomingRequests.length > 0 && (
+              <span
+                className="absolute -left-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-extrabold text-white z-10"
+                style={{ border: `2px solid ${t.cardBg}` }}
+              >
+                {incomingRequests.length > 9 ? '9+' : incomingRequests.length}
+              </span>
+            )}
             <Users size={15} />
             Friends <span style={{ color: t.accentPrimary }}>{friends.length}</span>
+          </button>
+        ) : alreadyFriend ? (
+          <button
+            type="button"
+            onClick={handleMessageFriend}
+            disabled={startingChat}
+            className="inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-white transition-colors disabled:opacity-60"
+            style={{ backgroundColor: t.accentPrimary || '#111' }}
+          >
+            {startingChat ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={15} />}
+            Message
           </button>
         ) : (
           <button
             type="button"
             onClick={handleAddFriendOnProfile}
-            disabled={alreadyFriend || requestSent || sendingRequest}
+            disabled={requestSent || sendingRequest}
             className="inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold transition-colors disabled:opacity-60"
             style={{
-              backgroundColor: alreadyFriend || requestSent ? t.border : '#111',
-              color: alreadyFriend || requestSent ? t.textMuted : '#fff',
+              backgroundColor: requestSent ? t.border : '#111',
+              color: requestSent ? t.textMuted : '#fff',
             }}
           >
             {sendingRequest ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={15} />}
-            {alreadyFriend ? 'Friends' : requestSent ? 'Requested' : 'Add Friend'}
+            {requestSent ? 'Requested' : 'Add Friend'}
           </button>
         )}
       </div>

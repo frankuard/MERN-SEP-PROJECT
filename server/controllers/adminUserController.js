@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const CanteenCredit = require('../models/CanteenCredit');
 const { createNotification } = require('../utils/createNotification');
 
 
@@ -97,6 +98,9 @@ const deleteUser = async (req, res) => {
     }
 
     await User.findByIdAndDelete(req.params.id);
+
+    // Cascade — a user should never leave behind an orphaned credit record.
+    await CanteenCredit.findOneAndDelete({ user: req.params.id });
 
     res.status(200).json({
       message: 'User deleted successfully',

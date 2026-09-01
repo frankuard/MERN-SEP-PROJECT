@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, Moon, Sun, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import navConfig from '../../data/navConfig';
@@ -38,7 +38,7 @@ const Sidebar = ({
   onMobileOpenChange,
 }) => {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const t = themes[theme] || themes.light;
 
@@ -217,28 +217,6 @@ const Sidebar = ({
               <ChevronRight size={14} />
             </button>
           )}
-        </div>
-
-        {/* Theme toggle */}
-        <div className={`px-4 pb-3 ${collapsed ? 'lg:flex lg:justify-center' : ''}`}>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="flex h-7 w-12 items-center rounded-full p-0.5"
-            style={{ backgroundColor: t.sidebarHover }}
-            aria-label="Toggle theme"
-          >
-            <div
-              className="flex h-5.5 w-5.5 items-center justify-center rounded-full shadow-sm transition-transform duration-200"
-              style={{
-                backgroundColor: theme === 'dark' ? '#333' : '#111',
-                color: '#fff',
-                transform: theme === 'dark' ? 'translateX(20px)' : 'translateX(0px)',
-              }}
-            >
-              {theme === 'dark' ? <Moon size={11} /> : <Sun size={11} />}
-            </div>
-          </button>
         </div>
 
         {/* Nav */}

@@ -6,17 +6,15 @@ import ChatPanel from './ChatPanel';
 const ChatButton = ({ t }) => {
   const {
     totalUnread,
-    pendingFriendRequestCount,
     pendingGroupInviteCount,
     isChatOpen,
     openChat,
     closeChat,
   } = useChat();
 
-  // Combined badge — unread messages + pending friend requests + pending
-  // group invites, so the icon reflects "anything needs your attention"
-  // as a whole, not just unread chats.
-  const badgeCount = totalUnread + pendingFriendRequestCount + pendingGroupInviteCount;
+  // Combined badge — unread messages + pending group invites. Friend
+  // requests get their own badge on the profile pill instead.
+  const badgeCount = totalUnread + pendingGroupInviteCount;
 
   return (
     <>
