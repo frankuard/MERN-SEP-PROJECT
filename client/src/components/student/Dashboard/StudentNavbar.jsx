@@ -18,6 +18,9 @@ const PAGE_TITLES = {
   'campus-posts': 'Campus Posts',
   location: 'Locations',
   'campus-help': 'Campus Help',
+  chat: 'Chat',
+  profile: 'My Profile',
+  rte: 'RTE',
 };
 
 const StudentNavbar = ({

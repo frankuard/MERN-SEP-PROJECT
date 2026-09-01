@@ -5,8 +5,6 @@ import {
 import userApi from '../../api/userApi';
 import uploadApi from '../../api/uploadApi';
 import { useChat } from '../../context/ChatContext';
-import { useAIChat } from '../../context/AIChatContext';
-import chatApi from '../../api/chatApi';
 import { useAuth } from '../../context/AuthContext';
 import ImageCropModal from '../common/ImageCropModal';
 import toast from 'react-hot-toast';
@@ -213,70 +211,6 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenReque
     }
   };
 
-  // ── Search / add friends (own profile's Add Friends tab) ──
-  const [searchInput, setSearchInput] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [sentTo, setSentTo] = useState(new Set());
-
-  useEffect(() => {
-    const q = searchInput.trim();
-    if (!q) { setSearchResults([]); return; }
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const results = await chatApi.searchUsers(q);
-        setSearchResults(Array.isArray(results) ? results : []);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  const handleAddFriend = async (targetUser) => {
-    const targetId = targetUser._id || targetUser.id;
-    try {
-      await sendFriendRequestCtx(targetId);
-      setSentTo((prev) => new Set(prev).add(targetId));
-      toast.success(`Friend request sent to ${targetUser.username}!`);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Could not send request.');
-    }
-  };
-
-  // ── Friends overlay (own profile only) ────────────────────
-  const { raiseWidget, lowerWidget } = useAIChat();
-  const [showFriendsModal, setShowFriendsModal] = useState(false);
-  const [friendsTab, setFriendsTab] = useState('friends');
-
-  // Lift the floating chat launcher out of the way while this modal
-  // covers the bottom of the screen, and restore it on close/unmount.
-  useEffect(() => {
-    if (showFriendsModal) raiseWidget();
-    else lowerWidget();
-    return () => lowerWidget();
-  }, [showFriendsModal, raiseWidget, lowerWidget]);
-
-  // Arrived here via the profile pill's friend-request badge — jump
-  // straight to the Requests tab instead of landing on the base profile.
-  useEffect(() => {
-    if (!autoOpenRequests || !isOwnProfile) return;
-    setShowFriendsModal(true);
-    setFriendsTab('requests');
-    fetchFriendRequests();
-    fetchFriends();
-    onAutoOpenRequestsHandled?.();
-  }, [autoOpenRequests, isOwnProfile, fetchFriendRequests, fetchFriends, onAutoOpenRequestsHandled]);
-
-  const goToProfile = (id) => {
-    if (typeof onViewProfile === 'function') {
-      setShowFriendsModal(false);
-      onViewProfile(id);
-    }
-  };
 
   if (loadingProfile) {
     return <p className="p-6 text-sm" style={{ color: t.textMuted }}>Loading profile...</p>;
@@ -380,23 +314,13 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenReque
         </div>
 
         {isOwnProfile ? (
-          <button
-            type="button"
-            onClick={() => { setShowFriendsModal(true); setFriendsTab('friends'); fetchFriendRequests(); fetchFriends(); }}
-            className="relative inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-extrabold transition-colors"
+          <div
+            className="inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-extrabold"
             style={{ borderColor: t.border, color: t.textPrimary, backgroundColor: t.cardBg }}
           >
-            {incomingRequests.length > 0 && (
-              <span
-                className="absolute -left-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-extrabold text-white z-10"
-                style={{ border: `2px solid ${t.cardBg}` }}
-              >
-                {incomingRequests.length > 9 ? '9+' : incomingRequests.length}
-              </span>
-            )}
             <Users size={15} />
             Friends <span style={{ color: t.accentPrimary }}>{friends.length}</span>
-          </button>
+          </div>
         ) : alreadyFriend ? (
           <button
             type="button"
@@ -518,160 +442,6 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenReque
         />
       )}
 
-      {/* ── Friends overlay (own profile only) ────────────── */}
-      {isOwnProfile && showFriendsModal && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 sm:items-center"
-          onClick={() => setShowFriendsModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[80vh] w-full flex-col rounded-t-[24px] sm:max-h-[600px] sm:w-[420px] sm:rounded-[24px]"
-            style={{ backgroundColor: t.cardBg }}
-          >
-            <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: t.border }}>
-              <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>Friends</h3>
-              <button type="button" onClick={() => setShowFriendsModal(false)} className="flex h-7 w-7 items-center justify-center rounded-full" style={{ color: t.textMuted }}>
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="flex border-b px-2" style={{ borderColor: t.border }}>
-              {[
-                { key: 'friends', label: `Friends (${friends.length})` },
-                { key: 'requests', label: `Requests${incomingRequests.length ? ` (${incomingRequests.length})` : ''}` },
-                { key: 'add', label: 'Add Friends' },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setFriendsTab(tab.key)}
-                  className="relative px-3 py-3 text-xs font-extrabold"
-                  style={{ color: friendsTab === tab.key ? t.textPrimary : t.textMuted }}
-                >
-                  {tab.label}
-                  {friendsTab === tab.key && (
-                    <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style={{ backgroundColor: t.accentPrimary }} />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              {friendsTab === 'friends' && (
-                loadingFriends ? (
-                  <p className="text-sm" style={{ color: t.textMuted }}>Loading...</p>
-                ) : friends.length === 0 ? (
-                  <p className="text-sm" style={{ color: t.textMuted }}>No friends yet — try the Add Friends tab.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {friends.map((f) => (
-                      <button
-                        key={f._id || f.id}
-                        type="button"
-                        onClick={() => goToProfile(f._id || f.id)}
-                        className="flex w-full items-center gap-2.5 rounded-2xl p-2.5 text-left"
-                        style={{ backgroundColor: t.pageBg }}
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-xs font-extrabold text-white">
-                          {(f.username || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{f.username}</p>
-                      </button>
-                    ))}
-                  </div>
-                )
-              )}
-
-              {friendsTab === 'requests' && (
-                incomingRequests.length === 0 ? (
-                  <p className="text-sm" style={{ color: t.textMuted }}>No pending requests.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {incomingRequests.map((req) => {
-                      const requester = req.requester || req.sender || req;
-                      return (
-                        <div key={req._id} className="flex items-center justify-between gap-2 rounded-2xl p-2.5" style={{ backgroundColor: t.pageBg }}>
-                          <button
-                            type="button"
-                            onClick={() => goToProfile(requester._id || requester.id)}
-                            className="flex min-w-0 items-center gap-2 text-left"
-                          >
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-xs font-extrabold text-white">
-                              {(requester.username || 'U').charAt(0).toUpperCase()}
-                            </div>
-                            <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{requester.username}</p>
-                          </button>
-                          <div className="flex shrink-0 gap-1.5">
-                            <button type="button" onClick={() => handleRespondRequest(req._id, 'accepted')} className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500 text-white">
-                              <Check size={13} />
-                            </button>
-                            <button type="button" onClick={() => handleRespondRequest(req._id, 'rejected')} className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white">
-                              <X size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
-              )}
-
-              {friendsTab === 'add' && (
-                <div>
-                  <div className="relative mb-3">
-                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
-                    <input
-                      type="text"
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      placeholder="Search by username..."
-                      className="w-full rounded-2xl border py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-offset-1"
-                      style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary, ['--tw-ring-color']: t.accentPrimary }}
-                    />
-                  </div>
-
-                  {searching && <p className="text-sm" style={{ color: t.textMuted }}>Searching...</p>}
-                  {!searching && searchInput.trim() && searchResults.length === 0 && (
-                    <p className="text-sm" style={{ color: t.textMuted }}>No users found.</p>
-                  )}
-
-                  <div className="space-y-2">
-                    {searchResults.map((person) => {
-                      const id = person._id || person.id;
-                      const already = isFriend(id);
-                      const sent = isRequestSent(id, sentTo);
-                      return (
-                        <div key={id} className="flex items-center justify-between gap-2 rounded-2xl p-2.5" style={{ backgroundColor: t.pageBg }}>
-                          <button
-                            type="button"
-                            onClick={() => goToProfile(id)}
-                            className="flex min-w-0 items-center gap-2.5 text-left"
-                          >
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-xs font-extrabold text-white">
-                              {(person.username || 'U').charAt(0).toUpperCase()}
-                            </div>
-                            <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{person.username}</p>
-                          </button>
-                          <button
-                            type="button"
-                            disabled={already || sent}
-                            onClick={() => handleAddFriend(person)}
-                            className="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors disabled:opacity-60"
-                            style={{ backgroundColor: already || sent ? t.border : '#111', color: already || sent ? t.textMuted : '#fff' }}
-                          >
-                            {already ? 'Friends' : sent ? 'Requested' : 'Add'}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
