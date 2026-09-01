@@ -98,6 +98,7 @@ const AuthProvider = ({ children }) => {
   const value = useMemo(
     () => ({
       user,
+      setUser,
       loading,
       isAuthenticated: Boolean(user && (user.id || user._id)),
       login,
