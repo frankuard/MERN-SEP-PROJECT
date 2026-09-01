@@ -291,8 +291,17 @@ const HelpRequestLogCard = ({ req, t, onDelete, expanded, onToggle }) => (
   </div>
 );
 
-const ManageCampusHelpSection = ({ t }) => {
-  const [activeTab, setActiveTab] = useState('departments'); // 'departments' | 'requests'
+// Controlled/uncontrolled, same pattern as ManageTimetableSection — when
+// a parent (SSD dept sidebar) passes activeTab, this component's own
+// switcher hides and Peer Help Log / Contact Info become fully separate
+// sidebar views. Standalone (main admin dashboard) is unaffected.
+const ManageCampusHelpSection = ({ t, activeTab: controlledActiveTab, onTabChange }) => {
+  const [internalTab, setInternalTab] = useState('departments'); // 'departments' | 'requests'
+  const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalTab;
+  const setActiveTab = (id) => {
+    if (controlledActiveTab === undefined) setInternalTab(id);
+    onTabChange?.(id);
+  };
   const [departments, setDepartments] = useState([]);
   const [helpRequests, setHelpRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -391,14 +400,16 @@ const ManageCampusHelpSection = ({ t }) => {
       </div>
 
       <div className="rounded-[28px] p-5 sm:p-6" style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}>
-        <div className="flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
-          <TabButton active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} count={departments.length}>
-            Contact Info
-          </TabButton>
-          <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} count={helpRequests.length}>
-            Peer Help Log
-          </TabButton>
-        </div>
+        {controlledActiveTab === undefined && (
+          <div className="flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
+            <TabButton active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} count={departments.length}>
+              Contact Info
+            </TabButton>
+            <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} count={helpRequests.length}>
+              Peer Help Log
+            </TabButton>
+          </div>
+        )}
 
         {activeTab === 'requests' && (
           <div className="relative mt-4">

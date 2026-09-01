@@ -37,8 +37,18 @@ const emptyChangeForm = {
 
 const emptyBlockForm = { day: DAY_ORDER[0], startTime: '', endTime: '', reason: '' };
 
-const ManageTimetableSection = ({ t }) => {
-  const [tab, setTab] = useState('periods');
+const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange }) => {
+  // Same controlled/uncontrolled pattern as Sidebar.jsx — when a parent
+  // (e.g. the RTE sidebar panel) passes activeTab/onTabChange, this
+  // component's own state and pill-switcher get out of the way and the
+  // sidebar drives which tab shows. Used standalone (main admin dashboard)
+  // it behaves exactly as before, with its own internal switcher.
+  const [internalTab, setInternalTab] = useState('periods');
+  const tab = controlledActiveTab !== undefined ? controlledActiveTab : internalTab;
+  const setTab = (id) => {
+    if (controlledActiveTab === undefined) setInternalTab(id);
+    onTabChange?.(id);
+  };
 
   // -------- Shared master data --------
   const [modules, setModules] = useState([]);
@@ -373,31 +383,34 @@ const ManageTimetableSection = ({ t }) => {
         </div>
       </div>
 
-      {/* Tab switcher */}
-      <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
-        {ADMIN_TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors"
-            style={{
-              backgroundColor: tab === id ? t.accentPrimary : 'transparent',
-              color: tab === id ? t.pageBg : t.textPrimary,
-            }}
-          >
-            <Icon size={14} /> {label}
-            {id === 'requests' && pendingRequests.length > 0 && (
-              <span
-                className="ml-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold"
-                style={{ backgroundColor: tab === id ? t.pageBg : t.accentPrimary, color: tab === id ? t.accentPrimary : t.pageBg }}
-              >
-                {pendingRequests.length}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* Tab switcher — hidden when a parent (e.g. RTE sidebar) already
+          controls which tab is active, so there's no duplicate switcher. */}
+      {controlledActiveTab === undefined && (
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
+          {ADMIN_TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors"
+              style={{
+                backgroundColor: tab === id ? t.accentPrimary : 'transparent',
+                color: tab === id ? t.pageBg : t.textPrimary,
+              }}
+            >
+              <Icon size={14} /> {label}
+              {id === 'requests' && pendingRequests.length > 0 && (
+                <span
+                  className="ml-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+                  style={{ backgroundColor: tab === id ? t.pageBg : t.accentPrimary, color: tab === id ? t.accentPrimary : t.pageBg }}
+                >
+                  {pendingRequests.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ===================== CLASS PERIODS ===================== */}
       {tab === 'periods' && (

@@ -26,7 +26,7 @@ const toMenuFormState = (item) => ({
 
 // ---------- MENU SUB-TAB ----------
 
-const MenuTab = ({ t }) => {
+export const MenuTab = ({ t }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('list');
@@ -277,7 +277,7 @@ const AdjustModal = ({ target, mode, onClose, onSaved, t }) => {
   );
 };
 
-const CreditTab = ({ t }) => {
+export const CreditTab = ({ t }) => {
   const [credits, setCredits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adjustTarget, setAdjustTarget] = useState(null);

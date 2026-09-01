@@ -16,8 +16,18 @@ const SUB_TABS = [
   { id: 'volunteering', label: 'Volunteer Hours', icon: HeartHandshake },
 ];
 
-const ManageSSDSection = ({ t }) => {
-  const [activeSubTab, setActiveSubTab] = useState('reports');
+// Exported so a parent (the SSD dept sidebar) can filter this list —
+// e.g. drop 'reports' since it becomes its own separate sidebar item
+// there — without duplicating the id/label/icon mapping.
+export const SSD_SUB_TABS = SUB_TABS;
+
+// Optional subTabs override: a parent can pass a filtered list (e.g.
+// everything except Report Requests) so this component only shows
+// those tabs. Used standalone (main admin dashboard, no prop passed)
+// it behaves exactly as before with all 4 tabs.
+const ManageSSDSection = ({ t, subTabs }) => {
+  const tabs = subTabs || SUB_TABS;
+  const [activeSubTab, setActiveSubTab] = useState(tabs[0].id);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -29,7 +39,7 @@ const ManageSSDSection = ({ t }) => {
       </div>
 
       <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
-        {SUB_TABS.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -56,7 +66,7 @@ const ManageSSDSection = ({ t }) => {
 // ============================================================
 // PANEL 1 — Report Requests
 // ============================================================
-const ReportRequestsPanel = ({ t }) => {
+export const ReportRequestsPanel = ({ t }) => {
   const [requests, setRequests] = useState(null);
   const [actioningId, setActioningId] = useState(null);
   const [drafts, setDrafts] = useState({});

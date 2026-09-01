@@ -14,7 +14,19 @@ const roleLabels = {
   admin: 'Admin Portal',
 };
 
-const Sidebar = ({ activeTab: controlledActiveTab, onTabChange }) => {
+// Shown in place of the old "@handle" line, admin accounts only —
+// mirrors the department picker's own section names.
+const ADMIN_SECTION_LABELS = {
+  super: 'Super Admin',
+  canteen: 'Canteen Admin',
+  ssd: 'SSD Admin',
+  rte: 'RTE Admin',
+  resources: 'Resources Admin',
+};
+
+const CHAUTARI_LOGO_URL = 'https://ik.imagekit.io/ltf9bjszh/logos/chautari-logo.png';
+
+const Sidebar = ({ activeTab: controlledActiveTab, onTabChange, navItems }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -29,10 +41,15 @@ const Sidebar = ({ activeTab: controlledActiveTab, onTabChange }) => {
   const activeId = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveId;
 
   const role = user?.role || 'student';
-  const items = navConfig[role] || navConfig.student;
-  const username = user?.username || 'Suraj Poddar';
-  const handle = `@${username.toLowerCase().replace(/\s+/g, '')}`;
-  const initials = username.charAt(0).toUpperCase() || 'S';
+  // Optional override so a scoped panel (e.g. a department admin's own
+  // mini nav) can pass its own short item list — falls back to the
+  // untouched role-based lookup everywhere else, unchanged.
+  const items = navItems || navConfig[role] || navConfig.student;
+  const username = user?.username || '';
+  // Second line under the name: admin accounts show their department
+  // ("Resource Admin", "SSD Admin"...), everyone else shows nothing here
+  // (the role caption below already says "Student Portal" etc.).
+  const subLabel = role === 'admin' ? (ADMIN_SECTION_LABELS[user?.adminSection] || 'Admin') : '';
 
   useEffect(() => {
     const el = navRef.current;
@@ -125,27 +142,25 @@ const Sidebar = ({ activeTab: controlledActiveTab, onTabChange }) => {
         {/* Profile header */}
         <div className={`px-4 pt-5 pb-4 ${collapsed ? 'lg:flex lg:flex-col lg:items-center' : ''}`}>
           <div className={`flex items-center gap-3 ${collapsed ? 'lg:flex-col lg:gap-2' : ''}`}>
-            {/* Colorful avatar ring */}
+            {/* Chautari logo, black circle */}
             <div
-              className="relative shrink-0 rounded-full p-[3px]"
-              style={{
-                background: 'linear-gradient(135deg, #f472b6, #a78bfa, #38bdf8, #fbbf24)',
-              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black p-2"
             >
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-full text-base font-extrabold"
-                style={{ backgroundColor: t.sidebarBg, color: t.sidebarText }}
-              >
-                {initials}
-              </div>
+              <img
+                src={CHAUTARI_LOGO_URL}
+                alt="Chautari"
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>
               <p className="truncate text-[15px] font-extrabold" style={{ color: t.sidebarText }}>
                 {username}
               </p>
-              <p className="truncate text-xs font-medium" style={{ color: t.sidebarMuted }}>
-                {handle}
-              </p>
+              {subLabel && (
+                <p className="truncate text-xs font-medium" style={{ color: t.sidebarMuted }}>
+                  {subLabel}
+                </p>
+              )}
               <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: t.sidebarMuted }}>
                 {roleLabels[role]}
               </p>

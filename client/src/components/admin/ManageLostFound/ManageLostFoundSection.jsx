@@ -261,8 +261,17 @@ const ClaimLogCard = ({ claim, t, onUpdateClaim, processingId }) => {
   );
 };
 
-const ManageLostFoundSection = ({ t }) => {
-  const [activeTab, setActiveTab] = useState('lost'); // 'lost' | 'found' | 'cctv' | 'claims'
+// Controlled/uncontrolled, same pattern as ManageCampusHelpSection — when
+// a parent (Resources dept sidebar) passes activeTab, this component's
+// own switcher hides and CCTV Requests becomes a fully separate sidebar
+// view. Standalone (main admin dashboard) is unaffected.
+const ManageLostFoundSection = ({ t, activeTab: controlledActiveTab, onTabChange }) => {
+  const [internalTab, setInternalTab] = useState('lost'); // 'lost' | 'found' | 'cctv' | 'claims'
+  const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalTab;
+  const setActiveTab = (id) => {
+    if (controlledActiveTab === undefined) setInternalTab(id);
+    onTabChange?.(id);
+  };
   const [items, setItems] = useState([]);
   const [cctvRequests, setCctvRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -388,22 +397,24 @@ const ManageLostFoundSection = ({ t }) => {
           />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
-          <TabButton active={activeTab === 'lost'} onClick={() => setActiveTab('lost')} count={lostItems.length}>
-            Lost Items
-          </TabButton>
-          <TabButton active={activeTab === 'found'} onClick={() => setActiveTab('found')} count={foundItems.length}>
-            Found Items
-          </TabButton>
-          <TabButton active={activeTab === 'cctv'} onClick={() => setActiveTab('cctv')} count={cctvRequests.length}>
-            <Video size={16} className="inline -mt-0.5 mr-1" />
-            CCTV Requests
-          </TabButton>
-          <TabButton active={activeTab === 'claims'} onClick={() => setActiveTab('claims')} count={allClaims.length}>
-            <FileCheck size={16} className="inline -mt-0.5 mr-1" />
-            Claims
-          </TabButton>
-        </div>
+        {controlledActiveTab === undefined && (
+          <div className="mt-4 flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
+            <TabButton active={activeTab === 'lost'} onClick={() => setActiveTab('lost')} count={lostItems.length}>
+              Lost Items
+            </TabButton>
+            <TabButton active={activeTab === 'found'} onClick={() => setActiveTab('found')} count={foundItems.length}>
+              Found Items
+            </TabButton>
+            <TabButton active={activeTab === 'cctv'} onClick={() => setActiveTab('cctv')} count={cctvRequests.length}>
+              <Video size={16} className="inline -mt-0.5 mr-1" />
+              CCTV Requests
+            </TabButton>
+            <TabButton active={activeTab === 'claims'} onClick={() => setActiveTab('claims')} count={allClaims.length}>
+              <FileCheck size={16} className="inline -mt-0.5 mr-1" />
+              Claims
+            </TabButton>
+          </div>
+        )}
       </div>
 
       {loading && (
