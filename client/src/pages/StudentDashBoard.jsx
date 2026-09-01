@@ -149,6 +149,10 @@ const StudentDashboard = () => {
   // Header Dropdowns
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
+  // Mobile sidebar drawer — owned here so the navbar's hamburger (inside
+  // the sticky header) and the Sidebar drawer itself stay in sync.
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * CLASSROOM_POOL.length);
     setRandomRoomIndex(randomIndex);
@@ -398,7 +402,12 @@ const StudentDashboard = () => {
       }}
     >
       {/* Sidebar Navigation */}
-      <Sidebar activeTab={activeTab} onTabChange={handleSidebarTabChange} />
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={handleSidebarTabChange}
+        mobileOpen={mobileSidebarOpen}
+        onMobileOpenChange={setMobileSidebarOpen}
+      />
 
       {/* Main Content View */}
       <div className="flex flex-1 flex-col overflow-x-hidden">
@@ -411,6 +420,7 @@ const StudentDashboard = () => {
                   onNavigateTab={setActiveTab}
           showProfileMenu={showProfileMenu}
           onToggleProfileMenu={() => setShowProfileMenu(!showProfileMenu)}
+          onOpenMobileMenu={() => setMobileSidebarOpen(true)}
           creditDue={null}
           profileMenuContent={
             showProfileMenu && (

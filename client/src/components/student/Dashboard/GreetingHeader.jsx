@@ -39,12 +39,6 @@ const GreetingHeader = ({ t, greeting, studentName, onNavigateTab }) => {
             <DashboardMascot className="h-28 w-auto sm:h-32" />
           </div>
           <div className="min-w-0">
-            <span
-              className="dashboard-pill mb-3 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide"
-              style={{ backgroundColor: '#111', color: '#fff' }}
-            >
-              Campus Today
-            </span>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl" style={{ color: t.textPrimary }}>
               {greeting}, {studentName}!
             </h1>

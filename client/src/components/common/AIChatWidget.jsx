@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare, Send, X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import aiChatApi from '../../api/aiChatApi';
 import { useAIChat } from '../../context/AIChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { themes } from '../../data/themes';
+import DashboardMascot from '../student/Dashboard/DashboardMascot';
+import DashboardMascotFace from '../student/Dashboard/DashboardMascotFace';
 
 // ── Typing dots ──────────────────────────────────────────
 const TypingDots = ({ color }) => (
@@ -24,10 +26,17 @@ const TypingDots = ({ color }) => (
 );
 
 // ── Message bubble ───────────────────────────────────────
-const Bubble = ({ msg, t }) => {
+const Bubble = ({ msg, t, showAvatar }) => {
   const isUser = msg.role === 'user';
+  const isBot = msg.role === 'assistant' || msg.role === 'loading';
+
   return (
-    <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: '8px' }}>
+    <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: '6px', marginBottom: '8px' }}>
+      {isBot && showAvatar && (
+        <div style={{ width: '22px', height: '22px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#fcd9b6' }}>
+          <DashboardMascotFace className="h-full w-full" />
+        </div>
+      )}
       <div
         style={{
           maxWidth: '80%',
@@ -58,12 +67,42 @@ const AIChatWidget = () => {
   const t = themes[theme] || themes.light;
 
   const [messages, setMessages] = useState([
-    { id: 'welcome', role: 'assistant', content: "Hi! I'm Chauttari AI.\nAsk anything about campus — timetable, attendance, canteen prices, events, and more." },
+    { id: 'welcome', role: 'assistant', content: "Hello! How may I assist you today?\nI'm Chautari AI — ask me anything about campus: timetable, attendance, canteen prices, events, and more." },
   ]);
+
+  // Full mascot body+face only shows before the student has sent their
+  // first message — once a real conversation is underway, we switch to
+  // the small "chat head" avatar next to each assistant bubble instead.
+  const hasUserMessaged = messages.some((m) => m.role === 'user');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  // 'hidden' | 'visible' | 'fading' — drives the fade-out transition below
+  const [greetingBubbleState, setGreetingBubbleState] = useState('hidden');
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Auto-popup speech bubble beside the launcher: appears once shortly
+  // after page load, stays for 3 seconds, then fades out over 400ms.
+  useEffect(() => {
+    const showTimer = setTimeout(() => setGreetingBubbleState('visible'), 1500);
+    return () => clearTimeout(showTimer);
+  }, []);
+
+  useEffect(() => {
+    if (greetingBubbleState !== 'visible') return;
+    const fadeTimer = setTimeout(() => setGreetingBubbleState('fading'), 3000);
+    return () => clearTimeout(fadeTimer);
+  }, [greetingBubbleState]);
+
+  useEffect(() => {
+    if (greetingBubbleState !== 'fading') return;
+    const hideTimer = setTimeout(() => setGreetingBubbleState('hidden'), 400);
+    return () => clearTimeout(hideTimer);
+  }, [greetingBubbleState]);
+
+  useEffect(() => {
+    if (isOpen) setGreetingBubbleState('hidden');
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,6 +171,43 @@ const AIChatWidget = () => {
 
   return (
     <>
+      {/* Auto-popup greeting bubble: visible for 3s, then fades out */}
+      {greetingBubbleState !== 'hidden' && !isOpen && (
+        <div
+          style={{
+            position: 'fixed', bottom: '32px', right: '86px', zIndex: 9999,
+            maxWidth: '210px',
+            background: t.cardBg,
+            border: `1px solid ${t.border}`,
+            borderRadius: '14px 14px 3px 14px',
+            padding: '10px 14px',
+            boxShadow: t.shadowCard,
+            fontFamily: '"Nunito", sans-serif',
+            fontSize: '13px',
+            fontWeight: 700,
+            color: t.textPrimary,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            opacity: greetingBubbleState === 'fading' ? 0 : 1,
+            transition: 'opacity 0.4s ease',
+          }}
+        >
+          <span>Hello! How can I assist you today?</span>
+          <button
+            type="button"
+            onClick={() => setGreetingBubbleState('hidden')}
+            aria-label="Dismiss"
+            style={{
+              flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer',
+              color: t.textMuted, padding: 0, display: 'flex', alignItems: 'center',
+            }}
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* Floating button */}
       <button
         type="button"
@@ -153,7 +229,13 @@ const AIChatWidget = () => {
         onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
         onMouseUp={e => e.currentTarget.style.transform = 'scale(1.07)'}
       >
-        {isOpen ? <X size={20} /> : <MessageSquare size={20} />}
+        {isOpen ? (
+          <X size={20} />
+        ) : (
+          <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', background: '#fcd9b6' }}>
+            <DashboardMascotFace className="h-full w-full" />
+          </div>
+        )}
       </button>
 
       {/* Chatbox */}
@@ -179,7 +261,9 @@ const AIChatWidget = () => {
             background: t.sidebarActiveBg, flexShrink: 0,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <MessageSquare size={16} color={t.sidebarActiveText} />
+              <div style={{ width: '26px', height: '26px', borderRadius: '50%', overflow: 'hidden', background: '#fcd9b6', flexShrink: 0 }}>
+                <DashboardMascotFace className="h-full w-full" />
+              </div>
               <div>
                 <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: t.sidebarActiveText, fontFamily: '"Nunito", sans-serif', lineHeight: 1.2 }}>
                   Chauttari AI
@@ -206,7 +290,14 @@ const AIChatWidget = () => {
             scrollbarWidth: 'none',
             background: isDark ? t.pageBg : '#f9f9f9',
           }}>
-            {messages.map(msg => <Bubble key={msg.id} msg={msg} t={t} />)}
+            {!hasUserMessaged && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4px 6px 14px', textAlign: 'center' }}>
+                <DashboardMascot className="h-24 w-auto" />
+              </div>
+            )}
+            {messages.map(msg => (
+              <Bubble key={msg.id} msg={msg} t={t} showAvatar={hasUserMessaged} />
+            ))}
             <div ref={bottomRef} />
           </div>
 

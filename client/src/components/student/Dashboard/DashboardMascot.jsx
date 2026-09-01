@@ -19,9 +19,11 @@ const DashboardMascot = ({ className = '' }) => (
     <rect x="42" y="114" width="10" height="8" rx="3" fill="#f59e0b" />
     {/* head */}
     <circle cx="80" cy="72" r="36" fill="#fcd9b6" />
-    {/* hair */}
+    {/* hair — normal short boy haircut, cap shape with a light textured fringe */}
     <path
-      d="M48 68 Q52 38 80 34 Q108 38 112 68 Q108 52 80 48 Q52 52 48 68Z"
+      d="M44 66 Q46 34 80 30 Q114 34 116 66
+         Q109 52 104 56 Q98 48 92 56 Q86 48 80 56 Q74 48 68 56 Q62 48 56 56
+         Q51 52 44 66 Z"
       fill="#1e293b"
     />
     {/* eyes */}

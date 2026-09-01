@@ -99,7 +99,7 @@ const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
       <div className="w-full max-w-md rounded-2xl border shadow-2xl" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
         <div className="flex items-center justify-between border-b p-4" style={{ borderColor: t.border }}>
           <div className="flex gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>

@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ArrowRight, Megaphone } from 'lucide-react';
 import announcementApi from '../../../api/announcementApi';
 import AnnouncementsModal from '../modals/AnnouncementsModal';
 
-const ITEM_TINTS = ['#e8f4fd', '#fce7f3', '#fef9c3'];
-
+// Badge color still reflects priority, but the tile itself now shows the
+// announcement's date — same visual language as UpcomingEvents' date tile.
 const PRIORITY_STYLES = {
-  Low: { badge: '#94a3b8', label: 'Low priority' },
-  Medium: { badge: '#3b82f6', label: 'Medium priority' },
-  High: { badge: '#f59e0b', label: 'High priority' },
-  Urgent: { badge: '#ef4444', label: 'Urgent' },
+  Urgent: { color: '#ef4444', label: 'Urgent' },
+  High: { color: '#f97316', label: 'High priority' },
+  Medium: { color: '#3b82f6', label: 'Medium priority' },
+  Low: { color: '#94a3b8', label: 'Low priority' },
 };
 
 const formatDate = (isoString) => {
@@ -17,6 +17,16 @@ const formatDate = (isoString) => {
   const d = new Date(isoString);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+// Tile shows month + day, matching UpcomingEvents' date tile exactly.
+const formatTileDate = (isoString) => {
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return { month: '—', day: '—' };
+  return {
+    month: d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+    day: d.getDate(),
+  };
 };
 
 const ImportantAnnouncements = ({ t }) => {
@@ -37,6 +47,11 @@ const ImportantAnnouncements = ({ t }) => {
     return () => { mounted = false; };
   }, []);
 
+  // Sort by timeline — most recent announcement first.
+  const sortedAnnouncements = useMemo(() => {
+    return [...announcements].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  }, [announcements]);
+
   return (
     <>
       <section className="flex h-full flex-col">
@@ -47,7 +62,7 @@ const ImportantAnnouncements = ({ t }) => {
             </div>
             <h2 className="text-base font-extrabold" style={{ color: t.textPrimary }}>Important Announcements</h2>
           </div>
-          {announcements.length > 0 && (
+          {sortedAnnouncements.length > 0 && (
             <button
               type="button"
               onClick={() => setShowModal(true)}
@@ -73,49 +88,43 @@ const ImportantAnnouncements = ({ t }) => {
           </div>
         )}
 
-        {status === 'success' && announcements.length === 0 && (
+        {status === 'success' && sortedAnnouncements.length === 0 && (
           <div className="flex flex-1 items-center justify-center rounded-[20px] border border-dashed py-8 text-center" style={{ borderColor: t.border }}>
             <p className="text-sm font-semibold" style={{ color: t.textMuted }}>No announcements right now.</p>
           </div>
         )}
 
-        {status === 'success' && announcements.length > 0 && (
+        {status === 'success' && sortedAnnouncements.length > 0 && (
           <ul className="flex flex-1 flex-col gap-3">
-            {announcements.slice(0, 3).map((item, i) => {
-              const priorityStyle = PRIORITY_STYLES[item.priority] || PRIORITY_STYLES.Medium;
-              const isUrgent = item.priority === 'Urgent' || item.priority === 'High';
+            {sortedAnnouncements.slice(0, 3).map((item) => {
+              const style = PRIORITY_STYLES[item.priority] || PRIORITY_STYLES.Medium;
+              const { month, day } = formatTileDate(item.publishedAt);
               return (
                 <li
                   key={item._id}
-                  className="dashboard-card-lift rounded-[20px] p-4"
-                  style={{
-                    backgroundColor: ITEM_TINTS[i % ITEM_TINTS.length],
-                    border: isUrgent ? `2px solid ${priorityStyle.badge}` : '2px solid transparent',
-                  }}
+                  className="dashboard-card-lift flex items-center gap-4 rounded-[20px] bg-white p-4"
+                  style={{ boxShadow: t.shadowSoft }}
                 >
-                  <div className="flex items-start gap-3">
+                  <div
+                    className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl text-white"
+                    style={{ backgroundColor: style.color }}
+                  >
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider opacity-90">{month}</span>
+                    <span className="text-xl font-extrabold tabular-nums leading-none">{day}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
+                      {item.title}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold" style={{ color: t.textMuted }}>
+                      {item.department}
+                    </p>
                     <span
-                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-extrabold text-white"
-                      style={{ backgroundColor: priorityStyle.badge }}
+                      className="mt-2 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-white"
+                      style={{ backgroundColor: style.color }}
                     >
-                      {isUrgent ? '!' : 'i'}
+                      {style.label}
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm leading-snug ${isUrgent ? 'font-extrabold' : 'font-bold'}`} style={{ color: t.textPrimary }}>
-                        {item.title}
-                      </p>
-                      <p className="mt-1 text-xs font-semibold" style={{ color: t.textMuted }}>
-                        {item.department} · {formatDate(item.publishedAt)}
-                      </p>
-                      {isUrgent && (
-                        <span
-                          className="mt-2 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-white"
-                          style={{ backgroundColor: priorityStyle.badge }}
-                        >
-                          {priorityStyle.label}
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </li>
               );
@@ -124,7 +133,7 @@ const ImportantAnnouncements = ({ t }) => {
         )}
       </section>
 
-      <AnnouncementsModal isOpen={showModal} onClose={() => setShowModal(false)} t={t} announcements={announcements} />
+      <AnnouncementsModal isOpen={showModal} onClose={() => setShowModal(false)} t={t} announcements={sortedAnnouncements} />
     </>
   );
 };

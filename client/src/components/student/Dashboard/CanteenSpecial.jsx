@@ -2,8 +2,12 @@ import { useState, useEffect } from 'react';
 import { ArrowRight, ImageIcon, Sparkles, UtensilsCrossed } from 'lucide-react';
 import canteenApi from '../../../api/canteenApi';
 
-const OTHER_CARD_TINTS = ['pastelPink', 'pastelCyan', 'pastelPurple'];
-const OTHER_CARD_ACCENTS = ['#f472b6', '#22d3ee', '#a78bfa'];
+// Color is now tied to what the item actually is, not its position in
+// the list: Popular = pink, everything else here = no tint at all.
+const POPULAR_TINT = '#fce7f3';
+const POPULAR_ACCENT = '#f472b6';
+const SPECIAL_TINT = '#fee2e2';
+const SPECIAL_ACCENT = '#ef4444';
 
 const FoodImage = ({ src, alt, tint }) => {
   const [failed, setFailed] = useState(false);
@@ -38,7 +42,17 @@ const CanteenSpecial = ({ t, onNavigateTab }) => {
       .then((data) => {
         if (!mounted || !Array.isArray(data) || data.length === 0) return;
         const special = data.find((it) => it.isSpecialOfTheDay) || data[0];
-const rest = data.filter((it) => it._id !== special._id).slice(0, 2);        setFeatured(special);
+        // Prioritize Popular items into the "others" slot instead of just
+        // taking whatever happens to be first in the API's response order —
+        // otherwise a Popular item can get cut here even though its flag
+        // is set correctly in the database.
+        const remaining = data.filter((it) => it._id !== special._id);
+        const popularFirst = [
+          ...remaining.filter((it) => it.isPopular),
+          ...remaining.filter((it) => !it.isPopular),
+        ];
+        const rest = popularFirst.slice(0, 2);
+        setFeatured(special);
         setOthers(rest);
       })
       .catch(() => {});
@@ -75,11 +89,14 @@ const rest = data.filter((it) => it._id !== special._id).slice(0, 2);        set
           type="button"
           onClick={() => onNavigateTab('canteen')}
           className="dashboard-card-lift group overflow-hidden rounded-[28px] text-left lg:col-span-5"
-          style={{ boxShadow: t.shadowCard, backgroundColor: t.pastelYellow }}
+          style={{ boxShadow: t.shadowCard, backgroundColor: SPECIAL_TINT }}
         >
           <div className="relative h-48 overflow-hidden sm:h-52">
-            <FoodImage src={featured.image} alt={featured.name} tint={t.pastelYellow} />
-            <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-white">
+            <FoodImage src={featured.image} alt={featured.name} tint={SPECIAL_TINT} />
+            <span
+              className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-white"
+              style={{ backgroundColor: SPECIAL_ACCENT }}
+            >
               <Sparkles size={12} />
               Special of the day
             </span>
@@ -97,25 +114,35 @@ const rest = data.filter((it) => it._id !== special._id).slice(0, 2);        set
           </div>
         </button>
 
-<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">          {others.map((item, i) => {
-            const tint = t[OTHER_CARD_TINTS[i % OTHER_CARD_TINTS.length]];
-            const accent = OTHER_CARD_ACCENTS[i % OTHER_CARD_ACCENTS.length];
+<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">          {others.map((item) => {
+            const isPopular = !!item.isPopular;
+            const tint = isPopular ? POPULAR_TINT : t.cardBg;
+            const accent = isPopular ? POPULAR_ACCENT : null;
             return (
               <button
                 key={item._id}
                 type="button"
                 onClick={() => onNavigateTab('canteen')}
-                className="dashboard-card-lift group overflow-hidden rounded-[24px] text-left"
-                style={{ boxShadow: t.shadowSoft }}
+                className="dashboard-card-lift group overflow-hidden rounded-[24px] border text-left"
+                style={{ boxShadow: t.shadowSoft, borderColor: isPopular ? 'transparent' : t.border }}
               >
                 <div className="relative h-32 overflow-hidden">
                   <FoodImage src={item.image} alt={item.name} tint={tint} />
-                  <span
-                    className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase text-white"
-                    style={{ backgroundColor: accent }}
-                  >
-                    {item.isPopular ? 'Popular' : item.category}
-                  </span>
+                  {isPopular ? (
+                    <span
+                      className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase text-white"
+                      style={{ backgroundColor: accent }}
+                    >
+                      Popular
+                    </span>
+                  ) : (
+                    <span
+                      className="absolute left-3 top-3 rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase"
+                      style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}
+                    >
+                      {item.category}
+                    </span>
+                  )}
                 </div>
                 <div className="p-4" style={{ backgroundColor: tint }}>
                   <div className="flex items-start justify-between gap-2">
@@ -123,7 +150,14 @@ const rest = data.filter((it) => it._id !== special._id).slice(0, 2);        set
                       <p className="truncate text-sm font-extrabold" style={{ color: t.textPrimary }}>{item.name}</p>
                       <p className="mt-0.5 truncate text-[11px] font-semibold" style={{ color: t.textMuted }}>{item.description}</p>
                     </div>
-                    <span className="shrink-0 rounded-xl px-2 py-1 text-sm font-extrabold tabular-nums text-white" style={{ backgroundColor: accent }}>
+                    <span
+                      className="shrink-0 rounded-xl px-2 py-1 text-sm font-extrabold tabular-nums"
+                      style={
+                        isPopular
+                          ? { backgroundColor: accent, color: '#fff' }
+                          : { backgroundColor: t.accentPrimary, color: t.pageBg }
+                      }
+                    >
                       {item.price}
                     </span>
                   </div>

@@ -128,7 +128,10 @@ const CanteenSection = ({ t }) => {
               <div className="relative h-44 w-full overflow-hidden sm:h-48">
                 <FoodImage src={item.image} alt={item.name} tint={t.pastelBlue} />
                 {item.isSpecialOfTheDay && (
-                  <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black px-2.5 py-1 text-[10px] font-extrabold uppercase text-white">
+                  <span
+                    className="absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase text-white"
+                    style={{ backgroundColor: '#ef4444' }}
+                  >
                     <Sparkles size={11} />
                     Special
                   </span>

@@ -271,8 +271,12 @@ const EventsSection = ({ t }) => {
   const fetchEvents = useCallback(async (filter) => {
     setStatus('loading');
     try {
-      const type = filter === 'all' ? null : filter;
-      const data = await eventsApi.getEvents(type);
+      // getEvents expects a params OBJECT (e.g. { type: 'college' }), not a
+      // bare string — passing the filter directly silently produced no
+      // query string at all, so every filter click returned the same
+      // unfiltered list.
+      const params = filter === 'all' ? {} : { type: filter };
+      const data = await eventsApi.getEvents(params);
       setEvents(Array.isArray(data) ? data : []);
       setStatus('success');
     } catch {

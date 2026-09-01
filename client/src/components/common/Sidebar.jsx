@@ -24,16 +24,32 @@ const ADMIN_SECTION_LABELS = {
   resources: 'Resources Admin',
 };
 
-const CHAUTARI_LOGO_URL = 'https://ik.imagekit.io/ltf9bjszh/logos/chautari-logo.png';
+const CHAUTARI_LOGO_URL = 'https://ik.imagekit.io/ltf9bjszh/logos/chatariiilogoooorightisde.jpeg';
 
-const Sidebar = ({ activeTab: controlledActiveTab, onTabChange, navItems }) => {
+const Sidebar = ({
+  activeTab: controlledActiveTab,
+  onTabChange,
+  navItems,
+  // Optional controlled mobile-drawer state — lets a parent (e.g. a sticky
+  // navbar) own the open/close trigger instead of Sidebar's own floating
+  // button. Falls back to the old internal-state behavior untouched for
+  // any screen that doesn't pass these.
+  mobileOpen: controlledMobileOpen,
+  onMobileOpenChange,
+}) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const t = themes[theme] || themes.light;
 
   const [collapsed, setCollapsed] = useState(false); // desktop mini-rail toggle
-  const [mobileOpen, setMobileOpen] = useState(false); // mobile off-canvas toggle
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+  const isMobileControlled = controlledMobileOpen !== undefined;
+  const mobileOpen = isMobileControlled ? controlledMobileOpen : internalMobileOpen;
+  const setMobileOpen = (next) => {
+    if (isMobileControlled) onMobileOpenChange?.(next);
+    else setInternalMobileOpen(next);
+  };
   const [internalActiveId, setInternalActiveId] = useState('dashboard');
   const navRef = useRef(null);
   const [hasMoreBelow, setHasMoreBelow] = useState(false);
@@ -101,8 +117,10 @@ const Sidebar = ({ activeTab: controlledActiveTab, onTabChange, navItems }) => {
 
   return (
     <>
-      {/* Mobile hamburger trigger — hidden once the drawer is open or on desktop */}
-      {!mobileOpen && (
+      {/* Mobile hamburger trigger — only rendered when nothing else (e.g.
+          the sticky navbar) is controlling the drawer. This is the old
+          floating-fixed-button behavior, kept as a fallback. */}
+      {!isMobileControlled && !mobileOpen && (
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
@@ -142,14 +160,12 @@ const Sidebar = ({ activeTab: controlledActiveTab, onTabChange, navItems }) => {
         {/* Profile header */}
         <div className={`px-4 pt-5 pb-4 ${collapsed ? 'lg:flex lg:flex-col lg:items-center' : ''}`}>
           <div className={`flex items-center gap-3 ${collapsed ? 'lg:flex-col lg:gap-2' : ''}`}>
-            {/* Chautari logo, black circle */}
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black p-2"
-            >
+            {/* Chautari logo, filling the circle edge-to-edge */}
+            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-black">
               <img
                 src={CHAUTARI_LOGO_URL}
                 alt="Chautari"
-                className="h-full w-full object-contain"
+                className="h-full w-full object-cover object-center"
               />
             </div>
             <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>

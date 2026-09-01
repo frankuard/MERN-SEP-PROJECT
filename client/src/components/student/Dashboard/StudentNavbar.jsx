@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Home } from 'lucide-react';
+import { Bell, Home, Menu } from 'lucide-react';
 import NavbarMeta from './NavbarMeta';
 import NotificationBell from '../../common/NotificationBell';
 import ChatButton from '../../common/ChatButton';
@@ -30,6 +30,7 @@ const StudentNavbar = ({
   onNavigateTab,
   creditDue,
   profileMenuContent,
+  onOpenMobileMenu,
 }) => {
   const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
   const initial = (studentName || username || 'S').charAt(0).toUpperCase();
@@ -42,12 +43,25 @@ const StudentNavbar = ({
         borderBottom: `1px solid ${t.border}`,
       }}
     >
-      {/* Left — home icon + BIC logo + page title */}
+      {/* Left — hamburger (mobile) / home icon (desktop) + BIC logo + page title */}
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        {/* Mobile menu trigger — lives inside this sticky header instead of
+            a separate position:fixed button, so it's guaranteed to stay
+            put as the page scrolls rather than drifting or lagging. */}
+        <button
+          type="button"
+          onClick={onOpenMobileMenu}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors lg:hidden"
+          style={{ color: t.textPrimary }}
+          aria-label="Open menu"
+        >
+          <Menu size={22} strokeWidth={2.5} />
+        </button>
+
         <button
           type="button"
           onClick={onNavigateHome}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors"
+          className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors lg:flex"
           style={{
             backgroundColor: activeTab === 'dashboard' ? (t.navbarChip || t.chipBg) : 'transparent',
             color: t.textPrimary,
