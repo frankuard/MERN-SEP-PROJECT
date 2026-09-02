@@ -195,7 +195,7 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
   const [sportsForm, setSportsForm] = useState({
     item: 'Cricket Bat',
     qty: 1,
-    slot: 'Lunch Break (01:00 PM - 02:00 PM)',
+    slot: '',
     note: '',
   });
 
@@ -244,6 +244,10 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
 
   const handleSportsSubmit = (e) => {
     e.preventDefault();
+    if (!sportsForm.slot.trim()) {
+      toast.error('Please enter a time slot');
+      return;
+    }
     const qty = sportsForm.qty === '' ? 1 : sportsForm.qty;
     onSportsRequestSubmit({ ...sportsForm, qty });
   };
@@ -426,16 +430,15 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
                     </div>
                     <div>
                       <label className="block text-xs font-extrabold mb-1.5" style={{ color: t.textPrimary }}>Time / Slot Needed</label>
-                      <select
+                      <input
+                        type="text"
+                        placeholder="e.g. 1:00 PM to 2:30 PM"
                         value={sportsForm.slot}
                         onChange={(e) => setSportsForm({ ...sportsForm, slot: e.target.value })}
                         className="w-full rounded-2xl p-3 text-xs outline-none font-semibold"
                         style={{ backgroundColor: t.pageBg, border: `1px solid ${t.border}`, color: t.textPrimary }}
-                      >
-                        <option value="Lunch Break (01:00 PM - 02:00 PM)">Lunch Break (01:00 PM)</option>
-                        <option value="Sports Hour (04:00 PM - 05:30 PM)">Sports Hour (04:00 PM)</option>
-                        <option value="Inter-Department Match">Inter-Department Match</option>
-                      </select>
+                        required
+                      />
                     </div>
                   </div>
 

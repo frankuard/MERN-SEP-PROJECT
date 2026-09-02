@@ -130,7 +130,7 @@ const ReportLostItemModal = ({ isOpen, onClose, t, onSubmit }) => {
             <label className="block font-bold" style={{ color: t.textPrimary }}>Location</label>
             <input
               type="text"
-              placeholder="e.g. Block B, Ground floor Lab 2"
+              placeholder="e.g. Lecture Hall, Compton, Wolves.."
               value={form.location}
               onChange={(e) => setForm({ ...form, location: e.target.value })}
               className="mt-1 w-full rounded-xl border px-3.5 py-2.5 outline-none"
