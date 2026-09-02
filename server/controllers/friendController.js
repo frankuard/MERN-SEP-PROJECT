@@ -4,6 +4,27 @@ const { createNotification } = require('../utils/createNotification');
 
 const resolveUserId = (req) => (req.user?._id || req.user?.userId).toString();
 
+// Pulls the live io instance the same way chatController.js does — safe to
+// call even if sockets aren't connected for some reason.
+let getIO = null;
+try {
+  // eslint-disable-next-line global-require
+  const socketHandler = require('../socket/socketHandler');
+  if (typeof socketHandler.getIO === 'function') getIO = socketHandler.getIO;
+} catch (err) {
+  // socketHandler not available — REST still works, just no live push.
+}
+
+const emitToUser = (userId, event, payload) => {
+  if (!getIO) return;
+  try {
+    const io = getIO();
+    if (io) io.to(userId.toString()).emit(event, payload);
+  } catch (err) {
+    console.error('Socket emit failed (non-fatal):', err.message);
+  }
+};
+
 // Checks both directions — a friendship is symmetric even though the
 // underlying request document is directional (requester -> recipient).
 const areFriends = async (userIdA, userIdB) => {
@@ -62,6 +83,12 @@ const sendFriendRequest = async (req, res) => {
       link: 'chat:friend-requests',
     });
 
+    // Live push: the recipient's ChatContext (if their socket is
+    // connected) adds this straight into friendRequests.incoming so the
+    // badge and popover update instantly, with no refresh/poll needed.
+    const populatedRequest = await request.populate('requester', 'username email department');
+    emitToUser(userId, 'friend:request', populatedRequest);
+
     res.status(201).json(request);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid user ID' });
@@ -99,6 +126,11 @@ const respondToFriendRequest = async (req, res) => {
         message: `${me.username || me.email} accepted your friend request`,
         link: 'chat:friend-requests',
       });
+
+      // Live push: tells the original requester's ChatContext to move this
+      // out of "outgoing" and into "friends" immediately.
+      const populatedRequest = await request.populate('recipient', 'username email department');
+      emitToUser(request.requester, 'friend:accepted', populatedRequest);
     }
 
     res.status(200).json(request);

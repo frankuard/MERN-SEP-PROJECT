@@ -318,12 +318,44 @@ export const ChatProvider = ({ children }) => {
       });
     };
 
+    // Fires the instant someone sends ME a friend request (server emits
+    // this to my personal room in friendController.js -> sendFriendRequest).
+    // Pushes straight into friendRequests.incoming so the navbar badge and
+    // the FriendRequestsPopover in ChatPanel update immediately.
+    const handleFriendRequestReceived = (request) => {
+      setFriendRequests((prev) => {
+        if (prev.incoming.some((r) => r._id === request._id)) return prev; // dedupe
+        return { ...prev, incoming: [request, ...prev.incoming] };
+      });
+    };
+
+    // Fires the instant someone I sent a request to accepts it (server
+    // emits this to my personal room in friendController.js ->
+    // respondToFriendRequest). Removes it from my outgoing list and adds
+    // the new friend immediately.
+    const handleFriendRequestAccepted = (request) => {
+      setFriendRequests((prev) => ({
+        ...prev,
+        outgoing: prev.outgoing.filter((r) => r._id !== request._id),
+      }));
+
+      const newFriend = request?.recipient;
+      const newFriendId = newFriend?._id || newFriend?.id;
+      if (newFriendId) {
+        setFriends((prev) =>
+          prev.some((f) => (f._id || f.id) === newFriendId) ? prev : [newFriend, ...prev]
+        );
+      }
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('conversation:bump', handleBump);
     socket.on('conversation:new', handleNewConversation);
     socket.on('conversation:updated', handleConversationUpdated);
     socket.on('conversation:deleted', handleConversationDeleted);
     socket.on('messages:deleted', handleMessagesDeleted);
+    socket.on('friend:request', handleFriendRequestReceived);
+    socket.on('friend:accepted', handleFriendRequestAccepted);
 
     return () => {
       socket.off('message:new', handleNewMessage);
@@ -332,6 +364,8 @@ export const ChatProvider = ({ children }) => {
       socket.off('conversation:updated', handleConversationUpdated);
       socket.off('conversation:deleted', handleConversationDeleted);
       socket.off('messages:deleted', handleMessagesDeleted);
+      socket.off('friend:request', handleFriendRequestReceived);
+      socket.off('friend:accepted', handleFriendRequestAccepted);
     };
   }, [myId, fetchConversations]);
 

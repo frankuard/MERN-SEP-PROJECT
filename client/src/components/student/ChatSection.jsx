@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAIChat } from '../../context/AIChatContext';
 import chatApi from '../../api/chatApi';
 import uploadApi from '../../api/uploadApi';
 
@@ -728,7 +729,7 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
       </div>
 
       {/* ── Message thread ── */}
-      <div className={`flex flex-1 flex-col ${mobileShowThread ? 'flex' : 'hidden sm:flex'}`}>
+      <div className={`flex min-w-0 flex-1 flex-col ${mobileShowThread ? 'flex' : 'hidden sm:flex'}`}>
         {!activeConversationId && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2">
             <MessageCircle size={36} style={{ color: t.textMuted }} />
@@ -854,7 +855,7 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
             )}
 
             {/* Messages */}
-            <div className="flex-1 space-y-2 overflow-y-auto p-4">
+            <div className="flex-1 min-w-0 space-y-2 overflow-y-auto overflow-x-hidden p-4">
               {messages.map((msg) => {
                 const isMine = (msg.sender?._id || msg.sender) === myId;
                 const isImageAttachment = msg.attachment?.mimetype?.startsWith('image/');
@@ -863,7 +864,7 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
                   <div
                     key={msg._id}
                     onClick={() => { if (selectMode && isMine) toggleSelectMessage(msg._id); }}
-                    className={`group flex items-start gap-1.5 ${isMine ? 'justify-end' : 'justify-start'} ${selectMode && isMine ? 'cursor-pointer' : ''}`}
+                    className={`group flex min-w-0 items-start gap-1.5 ${isMine ? 'justify-end' : 'justify-start'} ${selectMode && isMine ? 'cursor-pointer' : ''}`}
                   >
                     {selectMode && isMine && (
                       isSelected
@@ -903,7 +904,7 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
                       </div>
                     )}
 
-                    <div className="max-w-[75%]">
+                    <div className="min-w-0 max-w-[75%]">
                       {!isMine && activeConversation?.isGroup && (
                         <p className="mb-0.5 ml-1 text-[10px] font-bold" style={{ color: t.textMuted }}>
                           {msg.sender?.username}
@@ -942,7 +943,7 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
 
                       {msg.text && (
                         <div
-                          className="rounded-2xl px-3.5 py-2 text-sm"
+                          className="whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm"
                           style={{
                             backgroundColor: isMine ? t.accentPrimary : t.chipBg,
                             color: isMine ? '#fff' : t.textPrimary,
@@ -1010,12 +1011,12 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
               </div>
             )}
 
-            {/* Message input — pr-[80px] reserves space so the fixed AI-chatbot
-                icon (52 px wide, 24 px from right edge) never overlaps the
-                Send button on any screen size. */}
+            {/* Message input — the AI-chatbot widget is fully suppressed
+                while this page is mounted (see suppressWidget above), so no
+                extra right padding is needed to dodge it anymore. */}
             <form
               onSubmit={handleSend}
-              className="flex items-center gap-2 border-t p-3 pr-[80px]"
+              className="flex items-center gap-2 border-t p-3"
               style={{ borderColor: pendingAttachment ? 'transparent' : t.border }}
             >
               <input ref={fileInputRef} type="file" onChange={handleFileSelect} disabled={uploadingFile} className="hidden" />
@@ -1641,6 +1642,13 @@ const ChatSection = ({ t, initialTab }) => {
     friends,
   } = useChat();
 
+  const { suppressWidget, unsuppressWidget } = useAIChat();
+
+  useEffect(() => {
+    suppressWidget();
+    return () => unsuppressWidget();
+  }, [suppressWidget, unsuppressWidget]);
+
   const [activeTab, setActiveTab] = useState(initialTab || 'chats');
   const [showNewChat, setShowNewChat] = useState(false);
 
@@ -1654,7 +1662,7 @@ const ChatSection = ({ t, initialTab }) => {
         backgroundColor: t.cardBg,
         borderColor: t.border,
         boxShadow: t.shadowSoft,
-        height: 'calc(100vh - 80px - 3rem)',  /* viewport minus navbar (≈80px) minus parent padding (1.5rem top+bottom) */
+        height: 'calc(100dvh - 80px - 3rem)',  /* dynamic viewport minus navbar (≈80px) minus parent padding (1.5rem top+bottom) */
         minHeight: '500px',
       }}
     >

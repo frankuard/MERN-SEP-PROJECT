@@ -8,11 +8,13 @@ const ChatButton = ({ t }) => {
   const {
     totalUnread,
     pendingGroupInviteCount,
+    pendingFriendRequestCount,
   } = useChat();
 
-  // Combined badge — unread messages + pending group invites. Friend
-  // requests get their own badge on the profile pill instead.
-  const badgeCount = totalUnread + pendingGroupInviteCount;
+  // Combined badge — unread messages + pending group invites + pending
+  // friend requests, all live via socket (see ChatContext's socket
+  // useEffect: message:new, conversation:updated, friend:request).
+  const badgeCount = totalUnread + pendingGroupInviteCount + pendingFriendRequestCount;
 
   return (
     <button

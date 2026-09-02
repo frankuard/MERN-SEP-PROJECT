@@ -357,20 +357,96 @@ const GroupInvitesPopover = ({ t, onClose }) => {
   );
 };
 
+const FriendRequestsPopover = ({ t, onClose }) => {
+  const { friendRequests, respondToFriendRequest, loadingFriends } = useChat();
+  const [busyId, setBusyId] = useState(null);
+
+  const handleResponse = async (requestId, status) => {
+    setBusyId(requestId);
+    try {
+      await respondToFriendRequest(requestId, status);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not respond to request');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div
+      className="absolute right-0 top-full z-20 mt-2 w-72 overflow-hidden rounded-2xl border shadow-xl"
+      style={{ backgroundColor: t.cardBg, borderColor: t.border }}
+    >
+      <div className="flex items-center justify-between border-b p-3" style={{ borderColor: t.border }}>
+        <p className="text-xs font-extrabold" style={{ color: t.textPrimary }}>Friend Requests</p>
+        <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/5">
+          <X size={14} style={{ color: t.textMuted }} />
+        </button>
+      </div>
+      <div className="max-h-72 overflow-y-auto p-2">
+        {loadingFriends && (
+          <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>Loading...</p>
+        )}
+        {!loadingFriends && friendRequests.incoming.length === 0 && (
+          <p className="py-4 text-center text-xs" style={{ color: t.textMuted }}>No pending requests.</p>
+        )}
+        <div className="space-y-1.5">
+          {friendRequests.incoming.map((r) => (
+            <div key={r._id} className="flex items-center gap-2 rounded-xl p-2" style={{ backgroundColor: t.pageBg }}>
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                {(r.requester?.username || r.requester?.email || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold" style={{ color: t.textPrimary }}>
+                  {r.requester?.username || 'Unknown'}
+                </p>
+                <p className="truncate text-[10px]" style={{ color: t.textMuted }}>
+                  {r.requester?.department || r.requester?.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={busyId === r._id}
+                onClick={() => handleResponse(r._id, 'accepted')}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-white disabled:opacity-50"
+                style={{ backgroundColor: '#16a34a' }}
+                title="Accept"
+              >
+                <Check size={11} />
+              </button>
+              <button
+                type="button"
+                disabled={busyId === r._id}
+                onClick={() => handleResponse(r._id, 'rejected')}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border disabled:opacity-50"
+                style={{ borderColor: t.border, color: t.textMuted }}
+                title="Decline"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ---------------- Main chat panel ----------------
 const ChatPanel = ({ t, onClose }) => {
   const { user } = useAuth();
   const myId = user?._id || user?.id;
   const { suppressWidget, unsuppressWidget } = useAIChat();
-  const {
+    const {
     conversations, loadingConversations, activeConversationId, messages,
     unreadByConversation, openConversation, closeConversation, deleteConversation, leaveGroup,
     sendMessage, deleteMessages, startDM, createGroup,
-    pendingGroupInviteCount, friends,
+    pendingGroupInviteCount, pendingFriendRequestCount, friends,
   } = useChat();
 
   const [showNewChat, setShowNewChat] = useState(false);
   const [showInvites, setShowInvites] = useState(false);
+    const [showFriendRequests, setShowFriendRequests] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [draft, setDraft] = useState('');
@@ -583,8 +659,8 @@ const ChatPanel = ({ t, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-0 sm:p-4 backdrop-blur-xs" style={{ overscrollBehavior: 'contain', touchAction: 'none' }}>
       <div
-        className="flex h-full w-full flex-col overflow-hidden sm:h-[85vh] sm:max-w-3xl sm:rounded-2xl sm:border"
-        style={{ backgroundColor: t.cardBg, borderColor: t.border }}
+        className="flex w-full flex-col overflow-hidden sm:h-[85vh] sm:max-w-3xl sm:rounded-2xl sm:border"
+        style={{ backgroundColor: t.cardBg, borderColor: t.border, height: '100dvh', maxHeight: '100dvh' }}
       >
         {/* Header — title, group-invites bell (popover; friend requests are
             handled from the profile page's Friends overlay instead), new
@@ -592,6 +668,20 @@ const ChatPanel = ({ t, onClose }) => {
         <div className="relative flex items-center justify-between border-b p-3" style={{ borderColor: t.border }}>
           <p className="px-2 text-sm font-extrabold" style={{ color: t.textPrimary }}>Chats</p>
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowFriendRequests((o) => !o)}
+              className="relative rounded-lg p-2 hover:bg-black/5 dark:hover:bg-white/5"
+              title="Friend requests"
+            >
+              <UserPlus size={17} style={{ color: t.textPrimary }} />
+              {pendingFriendRequestCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {pendingFriendRequestCount > 9 ? '9+' : pendingFriendRequestCount}
+                </span>
+              )}
+            </button>
+            {showFriendRequests && <FriendRequestsPopover t={t} onClose={() => setShowFriendRequests(false)} />}
             <button
               type="button"
               onClick={() => setShowInvites((o) => !o)}
