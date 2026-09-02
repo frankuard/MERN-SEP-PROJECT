@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Users, Calendar, TrendingUp, CheckSquare, ArrowRight, ClipboardList,
+  Users, Calendar, TrendingUp, ArrowRight, ClipboardList, BookOpen,
 } from 'lucide-react';
 import attendanceApi from '../../../api/attendanceApi';
 import eventsApi from '../../../api/eventsApi';
@@ -150,10 +150,10 @@ const AdminDashboardHome = ({ t, adminName = 'Admin', onNavigate }) => {
             t={t}
           />
           <QuickAction
-            icon={<CheckSquare size={18} />}
-            title="Pending Approvals"
-            description="Review new teacher/staff signups"
-            onClick={() => onNavigate('approvals')}
+            icon={<BookOpen size={18} />}
+            title="Manage Resources"
+            description="Upload, edit or remove shared resources"
+            onClick={() => onNavigate('manage-resources')}
             t={t}
           />
         </div>

@@ -1,7 +1,7 @@
 import {
   Home, Search, HelpCircle, Package, FileText, Coffee, MapPin,
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
-  AlertTriangle, ClipboardList, CheckSquare, Settings, LogOut,
+  AlertTriangle, ClipboardList, Settings, LogOut,
    PlusCircle, TrendingUp, Bell,
   Building2, School, GraduationCap, Clock, Video, UtensilsCrossed, Users    // ← add UtensilsCrossed here
 } from "lucide-react";
@@ -38,7 +38,6 @@ const navConfig = {
   { id: "manage-resources", label: "Manage Resources", icon: BookOpen },
   { id: "manage-lost-found", label: "Manage Lost & Found", icon: Search }, 
   { id: 'manage-users',label: 'Manage Users',icon: Users},
-  { id: "approvals", label: "Pending Approvals", icon: CheckSquare },
 ],
 };
  

@@ -5,7 +5,6 @@ import { useTheme } from '../context/ThemeContext';
 import { themes } from '../data/themes';
 import AdminDashboardHome from '../components/admin/Dashboard/AdminDashboardHome';
 import ManageAttendanceSection from '../components/admin/ManageAttendance/ManageAttendanceSection';
-// import PendingApprovalsSection from '../components/admin/PendingApprovals/...'; // wire in later
 import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSection';
 import ManageAnnouncementsSection from '../components/admin/ManageAnnouncements/ManageAnnouncementsSection';
 import ManageCanteenSection from '../components/admin/ManageCanteen/ManageCanteenSection';
@@ -23,7 +22,6 @@ const VALID_ADMIN_TABS = [
   'dashboard', 'manage-attendance', 'manage-events', 'manage-announcements',
   'manage-canteen', 'manage-lost-found', 'manage-resources',
   'manage-campus-help', 'manage-timetable', 'manage-ssd', 'manage-users',
-  'approvals',
 ];
 
 const AdminDashboard = () => {
@@ -97,14 +95,6 @@ const AdminDashboard = () => {
 {activeTab === "manage-timetable" && (
   <ManageTimetableSection t={t} />
 )}
-
-          {activeTab === 'approvals' && (
-            <div>
-              <p className="text-sm" style={{ color: t.textMuted }}>
-                Pending Approvals — wire in your existing ApprovalList/ApprovalCard components here.
-              </p>
-            </div>
-          )}
         </div>
       </main>
     </div>
