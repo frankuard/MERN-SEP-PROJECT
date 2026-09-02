@@ -486,6 +486,7 @@ const SSDHelpSection = ({ t, user, studentName }) => {
             {upcomingEvents.map((ev) => {
               const isRegistered = ev.registered || myRegisteredEventIds.has(ev._id);
               const isFull = ev.capacity != null && ev.registeredCount >= ev.capacity;
+              const isRegistrationClosed = ev.registrationEnabled === false;
 
               return (
                 <div
@@ -548,12 +549,20 @@ const SSDHelpSection = ({ t, user, studentName }) => {
 
                     <button
                       type="button"
-                      disabled={isRegistered || isFull || registeringId === ev._id}
+                      disabled={isRegistered || isFull || isRegistrationClosed || registeringId === ev._id}
                       onClick={() => handleRegister(ev._id)}
                       className="mt-4 w-full rounded-xl py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-70"
-                      style={{ backgroundColor: isRegistered ? '#16a34a' : t.accentPrimary }}
+                      style={{ backgroundColor: isRegistered ? '#16a34a' : isRegistrationClosed ? t.textMuted : t.accentPrimary }}
                     >
-                      {isRegistered ? 'Registered ✅' : isFull ? 'Event Full' : registeringId === ev._id ? 'Registering...' : 'Register for Event'}
+                      {isRegistered
+                        ? 'Registered ✅'
+                        : isRegistrationClosed
+                        ? 'Registration Closed'
+                        : isFull
+                        ? 'Event Full'
+                        : registeringId === ev._id
+                        ? 'Registering...'
+                        : 'Register for Event'}
                     </button>
                   </div>
                 </div>
