@@ -329,6 +329,17 @@ export const ChatProvider = ({ children }) => {
       });
     };
 
+    // Fires the instant someone invites me to a group (server emits this
+    // to my personal room in chatController.js -> createGroup /
+    // updateGroupMembers). Pushes straight into groupInvites so the
+    // Requests tab badge updates immediately, same as friend:request.
+    const handleGroupInviteReceived = (invite) => {
+      setGroupInvites((prev) => {
+        if (prev.some((i) => i._id === invite._id)) return prev; // dedupe
+        return [invite, ...prev];
+      });
+    };
+
     // Fires the instant someone I sent a request to accepts it (server
     // emits this to my personal room in friendController.js ->
     // respondToFriendRequest). Removes it from my outgoing list and adds
@@ -356,6 +367,7 @@ export const ChatProvider = ({ children }) => {
     socket.on('messages:deleted', handleMessagesDeleted);
     socket.on('friend:request', handleFriendRequestReceived);
     socket.on('friend:accepted', handleFriendRequestAccepted);
+    socket.on('group:invite', handleGroupInviteReceived);
 
     return () => {
       socket.off('message:new', handleNewMessage);
@@ -366,6 +378,7 @@ export const ChatProvider = ({ children }) => {
       socket.off('messages:deleted', handleMessagesDeleted);
       socket.off('friend:request', handleFriendRequestReceived);
       socket.off('friend:accepted', handleFriendRequestAccepted);
+      socket.off('group:invite', handleGroupInviteReceived);
     };
   }, [myId, fetchConversations]);
 

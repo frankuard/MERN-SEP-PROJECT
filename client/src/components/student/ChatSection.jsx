@@ -29,6 +29,12 @@ const getConversationLabel = (conv, myId) => {
   return other?.username || other?.email || 'Unknown';
 };
 
+const getConversationAvatar = (conv, myId) => {
+  if (conv.isGroup) return null;
+  const other = conv.participants?.find((p) => (p._id || p) !== myId);
+  return other?.profileImage || null;
+};
+
 // ─── New Chat / Group Modal ────────────────────────────────────────────────────
 
 const NewChatModal = ({ t, onClose, onStartDM, onCreateGroup }) => {
@@ -263,8 +269,12 @@ const AddMemberModal = ({ t, conversation, onClose }) => {
             )}
             {filteredFriends.map((u) => (
               <div key={u._id} className="flex w-full items-center gap-2.5 rounded-xl p-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                  {(u.username || u.email || '?').charAt(0).toUpperCase()}
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                  {u.profileImage ? (
+                    <img src={u.profileImage} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    (u.username || u.email || '?').charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{u.username}</p>
@@ -430,7 +440,7 @@ const GroupMembersModal = ({ t, conversation, myId, onClose, onAddMember }) => {
 
 // ─── Chats Tab ────────────────────────────────────────────────────────────────
 
-const ChatsTab = ({ t, onOpenNewChat }) => {
+const ChatsTab = ({ t, onOpenNewChat, onViewProfile }) => {
   const { user } = useAuth();
   const myId = user?._id || user?.id;
   const {
@@ -679,8 +689,14 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
                 className="group flex w-full cursor-pointer items-center gap-3 border-b p-3.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                 style={{ borderColor: t.border, backgroundColor: isActive ? t.chipBg : 'transparent' }}
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: conv.isGroup ? '#7c3aed' : t.accentPrimary }}>
-                  {conv.isGroup ? <Users size={16} /> : getConversationLabel(conv, myId).charAt(0).toUpperCase()}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-bold text-white" style={{ backgroundColor: conv.isGroup ? '#7c3aed' : t.accentPrimary }}>
+                  {conv.isGroup ? (
+                    <Users size={16} />
+                  ) : getConversationAvatar(conv, myId) ? (
+                    <img src={getConversationAvatar(conv, myId)} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    getConversationLabel(conv, myId).charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
@@ -716,8 +732,12 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
               className="group flex w-full cursor-pointer items-center gap-3 border-b p-3.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
               style={{ borderColor: t.border }}
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                {(f.username || '?').charAt(0).toUpperCase()}
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                {f.profileImage ? (
+                  <img src={f.profileImage} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  (f.username || '?').charAt(0).toUpperCase()
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{f.username}</p>
@@ -748,8 +768,14 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
               >
                 <ArrowLeft size={17} style={{ color: t.textPrimary }} />
               </button>
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: activeConversation?.isGroup ? '#7c3aed' : t.accentPrimary }}>
-                {activeConversation?.isGroup ? <Users size={14} /> : getConversationLabel(activeConversation || {}, myId).charAt(0).toUpperCase()}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold text-white" style={{ backgroundColor: activeConversation?.isGroup ? '#7c3aed' : t.accentPrimary }}>
+                {activeConversation?.isGroup ? (
+                  <Users size={14} />
+                ) : getConversationAvatar(activeConversation || {}, myId) ? (
+                  <img src={getConversationAvatar(activeConversation || {}, myId)} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  getConversationLabel(activeConversation || {}, myId).charAt(0).toUpperCase()
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>
@@ -782,6 +808,21 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
                         style={{ color: t.textPrimary }}
                       >
                         <Users size={13} /> View Members
+                      </button>
+                    )}
+                    {!activeConversation?.isGroup && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMenu(false);
+                          const other = activeConversation?.participants?.find((p) => (p._id || p) !== myId);
+                          const otherId = other?._id || other;
+                          if (otherId) onViewProfile(otherId);
+                        }}
+                        className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5"
+                        style={{ color: t.textPrimary }}
+                      >
+                        <UserCheck size={13} /> Profile
                       </button>
                     )}
                     <button
@@ -904,6 +945,15 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
                       </div>
                     )}
 
+                    {!isMine && (
+                      <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                        {msg.sender?.profileImage ? (
+                          <img src={msg.sender.profileImage} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          (msg.sender?.username || '?').charAt(0).toUpperCase()
+                        )}
+                      </div>
+                    )}
                     <div className="min-w-0 max-w-[75%]">
                       {!isMine && activeConversation?.isGroup && (
                         <p className="mb-0.5 ml-1 text-[10px] font-bold" style={{ color: t.textMuted }}>
@@ -1101,7 +1151,7 @@ const ChatsTab = ({ t, onOpenNewChat }) => {
 
 // ─── Add Friends Tab ───────────────────────────────────────────────────────────
 
-const AddFriendsTab = ({ t }) => {
+const AddFriendsTab = ({ t, onViewProfile }) => {
   const {
     friends,
     friendRequests,
@@ -1184,9 +1234,18 @@ const AddFriendsTab = ({ t }) => {
               className="flex items-center justify-between gap-3 rounded-2xl border p-3"
               style={{ backgroundColor: t.cardBg, borderColor: t.border }}
             >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                  {(person.username || 'U').charAt(0).toUpperCase()}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onViewProfile(id)}
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                  {person.profileImage ? (
+                    <img src={person.profileImage} alt={person.username} className="h-full w-full object-cover" />
+                  ) : (
+                    (person.username || 'U').charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{person.username}</p>
@@ -1280,8 +1339,12 @@ const RequestsTab = ({ t }) => {
                 style={{ backgroundColor: t.cardBg, borderColor: t.border }}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                    {(requester.username || 'U').charAt(0).toUpperCase()}
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-extrabold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                    {requester.profileImage ? (
+                      <img src={requester.profileImage} alt={requester.username} className="h-full w-full object-cover" />
+                    ) : (
+                      (requester.username || 'U').charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{requester.username}</p>
@@ -1481,8 +1544,12 @@ const CreateGroupTab = ({ t }) => {
                 className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                 style={{ backgroundColor: isSelected ? t.chipBg : 'transparent' }}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                  {(u.username || '?').charAt(0).toUpperCase()}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                  {u.profileImage ? (
+                    <img src={u.profileImage} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    (u.username || '?').charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{u.username}</p>
@@ -1571,8 +1638,12 @@ const CreateGroupTab = ({ t }) => {
                     className="flex items-center gap-2.5 rounded-xl p-2.5"
                     style={{ backgroundColor: t.pageBg }}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white" style={{ backgroundColor: t.accentPrimary }}>
-                      {(u.username || '?').charAt(0).toUpperCase()}
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-extrabold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                      {u.profileImage ? (
+                        <img src={u.profileImage} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        (u.username || '?').charAt(0).toUpperCase()
+                      )}
                     </div>
                     <p className="min-w-0 flex-1 truncate text-xs font-bold" style={{ color: t.textPrimary }}>{u.username}</p>
                     <button
@@ -1632,7 +1703,7 @@ const TABS = [
   { id: 'create-group', label: 'Create New Group', icon: Users },
 ];
 
-const ChatSection = ({ t, initialTab }) => {
+const ChatSection = ({ t, initialTab, onViewProfile }) => {
   const {
     totalUnread,
     pendingFriendRequestCount,
@@ -1720,9 +1791,9 @@ const ChatSection = ({ t, initialTab }) => {
       {/* ── Tab content ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {activeTab === 'chats' && (
-          <ChatsTab t={t} onOpenNewChat={() => setShowNewChat(true)} />
+          <ChatsTab t={t} onOpenNewChat={() => setShowNewChat(true)} onViewProfile={onViewProfile} />
         )}
-        {activeTab === 'add-friends' && <AddFriendsTab t={t} />}
+        {activeTab === 'add-friends' && <AddFriendsTab t={t} onViewProfile={onViewProfile} />}
         {activeTab === 'requests' && <RequestsTab t={t} />}
         {activeTab === 'create-group' && <CreateGroupTab t={t} />}
       </div>

@@ -483,7 +483,7 @@ const AIChatWidget = () => {
               onBlur={e => e.currentTarget.style.borderColor = t.border}
             />
             <button
-              type="button" onClick={send}
+              type="button" onClick={() => send()}
               disabled={!input.trim() || loading}
               aria-label="Send"
               style={{

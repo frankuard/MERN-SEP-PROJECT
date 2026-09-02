@@ -582,6 +582,7 @@ const StudentDashboard = () => {
                 profileUserId={viewingProfileId}
                 onBack={() => setViewingProfileId(null)}
                 onViewProfile={(id) => setViewingProfileId(id)}
+                onOpenChat={() => setActiveTab('chat')}
                 autoOpenRequests={autoOpenFriendRequests}
                 onAutoOpenRequestsHandled={() => setAutoOpenFriendRequests(false)}
               />
@@ -589,7 +590,10 @@ const StudentDashboard = () => {
 
             {/* 12. Chat Section — full page, not a popup */}
             {activeTab === 'chat' && (
-              <ChatSection t={t} />
+              <ChatSection
+                t={t}
+                onViewProfile={(id) => { setViewingProfileId(id); setActiveTab('profile'); }}
+              />
             )}
 
             {/* 10. Dashboard Home View */}

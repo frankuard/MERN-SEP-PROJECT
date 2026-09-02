@@ -29,7 +29,7 @@ const Input = ({ t, ...props }) => (
 // profileUserId: optional. When set (and different from the logged-in user's
 // own id), the section renders READ-ONLY with an Add Friend button instead
 // of edit controls. onBack fires when leaving someone else's profile.
-const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenRequests, onAutoOpenRequestsHandled }) => {  const { user: authUser, setUser: setAuthUser } = useAuth();
+const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, onOpenChat, autoOpenRequests, onAutoOpenRequestsHandled }) => {  const { user: authUser, setUser: setAuthUser } = useAuth();
 
   const isOwnProfile = !profileUserId || profileUserId === (authUser?._id || authUser?.id);
 
@@ -184,7 +184,7 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenReque
     setStartingChat(true);
     try {
       await startDM(targetId);
-      openChat('chats');
+      onOpenChat();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not open chat.');
     } finally {
@@ -195,6 +195,9 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenReque
   // ── Add friend from someone else's profile page ──────────
   const [sendingRequest, setSendingRequest] = useState(false);
   const [justSentTo, setJustSentTo] = useState(new Set());
+
+  // ── Friends list modal (own profile only) ─────────────────
+  const [showFriendsList, setShowFriendsList] = useState(false);
 
   const handleAddFriendOnProfile = async () => {
     const targetId = user?._id || user?.id;
@@ -314,13 +317,15 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenReque
         </div>
 
         {isOwnProfile ? (
-          <div
-            className="inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-extrabold"
+          <button
+            type="button"
+            onClick={() => setShowFriendsList(true)}
+            className="inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-extrabold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
             style={{ borderColor: t.border, color: t.textPrimary, backgroundColor: t.cardBg }}
           >
             <Users size={15} />
             Friends <span style={{ color: t.accentPrimary }}>{friends.length}</span>
-          </div>
+          </button>
         ) : alreadyFriend ? (
           <button
             type="button"
@@ -429,6 +434,63 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, autoOpenReque
           </Card>
         )}
       </div>
+
+      {/* ── Friends list modal (own profile only) ──────────── */}
+      {showFriendsList && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setShowFriendsList(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border shadow-2xl"
+            style={{ backgroundColor: t.cardBg, borderColor: t.border }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: t.border }}>
+              <h3 className="text-sm font-extrabold" style={{ color: t.textPrimary }}>
+                Friends <span style={{ color: t.accentPrimary }}>{friends.length}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowFriendsList(false)}
+                className="rounded-full p-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <X size={16} style={{ color: t.textMuted }} />
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto py-2">
+              {friends.length === 0 && (
+                <p className="py-6 text-center text-xs" style={{ color: t.textMuted }}>
+                  No friends yet.
+                </p>
+              )}
+              {friends.map((f) => {
+                const fid = f._id || f.id;
+                return (
+                  <button
+                    key={fid}
+                    type="button"
+                    onClick={() => {
+                      setShowFriendsList(false);
+                      onViewProfile(fid);
+                    }}
+                    className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-extrabold text-white" style={{ backgroundColor: t.accentPrimary }}>
+                      {f.profileImage ? (
+                        <img src={f.profileImage} alt={f.username} className="h-full w-full object-cover" />
+                      ) : (
+                        (f.username || '?').charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{f.username}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Crop modal ────────────────────────────────────── */}
       {cropTarget && (

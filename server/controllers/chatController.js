@@ -70,7 +70,7 @@ const searchUsers = async (req, res) => {
       role: 'student',
       $or: [{ email: regex }, { username: regex }],
     })
-      .select('username email role department')
+      .select('username email role department profileImage')
       .limit(15);
 
     res.status(200).json(users);
@@ -92,7 +92,7 @@ const getMyConversations = async (req, res) => {
       participants: myId,
       deletedBy: { $ne: myId },
     })
-      .populate('participants', 'username email role')
+      .populate('participants', 'username email role profileImage')
       .populate('lastMessage.sender', 'username')
       .sort({ updatedAt: -1 });
 
@@ -127,7 +127,7 @@ const getOrCreateDM = async (req, res) => {
     let conversation = await Conversation.findOne({
       isGroup: false,
       participants: { $all: [myId, userId], $size: 2 },
-    }).populate('participants', 'username email role');
+    }).populate('participants', 'username email role profileImage');
 
     if (!conversation) {
       conversation = await Conversation.create({
@@ -136,7 +136,7 @@ const getOrCreateDM = async (req, res) => {
       });
       conversation = await Conversation.findById(conversation._id).populate(
         'participants',
-        'username email role'
+        'username email role profileImage'
       );
     }
 
@@ -181,19 +181,27 @@ const createGroup = async (req, res) => {
     );
 
     const me = req.user;
-    invitedIds.forEach((invitedUser, idx) => {
-      createNotification(invitedUser, {
+    const populatedInvites = await GroupInvite.find({ _id: { $in: invites.map((i) => i._id) } })
+      .populate('conversation', 'groupName groupIcon')
+      .populate('invitedBy', 'username email');
+
+    populatedInvites.forEach((invite) => {
+      const invitedUserId = invite.invitedUser.toString();
+      createNotification(invitedUserId, {
         type: 'group',
         title: 'Group Invite',
         message: `${me.username || me.email} invited you to join "${groupName.trim()}"`,
         link: 'chat:group-invites',
-        meta: { inviteId: invites[idx]._id },
+        meta: { inviteId: invite._id },
       });
+      // Live push: adds straight into the invited user's groupInvites
+      // state, same pattern as friend:request.
+      emitToRoom(invitedUserId, 'group:invite', invite);
     });
 
     const populated = await Conversation.findById(conversation._id).populate(
       'participants',
-      'username email role'
+      'username email role profileImage'
     );
 
     res.status(201).json(populated);
@@ -252,6 +260,11 @@ const updateGroupMembers = async (req, res) => {
         meta: { inviteId: invite._id },
       });
 
+      const populatedInvite = await GroupInvite.findById(invite._id)
+        .populate('conversation', 'groupName groupIcon')
+        .populate('invitedBy', 'username email');
+      emitToRoom(addUserId, 'group:invite', populatedInvite);
+
       return res.status(200).json({ message: 'Invite sent', invite });
     }
 
@@ -266,7 +279,7 @@ const updateGroupMembers = async (req, res) => {
 
       const populated = await Conversation.findById(conversation._id).populate(
         'participants',
-        'username email role'
+        'username email role profileImage'
       );
       emitToRoom(`conversation:${conversation._id}`, 'conversation:updated', populated);
       return res.status(200).json(populated);
@@ -329,7 +342,7 @@ const respondToGroupInvite = async (req, res) => {
       }
       conversation = await Conversation.findById(invite.conversation).populate(
         'participants',
-        'username email role'
+        'username email role profileImage'
       );
 
       // Let the group's other members' open tabs know someone joined.
@@ -370,7 +383,7 @@ const getMessages = async (req, res) => {
     }
 
     const messages = await Message.find(filter)
-      .populate('sender', 'username email')
+      .populate('sender', 'username email profileImage')
       .sort({ createdAt: -1 })
       .limit(Number(limit));
 
@@ -422,7 +435,7 @@ const sendMessage = async (req, res) => {
     );
     await conversation.save();
 
-    const populated = await Message.findById(message._id).populate('sender', 'username email');
+    const populated = await Message.findById(message._id).populate('sender', 'username email profileImage');
 
     // Live push: anyone with this conversation open right now gets it instantly.
     emitToRoom(`conversation:${id}`, 'message:new', populated);
@@ -544,7 +557,7 @@ const leaveGroup = async (req, res) => {
 
     const populated = await Conversation.findById(conversation._id).populate(
       'participants',
-      'username email role'
+      'username email role profileImage'
     );
     emitToRoom(`conversation:${conversation._id}`, 'conversation:updated', populated);
 

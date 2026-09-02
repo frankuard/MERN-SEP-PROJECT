@@ -86,7 +86,7 @@ const sendFriendRequest = async (req, res) => {
     // Live push: the recipient's ChatContext (if their socket is
     // connected) adds this straight into friendRequests.incoming so the
     // badge and popover update instantly, with no refresh/poll needed.
-    const populatedRequest = await request.populate('requester', 'username email department');
+    const populatedRequest = await request.populate('requester', 'username email department profileImage');
     emitToUser(userId, 'friend:request', populatedRequest);
 
     res.status(201).json(request);
@@ -129,7 +129,7 @@ const respondToFriendRequest = async (req, res) => {
 
       // Live push: tells the original requester's ChatContext to move this
       // out of "outgoing" and into "friends" immediately.
-      const populatedRequest = await request.populate('recipient', 'username email department');
+      const populatedRequest = await request.populate('recipient', 'username email department profileImage');
       emitToUser(request.requester, 'friend:accepted', populatedRequest);
     }
 
@@ -148,10 +148,10 @@ const getFriendRequests = async (req, res) => {
 
     const [incoming, outgoing] = await Promise.all([
       FriendRequest.find({ recipient: myId, status: 'pending' })
-        .populate('requester', 'username email department')
+        .populate('requester', 'username email department profileImage')
         .sort({ createdAt: -1 }),
       FriendRequest.find({ requester: myId, status: 'pending' })
-        .populate('recipient', 'username email department')
+        .populate('recipient', 'username email department profileImage')
         .sort({ createdAt: -1 }),
     ]);
 
@@ -170,8 +170,8 @@ const getFriends = async (req, res) => {
       status: 'accepted',
       $or: [{ requester: myId }, { recipient: myId }],
     })
-      .populate('requester', 'username email department')
-      .populate('recipient', 'username email department');
+      .populate('requester', 'username email department profileImage')
+      .populate('recipient', 'username email department profileImage');
 
     const friends = accepted.map((r) =>
       r.requester._id.toString() === myId ? r.recipient : r.requester
