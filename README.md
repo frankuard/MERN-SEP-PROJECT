@@ -370,7 +370,7 @@ MERN-SEP-PROJECT/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/MERN-SEP-PROJECT.git
+git clone https://github.com/frankuard/MERN-SEP-PROJECT.git
 cd MERN-SEP-PROJECT
 ```
 

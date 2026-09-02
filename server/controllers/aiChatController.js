@@ -253,8 +253,17 @@ const chat = async (req, res) => {
 
     const context = await buildContext(req.user);
 
+    const now = new Date();
+    const currentDateTime = now.toLocaleString('en-US', {
+      timeZone: 'Asia/Kathmandu',
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
+    });
+
     const systemPrompt = `You are Chauttari AI, the campus assistant for Chauttari college.
 You have real live data fetched directly from the campus database for the logged-in user.
+
+CURRENT DATE AND TIME (Nepal Standard Time): ${currentDateTime}
 
 ${context}
 
