@@ -680,7 +680,7 @@ All API endpoints are prefixed with `/api`.
 
 Manual testing has been performed across all major modules:
 
-| Area | Status |
+| Area | Status   |
 |---|---|
 | Authentication flow (register, login, logout, session restore) | ✅ Tested |
 | Role-based routing and access control | ✅ Tested |
