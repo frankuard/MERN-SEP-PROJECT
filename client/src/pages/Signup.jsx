@@ -5,10 +5,10 @@ import toast from 'react-hot-toast';
 import { getDashboardPath, useAuth } from '../context/AuthContext';
 import { DevAuthError } from '../utils/devAuth';
 
+// Teacher and staff signup is disabled for now — only student registration
+// is open. Re-add the other entries here when that's ready to launch.
 const ROLES = [
   { value: 'student', label: 'Student' },
-  { value: 'teacher', label: 'Teacher' },
-  { value: 'staff', label: 'Staff' },
 ];
 
 const Signup = () => {
@@ -169,9 +169,6 @@ const Signup = () => {
 
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-[#1a2b4c]">Create account</h2>
-              <p className="mt-1 text-sm text-[#6b7280]">
-                Teacher and staff accounts require admin approval before you can sign in.
-              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
