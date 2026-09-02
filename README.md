@@ -44,8 +44,6 @@
 |---|---|
 | 🔐 **Auth & Roles** | Register/Login with JWT in httpOnly cookies; 4 roles: student, teacher, staff, admin |
 | 📊 **Student Dashboard** | Attendance, timetable, events, canteen, lost & found, campus help, chat, profile |
-| 👨‍🏫 **Teacher Dashboard** | Dedicated panel for teacher-role users |
-| 🛡️ **Staff Dashboard** | Dedicated panel for staff-role users |
 | 🛠️ **Admin Dashboard** | Manage attendance, events, announcements, canteen, lost & found, resources, campus help, timetable, SSD, users |
 | 🏫 **Admin Department Panels** | Super, Canteen, SSD, RTE, and Resources department-specific admin sections |
 | 🤖 **Chauttari AI** | RAG-powered campus assistant using Groq LLM with live database context |
@@ -488,8 +486,6 @@ Follow the prompts to create the initial admin user.
 | Role | Status on Register | Dashboard | Key Permissions |
 |---|---|---|---|
 | **Student** | Auto-approved | `/student/:tab` | Full student features: attendance, timetable, chat, events, canteen, lost & found, campus help, profile |
-| **Teacher** | Pending approval | `/teacher/dashboard` | Teacher-specific dashboard |
-| **Staff** | Pending approval | `/staff/dashboard` | Staff-specific dashboard |
 | **Admin** | Created via script | `/admin/:tab` + `/admin/dept/:section` | Full management: attendance, events, announcements, canteen, lost & found, resources, campus help, timetable, SSD, users; department-specific panels (super, canteen, ssd, rte, resources) |
 
 ### Admin Department Sections
@@ -720,26 +716,12 @@ Key responsive patterns:
 
 > Update this section with your actual deployment URLs once deployed.
 
-- **Frontend**: [Deploy to Vercel / Netlify]
-- **Backend**: [Deploy to Render / Railway / Railway]
-- **Database**: MongoDB Atlas (cloud)
-- **Images**: ImageKit CDN
+- **Frontend**: Local Development Server
+- **Backend**: Local Development Server
+- **Database**: Local MongoDB
+- **Images**: Local Storage
 
 ---
-
-## 📸 Screenshots
-
-> Add screenshots of the application here.
-
-```
-Coming soon — screenshots of:
-• Student Dashboard
-• Admin Management Panel
-• Chat System
-• Chauttari AI Widget
-• Mobile Responsive View
-• Dark/Light Theme Toggle
-```
 
 ---
 
@@ -762,19 +744,24 @@ Coming soon — screenshots of:
 
 ## 🤝 Contribution
 
-Contributions are welcome! Please follow these steps:
+This project was collaboratively developed by:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add your feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
+Roshan Karki — @frankuard
 
-### Branch Naming Convention
-- `feature/` — New features
-- `fix/` — Bug fixes
-- `refactor/` — Code refactoring
-- `docs/` — Documentation updates
+Suraj Poddar — @surajpoddar-ml
+
+Aayush Pradhan — @Aayushprdhn
+
+Kailash Prasad Shah — @pratik051
+
+Diya Khadka —
+
+Rojika Thapa —
+
+### Branches
+- `main` — Main project branch
+- `frontend` — Frontend development branch
+- `suraj` — Suraj's development branch
 
 ---
 
