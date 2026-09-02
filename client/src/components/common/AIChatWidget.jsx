@@ -8,6 +8,22 @@ import { themes } from '../../data/themes';
 import DashboardMascot from '../student/Dashboard/DashboardMascot';
 import DashboardMascotFace from '../student/Dashboard/DashboardMascotFace';
 
+// ── "What can you do" detector — matched client-side, never
+// hits the API, so this reply costs zero tokens ────────────
+const HELP_PATTERNS = [
+  'what can you do', 'what are your features', 'what do you do',
+  'how can you help', 'what can you help with', 'features', 'help',
+];
+const isHelpIntent = (text) => {
+  const t = text.trim().toLowerCase();
+  return HELP_PATTERNS.some((p) => t === p || t.includes(p));
+};
+const HELP_SUGGESTIONS = [
+  'Show my attendance',
+  "What's today's canteen menu?",
+  'Any upcoming events?',
+];
+
 // ── Typing dots ──────────────────────────────────────────
 const TypingDots = ({ color }) => (
   <span style={{ display: 'inline-flex', gap: '3px', alignItems: 'center' }}>
@@ -96,7 +112,7 @@ const ReplyTable = ({ rows, t }) => {
 };
 
 // ── Message bubble ───────────────────────────────────────
-const Bubble = ({ msg, t, showAvatar }) => {
+const Bubble = ({ msg, t, showAvatar, onSuggestionClick }) => {
   const isUser = msg.role === 'user';
   const isBot = msg.role === 'assistant' || msg.role === 'loading';
 
@@ -135,6 +151,25 @@ const Bubble = ({ msg, t, showAvatar }) => {
         ) : (
           msg.content
         )}
+        {msg.suggestions && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+            {msg.suggestions.map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSuggestionClick(s)}
+                style={{
+                  textAlign: 'left', padding: '7px 10px', borderRadius: '10px',
+                  border: `1px solid ${t.border}`, background: 'transparent',
+                  color: t.sidebarActiveBg, fontSize: '12.5px', fontWeight: 700,
+                  cursor: 'pointer', fontFamily: '"Nunito", sans-serif',
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -148,9 +183,17 @@ const AIChatWidget = () => {
   const { theme } = useTheme();
   const t = themes[theme] || themes.light;
 
-  const [messages, setMessages] = useState([
-    { id: 'welcome', role: 'assistant', content: "Hello! How may I assist you today?\nI'm Chautari AI — ask me anything about campus: timetable, attendance, canteen prices, events, and more." },
-  ]);
+  const GREETINGS = ['Hello', 'Hola', 'Namaste', 'Ni Hao', 'Bonjour', 'Ciao', 'Konnichiwa',];
+  const [messages, setMessages] = useState(() => {
+    const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+    return [
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: `${greeting}! How may I assist you today?\nMy name is Chautari AI — I can help you with timetable, attendance, canteen prices, events, and more.`,
+      },
+    ];
+  });
 
   // Full mascot body+face only shows before the student has sent their
   // first message — once a real conversation is underway, we switch to
@@ -202,10 +245,25 @@ const AIChatWidget = () => {
     []
   );
 
-  const send = useCallback(async () => {
-    const text = input.trim();
+  const send = useCallback(async (overrideText) => {
+    const text = (overrideText ?? input).trim();
     if (!text || loading) return;
     setInput('');
+
+    if (isHelpIntent(text)) {
+      setMessages(prev => [
+        ...prev,
+        { id: `u${Date.now()}`, role: 'user', content: text },
+        {
+          id: `a${Date.now()}`,
+          role: 'assistant',
+          content: "Here's what I can help with — tap one to try it, or ask me anything else about campus:",
+          suggestions: HELP_SUGGESTIONS,
+        },
+      ]);
+      return;
+    }
+
     setMessages(prev => [
       ...prev,
       { id: `u${Date.now()}`, role: 'user', content: text },
@@ -391,7 +449,7 @@ const AIChatWidget = () => {
               </div>
             )}
             {messages.map(msg => (
-              <Bubble key={msg.id} msg={msg} t={t} showAvatar={hasUserMessaged} />
+              <Bubble key={msg.id} msg={msg} t={t} showAvatar={hasUserMessaged} onSuggestionClick={send} />
             ))}
             <div ref={bottomRef} />
           </div>
