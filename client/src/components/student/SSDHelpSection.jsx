@@ -15,6 +15,53 @@ const SUB_TABS = [
   { id: 'events', label: 'Upcoming Events', icon: CalendarCheck2 },
 ];
 
+const COLLEGE_ACCENT = '#2563eb';
+const COMMUNITY_ACCENT = '#9333ea';
+const accentFor = (type) => (type === 'college' ? COLLEGE_ACCENT : COMMUNITY_ACCENT);
+const iconFor = (type) => (type === 'college' ? Building2 : Users);
+
+// Same banner format as EventsSection.jsx — real image when available,
+// otherwise a themed decorative fallback instead of leaving blank space.
+const EventBanner = ({ event }) => {
+  const accent = accentFor(event.type);
+  const Icon = iconFor(event.type);
+
+  if (event.eventImage) {
+    return (
+      <div className="relative aspect-4/5 w-full overflow-hidden rounded-xl">
+        <img
+          src={event.eventImage}
+          alt={event.title}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative flex aspect-4/5 w-full flex-col items-center justify-center overflow-hidden rounded-xl"
+      style={{ backgroundColor: `${accent}0F` }}
+    >
+      <div className="pointer-events-none absolute -left-3 top-4 h-3 w-3 rounded-full bg-pink-400 opacity-40" />
+      <div className="pointer-events-none absolute right-6 top-8 h-4 w-4 rounded-full bg-yellow-400 opacity-40" />
+      <div className="pointer-events-none absolute bottom-5 left-1/3 h-2.5 w-2.5 rounded-full bg-purple-400 opacity-40" />
+      <div
+        className="flex h-12 w-12 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: `${accent}1A` }}
+      >
+        <Icon size={22} style={{ color: accent }} />
+      </div>
+      {event.category && (
+        <span className="mt-2 text-xs font-semibold" style={{ color: accent }}>
+          {event.category}
+        </span>
+      )}
+    </div>
+  );
+};
+
 const SSDHelpSection = ({ t, user, studentName }) => {
   const [ssdActiveSubTab, setSsdActiveSubTab] = useState('attendance');
   const [showReportModal, setShowReportModal] = useState(false);
@@ -446,11 +493,9 @@ const SSDHelpSection = ({ t, user, studentName }) => {
                   className="flex flex-col overflow-hidden rounded-2xl border"
                   style={{ backgroundColor: t.cardBg, borderColor: t.border }}
                 >
-                  {ev.eventImage && (
-                    <div className="h-36 w-full overflow-hidden" style={{ backgroundColor: t.pageBg }}>
-                      <img src={ev.eventImage} alt={ev.title} className="h-full w-full object-cover" />
-                    </div>
-                  )}
+                  <div className="p-4 pb-0">
+                    <EventBanner event={ev} />
+                  </div>
 
                   <div className="flex flex-1 flex-col p-5">
                     <div className="flex items-center gap-2.5">
