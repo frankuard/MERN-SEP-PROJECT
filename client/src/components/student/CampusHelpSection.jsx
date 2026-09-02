@@ -1,11 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   HelpCircle, Building2, Phone, Mail, GraduationCap,
-  CalendarClock, MessageSquare
+  CalendarClock, MessageSquare, Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AskHelpModal from './modals/AskHelpModal';
 import HelpThreadModal from './modals/HelpThreadModal';
+import campusHelpApi from '../../api/campusHelpApi';
 
 const CARD_TINTS = ['pastelBlue', 'pastelPink', 'pastelYellow', 'pastelCyan', 'pastelPurple', 'pastelOrange'];
 
@@ -14,90 +15,31 @@ const ACCENT = {
   green: '#5c8a72',
 };
 
-// ---- Dummy department contact data (Phase 1 — will move to API later) ----
-const DEPARTMENTS = [
-  {
-    id: 'bic',
-    icon: Building2,
-    title: 'Official BIC Campus Contact',
-    phone: '021-500050',
-    phoneHref: 'tel:0215000050',
-    email: 'info@bicnepal.edu.np',
-    emailHref: 'mailto:info@bicnepal.edu.np',
-  },
-  {
-    id: 'ssd',
-    icon: GraduationCap,
-    title: 'SSD Department',
-    phone: '+977 9802747227',
-    phoneHref: 'tel:+9779802747227',
-    email: 'studentservices@bicnepal.edu.np',
-    emailHref: 'mailto:studentservices@bicnepal.edu.np',
-  },
-  {
-    id: 'rte',
-    icon: CalendarClock,
-    title: 'RTE Department',
-    phone: '+977 9802747228',
-    phoneHref: 'tel:+9779802747228',
-    email: 'registry@bicnepal.edu.np',
-    emailHref: 'mailto:registry@bicnepal.edu.np',
-  },
-];
+// Backend stores department.icon as a string (e.g. "Building2") — map it
+// to the actual Lucide component here. Add more as new departments/icons
+// are created from the admin side.
+const ICON_MAP = {
+  Building2,
+  GraduationCap,
+  CalendarClock,
+};
 
-// ---- Dummy peer help requests with embedded response threads (Phase 1) ----
-const INITIAL_HELP_REQUESTS = [
-  {
-    id: 'ch1',
-    request: 'Can someone share today\u2019s DBMS notes?',
-    author: 'Ankit Sharma',
-    sem: 'CS 5th Sem',
-    time: '1h ago',
-    responses: [
-      {
-        id: 'r1',
-        author: 'Priya Shrestha',
-        time: '45m ago',
-        message: 'I have the full chapter scanned, sending it over.',
-        attachments: ['dbms-notes-ch4.pdf'],
-      },
-    ],
-  },
-  {
-    id: 'ch2',
-    request: 'Need a scientific calculator for tomorrow\u2019s exam.',
-    author: 'Priya Shrestha',
-    sem: 'BBA 2nd Sem',
-    time: '3h ago',
-    responses: [],
-  },
-  {
-    id: 'ch3',
-    request: 'Looking for a study partner for AI midterms.',
-    author: 'Rohan KC',
-    sem: 'BCA 4th Sem',
-    time: '5h ago',
-    responses: [
-      {
-        id: 'r2',
-        author: 'Suraj Poddar',
-        time: '2h ago',
-        message: 'Down to study together, free after 4 PM most days.',
-        attachments: [],
-      },
-      {
-        id: 'r3',
-        author: 'Diya Khadka',
-        time: '1h ago',
-        message: 'Same here, can we make a group chat?',
-        attachments: [],
-      },
-    ],
-  },
-];
+// Backend only gives us createdAt timestamps — this renders the same
+// relative "Xh ago" style the old dummy data had.
+const timeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+};
 
 const DepartmentCard = ({ dept, t }) => {
-  const DeptIcon = dept.icon;
+  const DeptIcon = ICON_MAP[dept.icon] || Building2;
   return (
     <div
       className="dashboard-card-lift rounded-[24px] p-5"
@@ -111,8 +53,7 @@ const DepartmentCard = ({ dept, t }) => {
       </div>
 
       <div className="flex flex-col gap-2.5">
-        
-          <a href={dept.phoneHref}
+        <a href={dept.phoneHref}
           className="flex items-center gap-2 text-sm hover:underline"
           style={{ color: t.textPrimary }}
         >
@@ -121,8 +62,7 @@ const DepartmentCard = ({ dept, t }) => {
           <span className="font-extrabold">{dept.phone}</span>
         </a>
 
-        
-         <a href={dept.emailHref}
+        <a href={dept.emailHref}
           className="flex items-center gap-2 text-sm hover:underline"
           style={{ color: t.textPrimary }}
         >
@@ -136,7 +76,12 @@ const DepartmentCard = ({ dept, t }) => {
 };
 
 const CampusHelpSection = ({ t, user }) => {
-  const [helpRequests, setHelpRequests] = useState(INITIAL_HELP_REQUESTS);
+  const [helpRequests, setHelpRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
+
   const [showAskHelpModal, setShowAskHelpModal] = useState(false);
   const [activeThread, setActiveThread] = useState(null);
 
@@ -147,38 +92,57 @@ const CampusHelpSection = ({ t, user }) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleAddHelpRequest = ({ text, attachments }) => {
-  const newReq = {
-    id: `ch_${Date.now()}`,
-    request: text,
-    author: user?.username || 'Suraj Poddar',
-    sem: user?.semester ? `Sem ${user.semester}` : 'Student',
-    time: 'Just now',
-    responses: [],
-    attachments,
+  const fetchHelpRequests = useCallback(() => {
+    setLoadingRequests(true);
+    campusHelpApi.getHelpRequests()
+      .then((data) => setHelpRequests(Array.isArray(data) ? data : []))
+      .catch(() => toast.error('Could not load peer help requests'))
+      .finally(() => setLoadingRequests(false));
+  }, []);
+
+  const fetchDepartments = useCallback(() => {
+    setLoadingDepartments(true);
+    campusHelpApi.getDepartments()
+      .then((data) => setDepartments(Array.isArray(data) ? data : []))
+      .catch(() => toast.error('Could not load department contacts'))
+      .finally(() => setLoadingDepartments(false));
+  }, []);
+
+  useEffect(() => {
+    fetchHelpRequests();
+    fetchDepartments();
+  }, [fetchHelpRequests, fetchDepartments]);
+
+  // AskHelpModal is expected to call this with { text, attachments }, where
+  // attachments is already the final array to submit (e.g. uploaded URLs).
+  const handleAddHelpRequest = async ({ text, attachments }) => {
+    try {
+      const created = await campusHelpApi.submitHelpRequest({ request: text, attachments });
+      setHelpRequests((prev) => [created, ...prev]);
+      toast.success('Help request shared with campus!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not submit request');
+    }
   };
-  setHelpRequests((prev) => [newReq, ...prev]);
-  toast.success('Help request shared with campus!');
-};
 
+  // HelpThreadModal is expected to call this with { text, files }, where
+  // files is an array of raw File objects — upload each first, then submit
+  // the resulting URLs as attachments.
+  const handleAddResponse = async (requestId, { text, files }) => {
+    try {
+      let attachmentUrls = [];
+      if (Array.isArray(files) && files.length > 0) {
+        const uploaded = await Promise.all(files.map((f) => campusHelpApi.uploadAttachment(f)));
+        attachmentUrls = uploaded.map((u) => u.url);
+      }
 
-  const handleAddResponse = (requestId, { text, files }) => {
-    const newResponse = {
-      id: `r_${Date.now()}`,
-      author: user?.username || 'Roshan Karki',
-      time: 'Just now',
-      message: text,
-      attachments: files.map((f) => f.name),
-    };
-    setHelpRequests((prev) =>
-      prev.map((req) =>
-        req.id === requestId ? { ...req, responses: [...req.responses, newResponse] } : req
-      )
-    );
-    setActiveThread((prev) =>
-      prev && prev.id === requestId ? { ...prev, responses: [...prev.responses, newResponse] } : prev
-    );
-    toast.success('Response posted!');
+      const updated = await campusHelpApi.addResponse(requestId, { message: text, attachments: attachmentUrls });
+      setHelpRequests((prev) => prev.map((req) => (req._id === requestId ? updated : req)));
+      setActiveThread((prev) => (prev && prev._id === requestId ? updated : prev));
+      toast.success('Response posted!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not post response');
+    }
   };
 
   return (
@@ -245,51 +209,71 @@ const CampusHelpSection = ({ t, user }) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {helpRequests.map((req, i) => (
-            <div
-              key={req.id}
-              className="dashboard-card-lift flex flex-col justify-between rounded-[22px] p-4"
-              style={{ backgroundColor: t[CARD_TINTS[i % CARD_TINTS.length]], boxShadow: t.shadowSoft }}
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span
-                    className="rounded-full px-2.5 py-1 text-[10px] font-extrabold"
-                    style={{ backgroundColor: t.surfaceBg, color: t.textPrimary }}
-                  >
-                    {req.sem}
-                  </span>
-                  <span className="text-[10px] font-semibold" style={{ color: t.textMuted }}>
-                    {req.time}
-                  </span>
+        {loadingRequests && (
+          <div className="flex items-center justify-center gap-2 py-10" style={{ color: t.textMuted }}>
+            <Loader2 size={16} className="animate-spin" />
+            <span className="text-sm font-semibold">Loading requests...</span>
+          </div>
+        )}
+
+        {!loadingRequests && helpRequests.length === 0 && (
+          <div className="py-10 text-center">
+            <MessageSquare size={26} className="mx-auto mb-2" style={{ color: t.textMuted }} />
+            <p className="text-sm font-semibold" style={{ color: t.textMuted }}>
+              No peer help requests yet — be the first to ask.
+            </p>
+          </div>
+        )}
+
+        {!loadingRequests && helpRequests.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {helpRequests.map((req, i) => (
+              <div
+                key={req._id}
+                className="dashboard-card-lift flex flex-col justify-between rounded-[22px] p-4"
+                style={{ backgroundColor: t[CARD_TINTS[i % CARD_TINTS.length]], boxShadow: t.shadowSoft }}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="rounded-full px-2.5 py-1 text-[10px] font-extrabold"
+                      style={{ backgroundColor: t.surfaceBg, color: t.textPrimary }}
+                    >
+                      {req.requesterSem || req.requester?.department || 'Student'}
+                    </span>
+                    <span className="text-[10px] font-semibold" style={{ color: t.textMuted }}>
+                      {timeAgo(req.createdAt)}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
+                    &ldquo;{req.request}&rdquo;
+                  </p>
+
+                  <p className="mt-2 text-xs font-semibold" style={{ color: t.textSecondary || t.textMuted }}>
+                    by <span className="font-extrabold" style={{ color: t.textPrimary }}>
+                      {req.requesterName || req.requester?.username || 'Student'}
+                    </span>
+                  </p>
                 </div>
 
-                <p className="mt-3 text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
-                  &ldquo;{req.request}&rdquo;
-                </p>
-
-                <p className="mt-2 text-xs font-semibold" style={{ color: t.textSecondary || t.textMuted }}>
-                  by <span className="font-extrabold" style={{ color: t.textPrimary }}>{req.author}</span>
-                </p>
+                <div className="mt-4 flex items-center justify-between pt-3">
+                  <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: t.textMuted }}>
+                    <MessageSquare size={13} /> {req.responses?.length || 0} responses
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveThread(req)}
+                    className="cursor-pointer rounded-full px-3 py-1 text-xs font-extrabold transition-all hover:opacity-80"
+                    style={{ backgroundColor: t.surfaceBg, color: t.textPrimary }}
+                  >
+                    View &amp; Reply
+                  </button>
+                </div>
               </div>
-
-              <div className="mt-4 flex items-center justify-between pt-3">
-                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: t.textMuted }}>
-                  <MessageSquare size={13} /> {req.responses.length} responses
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveThread(req)}
-                  className="cursor-pointer rounded-full px-3 py-1 text-xs font-extrabold transition-all hover:opacity-80"
-                  style={{ backgroundColor: t.surfaceBg, color: t.textPrimary }}
-                >
-                  View &amp; Reply
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ---- SECTION 2: Contact Info (BOTTOM) ---- */}
@@ -306,11 +290,29 @@ const CampusHelpSection = ({ t, user }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {DEPARTMENTS.map((dept) => (
-            <DepartmentCard key={dept.id} dept={dept} t={t} />
-          ))}
-        </div>
+        {loadingDepartments && (
+          <div className="flex items-center justify-center gap-2 py-10" style={{ color: t.textMuted }}>
+            <Loader2 size={16} className="animate-spin" />
+            <span className="text-sm font-semibold">Loading departments...</span>
+          </div>
+        )}
+
+        {!loadingDepartments && departments.length === 0 && (
+          <div className="py-10 text-center">
+            <Building2 size={26} className="mx-auto mb-2" style={{ color: t.textMuted }} />
+            <p className="text-sm font-semibold" style={{ color: t.textMuted }}>
+              No department contacts have been added yet.
+            </p>
+          </div>
+        )}
+
+        {!loadingDepartments && departments.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {departments.map((dept) => (
+              <DepartmentCard key={dept._id} dept={dept} t={t} />
+            ))}
+          </div>
+        )}
       </div>
 
       <AskHelpModal
@@ -325,7 +327,7 @@ const CampusHelpSection = ({ t, user }) => {
         onClose={() => setActiveThread(null)}
         t={t}
         request={activeThread}
-        onReply={(payload) => activeThread && handleAddResponse(activeThread.id, payload)}
+        onReply={(payload) => activeThread && handleAddResponse(activeThread._id, payload)}
       />
     </div>
   );

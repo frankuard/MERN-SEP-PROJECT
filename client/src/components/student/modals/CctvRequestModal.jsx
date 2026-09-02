@@ -6,7 +6,7 @@ const ACCENT = '#2f4336';
 
 const CctvRequestModal = ({ isOpen, onClose, t, onSubmit }) => {
   const [form, setForm] = useState({
-    location: 'Library, 2nd Floor',
+    location: '',
     date: '',
     timeFrom: '',
     timeTo: '',
@@ -18,8 +18,8 @@ const CctvRequestModal = ({ isOpen, onClose, t, onSubmit }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.date || !form.timeFrom.trim() || !form.timeTo.trim() || !form.reason.trim()) {
-      toast.error('Please fill in date, time range, and reason');
+    if (!form.location.trim() || !form.date || !form.timeFrom.trim() || !form.timeTo.trim() || !form.reason.trim()) {
+      toast.error('Please fill in location, date, time range, and reason');
       return;
     }
 
@@ -53,18 +53,15 @@ const CctvRequestModal = ({ isOpen, onClose, t, onSubmit }) => {
         <form onSubmit={handleSubmit} className="mt-5 space-y-4 text-sm">
           <div>
             <label className="block font-bold" style={{ color: t.textPrimary }}>Incident Location / Camera Zone</label>
-            <select
+            <input
+              type="text"
+              placeholder="e.g. Learning Area, Lecture Hall"
               value={form.location}
               onChange={(e) => setForm({ ...form, location: e.target.value })}
               className="mt-1 w-full rounded-xl border px-3.5 py-2.5 outline-none font-semibold"
               style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
-            >
-              <option value="Library, 2nd Floor">Library 2nd Floor</option>
-              <option value="Cafeteria & Canteen Area">Cafeteria &amp; Canteen Area</option>
-              <option value="Block A Main Hallway & Stairs">Block A Main Hallway &amp; Stairs</option>
-              <option value="Block B Ground Floor">Block B Ground Floor</option>
-              <option value="College Parking Area & Gate">College Parking Area &amp; Main Gate</option>
-            </select>
+              required
+            />
           </div>
 
           <div>
