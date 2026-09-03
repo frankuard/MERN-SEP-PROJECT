@@ -79,6 +79,14 @@ const Signup = () => {
       nextErrors.confirmPassword = 'Passwords do not match.';
     }
 
+    if (!formData.department) {
+      nextErrors.department = 'Please select your department.';
+    }
+
+    if (!formData.semester) {
+      nextErrors.semester = 'Please select your semester.';
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -263,7 +271,7 @@ const Signup = () => {
                     name="department"
                     value={formData.department}
                     onChange={(event) => updateField('department', event.target.value)}
-                    className={`${inputClass} pl-4!`}
+                    className={`${inputClass} pl-4! ${errors.department ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
                   >
                     <option value="">Select department</option>
                     <option value="BCS">BCS</option>
@@ -271,6 +279,7 @@ const Signup = () => {
                     <option value="BIBM">BIBM</option>
                     <option value="MBA">MBA</option>
                   </select>
+                  {errors.department && <p className="mt-1.5 text-xs text-red-500">{errors.department}</p>}
                 </div>
 
                 <div>
@@ -283,7 +292,7 @@ const Signup = () => {
                     value={formData.semester}
                     onChange={(event) => updateField('semester', event.target.value)}
                     disabled={!formData.department}
-                    className={`${inputClass} pl-4!`}
+                    className={`${inputClass} pl-4! ${errors.semester ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
                   >
                     <option value="">Select semester</option>
                     {formData.department && DEPARTMENT_SEMESTERS[formData.department] &&
@@ -292,6 +301,7 @@ const Signup = () => {
                       ))
                     }
                   </select>
+                  {errors.semester && <p className="mt-1.5 text-xs text-red-500">{errors.semester}</p>}
                 </div>
               </div>
 
