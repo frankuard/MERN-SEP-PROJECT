@@ -67,14 +67,7 @@ const CanteenSection = ({ t }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white">
-          <UtensilsCrossed size={20} />
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Menu</h2>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
           <input

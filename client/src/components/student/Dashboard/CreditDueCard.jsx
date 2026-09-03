@@ -3,32 +3,32 @@ import { Wallet, ArrowRight } from 'lucide-react';
 const CreditDueCard = ({ t, amountDue = 0, onViewHistory }) => {
   return (
     <div
-      className="flex w-full flex-col justify-center gap-3 rounded-[24px] border p-5 sm:aspect-square sm:w-52"
+      className="flex w-full shrink-0 items-center gap-5 rounded-2xl border px-6 py-5 sm:w-auto"
       style={{ backgroundColor: t.cardBg, borderColor: t.border }}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: t.pastelYellow }}>
-        <Wallet size={22} style={{ color: t.textPrimary }} />
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: t.pastelYellow }}>
+        <Wallet size={26} style={{ color: t.textPrimary }} />
       </div>
 
-      <div>
+      <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>Credit Due</p>
         {amountDue > 0 ? (
-          <p className="mt-1 text-2xl font-extrabold" style={{ color: t.textPrimary }}>NPR {amountDue}</p>
+          <p className="text-xl font-extrabold tabular-nums" style={{ color: t.textPrimary }}>NPR {amountDue}</p>
         ) : amountDue < 0 ? (
-          <p className="mt-1 text-2xl font-extrabold" style={{ color: t.accentEmerald }}>+NPR {Math.abs(amountDue)} credit</p>
+          <p className="text-xl font-extrabold tabular-nums" style={{ color: t.accentEmerald }}>+NPR {Math.abs(amountDue)}</p>
         ) : (
-          <p className="mt-1 text-2xl font-extrabold" style={{ color: t.textMuted }}>Cleared</p>
+          <p className="text-xl font-extrabold" style={{ color: t.textMuted }}>Cleared</p>
         )}
       </div>
 
       <button
         type="button"
         onClick={onViewHistory}
-        className="mt-3 flex items-center justify-center gap-1.5 rounded-full py-2 text-xs font-bold transition-opacity hover:opacity-90"
-        style={{ backgroundColor: t.pageBg, color: t.textPrimary }}
+        className="ml-2 flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition-opacity hover:opacity-80"
+        style={{ borderColor: t.border, color: t.textPrimary, backgroundColor: t.pageBg }}
       >
         View History
-        <ArrowRight size={12} />
+        <ArrowRight size={11} />
       </button>
     </div>
   );
