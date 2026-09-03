@@ -149,21 +149,6 @@ const TimetableSection = ({ t }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.chipBg }}>
-          <Clock size={19} style={{ color: t.textPrimary }} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-            Semester 2 Timetable
-          </h2>
-          <p className="mt-0.5 text-sm font-semibold" style={{ color: t.textMuted }}>
-            Class schedule, vacant rooms &amp; temporary changes
-          </p>
-        </div>
-      </div>
-
       {/* Sub-tab switcher */}
       <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
         {SUB_TABS.map(({ id, label, icon: Icon }) => (
