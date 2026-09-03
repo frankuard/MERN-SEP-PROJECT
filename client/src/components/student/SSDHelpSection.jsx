@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Calendar, FileText, HeartHandshake, CalendarCheck2, Clock,
-  CheckCircle2, MapPin, ShieldCheck, User, Building2, Users,
+  CheckCircle2, MapPin, ShieldCheck, Building2, Users,
 } from 'lucide-react';
 import RequestAttendanceReportModal from '../../components/student/modals/RequestAttendanceReportModal';
 import attendanceApi from '../../api/attendanceApi';
