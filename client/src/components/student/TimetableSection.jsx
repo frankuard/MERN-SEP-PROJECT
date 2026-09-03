@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Calendar, Timer, MapPin, User, BookOpen, School, History, CheckCircle2,
-  ArrowRightLeft, Clock, X, Users, Lock, GraduationCap, CalendarX,
+  Calendar, Timer, MapPin, User, BookOpen, School, CheckCircle2,
+  Clock, X, Users, Lock, GraduationCap, CalendarX, FileText,
 } from 'lucide-react';
 import timetableApi from '../../api/timetableApi';
 import classroomApi from '../../api/classroomApi';
 import classroomRequestApi from '../../api/classroomRequestApi';
-import { TIMETABLE_ROUTINE, INITIAL_RTE_SCHEDULE_CHANGES } from '../../data/studentDashboardData';
+import { TIMETABLE_ROUTINE } from '../../data/studentDashboardData';
 
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
@@ -17,13 +17,6 @@ const TYPE_BADGE = {
   workshop: { bg: '#fef3c7', text: '#b45309' },
 };
 
-const CHANGE_BADGE = {
-  amber: { bg: '#fef3c7', text: '#b45309' },
-  blue: { bg: '#dbeafe', text: '#1d4ed8' },
-  purple: { bg: '#ede9fe', text: '#6d28d9' },
-  red: { bg: '#fee2e2', text: '#dc2626' },
-};
-
 const CURRENT_STATUS_STYLE = {
   vacant: { bg: '#dcfce7', text: '#15803d', label: 'Vacant Now', icon: CheckCircle2 },
   class: { bg: '#dbeafe', text: '#1d4ed8', label: 'In Class', icon: GraduationCap },
@@ -31,10 +24,17 @@ const CURRENT_STATUS_STYLE = {
   closed: { bg: '#f3f4f6', text: '#4b5563', label: 'Closed', icon: CalendarX },
 };
 
+const EXAM_TYPE_BADGE = {
+  midterm: { bg: '#fef3c7', text: '#b45309' },
+  final: { bg: '#fee2e2', text: '#dc2626' },
+  quiz: { bg: '#ede9fe', text: '#6d28d9' },
+  practical: { bg: '#dbeafe', text: '#1d4ed8' },
+};
+
 const SUB_TABS = [
   { id: 'schedule', label: 'Class Schedule', icon: Calendar },
+  { id: 'exams', label: 'Upcoming Exams', icon: FileText },
   { id: 'vacant', label: 'Vacant Classrooms', icon: School },
-  { id: 'changes', label: 'Temporary Changes', icon: History },
 ];
 
 const TimetableSection = ({ t }) => {
@@ -42,11 +42,13 @@ const TimetableSection = ({ t }) => {
   const [activeDay, setActiveDay] = useState(DAY_ORDER[new Date().getDay()]);
 
   const [routine, setRoutine] = useState(null); // null = not loaded yet
-  const [changes, setChanges] = useState(null);
+
+  // -------- Upcoming exams --------
+  const [exams, setExams] = useState(null); // null = not loaded yet
 
   // -------- Vacant classrooms (per-day, backend-computed) --------
   const [vacantDay, setVacantDay] = useState(DAY_ORDER[new Date().getDay()]);
-  const [rooms, setRooms] = useState(null); // array from getVacantClassrooms(day) — each room has freeWindows + currentStatus
+  const [rooms, setRooms] = useState(null);
   const [myRequests, setMyRequests] = useState(null);
   const [requestForm, setRequestForm] = useState(null); // { classroomId, roomName } or null
   const [formDay, setFormDay] = useState(DAY_ORDER[new Date().getDay()]);
@@ -67,15 +69,15 @@ const TimetableSection = ({ t }) => {
     return () => { mounted = false; };
   }, []);
 
-  // -------- Load schedule changes (only when tab opened) --------
+  // -------- Load upcoming exams (lazy, only when tab opened) --------
   useEffect(() => {
-    if (subTab !== 'changes' || changes !== null) return;
+    if (subTab !== 'exams' || exams !== null) return;
     let mounted = true;
-    timetableApi.getScheduleChanges()
-      .then((data) => { if (mounted) setChanges(Array.isArray(data) && data.length > 0 ? data : INITIAL_RTE_SCHEDULE_CHANGES); })
-      .catch(() => { if (mounted) setChanges(INITIAL_RTE_SCHEDULE_CHANGES); });
+    timetableApi.getUpcomingExams()
+      .then((data) => { if (mounted) setExams(Array.isArray(data) ? data : []); })
+      .catch(() => { if (mounted) setExams([]); });
     return () => { mounted = false; };
-  }, [subTab, changes]);
+  }, [subTab, exams]);
 
   // -------- Load vacant rooms for the selected day + my requests --------
   const loadVacantData = (day) => {
@@ -94,6 +96,7 @@ const TimetableSection = ({ t }) => {
   const source = routine || TIMETABLE_ROUTINE;
   const activeDayData = source.find((d) => d.day === activeDay) || { day: activeDay, isOffDay: true, periods: [] };
   const getTypeBadge = (type) => TYPE_BADGE[type?.toLowerCase()] || { bg: t.chipBg, text: t.textMuted };
+  const getExamBadge = (type) => EXAM_TYPE_BADGE[type?.toLowerCase()] || { bg: t.chipBg, text: t.textMuted };
 
   // Latest (most recent) request this student has for a given classroom + day.
   const latestRequestFor = (classroomId) => {
@@ -250,6 +253,73 @@ const TimetableSection = ({ t }) => {
         </div>
       )}
 
+      {/* ===================== UPCOMING EXAMS ===================== */}
+      {subTab === 'exams' && (
+        <div className="space-y-3">
+          {exams === null && (
+            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              Loading upcoming exams...
+            </div>
+          )}
+
+          {exams !== null && exams.length === 0 && (
+            <div className="rounded-2xl border px-4 py-10 text-center" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <FileText size={24} className="mx-auto mb-2" style={{ color: t.textMuted }} />
+              <p className="text-sm font-bold" style={{ color: t.textPrimary }}>No upcoming exams</p>
+              <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>Check back closer to the exam period.</p>
+            </div>
+          )}
+
+          {exams !== null && exams.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {exams.map((exam) => {
+                const badge = getExamBadge(exam.examType);
+                return (
+                  <div key={exam._id} className="rounded-2xl border p-4 sm:p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
+                          {exam.moduleCode}{exam.group ? ` · ${exam.group}` : ''}
+                        </p>
+                        <p className="text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>
+                          {exam.moduleName}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
+                        {exam.examType}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                      {exam.date && (
+                        <p className="flex items-center gap-1.5">
+                          <Calendar size={12} />
+                          <span className="font-semibold" style={{ color: t.textPrimary }}>{exam.date}</span>
+                        </p>
+                      )}
+                      {exam.startTime && exam.endTime && (
+                        <p className="flex items-center gap-1.5">
+                          <Timer size={12} />
+                          {exam.startTime} – {exam.endTime}
+                        </p>
+                      )}
+                      {exam.room && (
+                        <p className="flex items-center gap-1.5">
+                          <MapPin size={12} /> {exam.room}
+                        </p>
+                      )}
+                      {exam.notes && (
+                        <p className="mt-1 italic">{exam.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ===================== VACANT CLASSROOMS ===================== */}
       {subTab === 'vacant' && (
         <div className="space-y-4">
@@ -294,15 +364,12 @@ const TimetableSection = ({ t }) => {
           {!isVacantDayClosed && rooms !== null && rooms.length > 0 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rooms.map((room) => {
-                // New backend shape: room.freeWindows = [{startTime, endTime}, ...]
-                // room.currentStatus = null unless vacantDay is today, else {state, until, moduleCode?, moduleName?, reason?}
                 const freeWindows = room.freeWindows || [];
                 const hasFreeTime = freeWindows.length > 0;
                 const current = room.currentStatus;
                 const currentBadge = current ? (CURRENT_STATUS_STYLE[current.state] || CURRENT_STATUS_STYLE.vacant) : null;
                 const CurrentIcon = currentBadge?.icon;
 
-                // Personal request status layered on top, same as before
                 const myReq = latestRequestFor(room._id);
                 const reqStatus = myReq?.status || null; // pending | approved | rejected | null
 
@@ -461,68 +528,6 @@ const TimetableSection = ({ t }) => {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ===================== TEMPORARY CHANGES ===================== */}
-      {subTab === 'changes' && (
-        <div className="space-y-3">
-          {changes === null && (
-            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
-              Loading schedule changes...
-            </div>
-          )}
-
-          {changes !== null && changes.length === 0 && (
-            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
-              No temporary schedule changes right now.
-            </div>
-          )}
-
-          {changes?.map((change) => {
-            const badge = CHANGE_BADGE[change.badgeColor] || { bg: t.chipBg, text: t.textMuted };
-            const originalStr = `${change.originalDay}, ${change.originalStartTime}–${change.originalEndTime} · ${change.originalRoom}`;
-            const newParts = [];
-            if (change.newDay) newParts.push(change.newDay);
-            if (change.newStartTime && change.newEndTime) newParts.push(`${change.newStartTime}–${change.newEndTime}`);
-            if (change.newRoom) newParts.push(change.newRoom);
-            const newStr = newParts.length > 0 ? newParts.join(' · ') : 'Cancelled';
-
-            return (
-              <div key={change._id} className="rounded-2xl border p-4 sm:p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-                      {change.moduleCode}{change.group ? ` · ${change.group}` : ''}
-                    </p>
-                    <p className="text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>
-                      {change.moduleName}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
-                    {change.status}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" style={{ color: t.textMuted }}>
-                  <span className="rounded-lg px-2.5 py-1" style={{ backgroundColor: t.pageBg }}>{originalStr}</span>
-                  <ArrowRightLeft size={13} />
-                  <span className="rounded-lg px-2.5 py-1 font-semibold" style={{ backgroundColor: t.pageBg, color: t.textPrimary }}>{newStr}</span>
-                </div>
-
-                {change.reason && (
-                  <p className="mt-2 text-xs" style={{ color: t.textMuted }}>
-                    Reason: <span style={{ color: t.textPrimary }}>{change.reason}</span>
-                  </p>
-                )}
-
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] font-semibold" style={{ color: t.textMuted }}>
-                  {change.effectiveDate && <span>Effective: {change.effectiveDate}</span>}
-                  {change.publishedBy && <span>· {change.publishedBy}</span>}
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
     </div>
