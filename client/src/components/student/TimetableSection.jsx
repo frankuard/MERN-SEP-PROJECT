@@ -163,9 +163,7 @@ const TimetableSection = ({ t }) => {
     .filter((p) => p && p._end > now)
     .sort((a, b) => a._start - b._start);
 
-  // first future (not yet started) index
-  const nextIdx = upcomingToday.findIndex((p) => p._start > now);
-
+  // first future (not yet started) index — kept for reference but card uses upcomingToday[0]
   // vacant helpers
   const latestRequestFor = (classroomId) => {
     if (!myRequests) return null;
@@ -222,171 +220,273 @@ const TimetableSection = ({ t }) => {
 
       {/* ══════════════════════ CLASS SCHEDULE ══════════════════════ */}
       {subTab === 'schedule' && (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
 
-          {/* ── Upcoming Classes (real-time, always today) ── */}
-          <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: '#fef3c7' }}>
-                <Zap size={18} style={{ color: '#b45309' }} />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>Upcoming Classes</h3>
-                <p className="text-xs font-semibold" style={{ color: t.textMuted }}>{todayName} · live countdown</p>
-              </div>
-            </div>
+          {/* ── LEFT: Coming Up sidebar card ── */}
+          {(() => {
+            // Find the next period: today's upcoming first, then walk forward through the week
+            let nextPeriod   = upcomingToday[0] || null;
+            let nextDayLabel = todayName;
+            let isFutureDay  = false;
 
-            {upcomingToday.length === 0 ? (
-              <div className="rounded-xl border border-dashed px-4 py-8 text-center" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
-                <CheckCircle2 size={20} className="mx-auto mb-2" style={{ color: '#16a34a' }} />
-                <p className="text-sm font-bold" style={{ color: t.textPrimary }}>No more classes today</p>
-                <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>All done — enjoy the rest of your day!</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingToday.map((period, idx) => {
-                  const isOngoing = period._start <= now && period._end > now;
-                  const isNext    = !isOngoing && idx === nextIdx;
-                  const secsLeft  = isOngoing
-                    ? Math.floor((period._end   - now) / 1000)
-                    : Math.floor((period._start - now) / 1000);
-                  const badge = getTypeBadge(period.classType);
+            if (!nextPeriod) {
+              // No classes left today — scan the rest of the week cyclically
+              for (let offset = 1; offset <= 6; offset++) {
+                const dayIdx  = (now.getDay() + offset) % 7;
+                const dayName = DAY_ORDER[dayIdx];
+                const dayData = source.find((d) => d.day === dayName);
+                if (dayData && !dayData.isOffDay && dayData.periods.length > 0) {
+                  // Parse periods for that future day (absolute times don't matter — we just
+                  // need a sorted list; use order-based sort if no parseable time)
+                  const sorted = [...dayData.periods].sort((a, b) => {
+                    const pa = parsePeriodTime(a.time);
+                    const pb = parsePeriodTime(b.time);
+                    if (pa && pb) return pa.start - pb.start;
+                    return 0;
+                  });
+                  nextPeriod   = sorted[0];
+                  nextDayLabel = dayName;
+                  isFutureDay  = true;
+                  break;
+                }
+              }
+            }
 
-                  return (
-                    <div
-                      key={period.id}
-                      className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
-                      style={{
-                        backgroundColor: isOngoing ? '#f0fdf4' : t.pageBg,
-                        borderColor: isOngoing ? '#86efac' : t.border,
-                      }}
-                    >
-                      {/* module info */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: isOngoing ? '#dcfce7' : t.chipBg }}>
-                          <BookOpen size={16} style={{ color: isOngoing ? '#15803d' : t.textMuted }} />
+            const isOngoing = nextPeriod && !isFutureDay && nextPeriod._start && nextPeriod._start <= now && nextPeriod._end > now;
+
+            // Seconds until next period starts (or remaining if ongoing)
+            let secsLeft = 0;
+            if (nextPeriod && !isFutureDay) {
+              secsLeft = isOngoing
+                ? Math.floor((nextPeriod._end   - now) / 1000)
+                : Math.floor((nextPeriod._start - now) / 1000);
+            }
+            const h = Math.floor(secsLeft / 3600);
+            const m = Math.floor((secsLeft % 3600) / 60);
+            const s = secsLeft % 60;
+
+            const badge = nextPeriod ? getTypeBadge(nextPeriod.classType) : null;
+
+            // All periods to show in the countdown list (today remaining, or next-day all)
+            const listPeriods = isFutureDay
+              ? (() => {
+                  const dayData = source.find((d) => d.day === nextDayLabel);
+                  return dayData ? [...dayData.periods].sort((a, b) => {
+                    const pa = parsePeriodTime(a.time);
+                    const pb = parsePeriodTime(b.time);
+                    return (pa && pb) ? pa.start - pb.start : 0;
+                  }) : [];
+                })()
+              : upcomingToday;
+
+            return (
+              <div
+                className="w-full shrink-0 rounded-2xl p-5 lg:w-56 xl:w-64"
+                style={{
+                  backgroundColor: t.cardBg,
+                  border: `1px solid ${t.border}`,
+                  boxShadow: t.shadowCard,
+                  minHeight: '320px',
+                }}
+              >
+                {/* heading */}
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: t.accentPrimary }}>
+                    <Zap size={14} style={{ color: t.pageBg }} />
+                  </div>
+                  <span className="text-sm font-extrabold" style={{ color: t.textPrimary }}>Coming Up</span>
+                </div>
+
+                {nextPeriod ? (
+                  <>
+                    {/* day label */}
+                    <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold" style={{ color: t.textMuted }}>
+                      <Clock size={12} />
+                      {isOngoing ? 'Ongoing now' : isFutureDay ? nextDayLabel : todayName}
+                    </div>
+
+                    {/* big countdown — only show live timer for today's classes */}
+                    {!isFutureDay && (
+                      <>
+                        <div
+                          className="mt-1 font-extrabold leading-none tabular-nums"
+                          style={{ fontSize: '2.4rem', color: t.textPrimary }}
+                        >
+                          {isOngoing
+                            ? `${h > 0 ? `${h}h ` : ''}${m}m ${s}s`
+                            : h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`}
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-                            {period.moduleCode}{period.group ? ` · ${period.group}` : ''}
-                          </p>
-                          <p className="text-sm font-extrabold leading-tight" style={{ color: t.textPrimary }}>
-                            {period.moduleName}
-                          </p>
-                          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs" style={{ color: t.textMuted }}>
-                            <span className="flex items-center gap-1"><Timer size={11} /> {period.time}</span>
-                            <span className="flex items-center gap-1"><MapPin size={11} /> {period.room}</span>
-                          </div>
-                        </div>
-                      </div>
+                        <p className="mt-0.5 text-xs font-semibold" style={{ color: t.textMuted }}>
+                          {isOngoing ? 'remaining' : 'until class starts'}
+                        </p>
+                      </>
+                    )}
+                    {isFutureDay && (
+                      <p className="mt-2 text-xs font-semibold" style={{ color: t.textMuted }}>
+                        Next classes on {nextDayLabel}
+                      </p>
+                    )}
 
-                      {/* status + countdown */}
-                      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+                    {/* module name */}
+                    <p className="mt-4 text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
+                      {nextPeriod.moduleName}
+                    </p>
+
+                    {/* badges */}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                        {nextPeriod.moduleCode}
+                      </span>
+                      {badge && (
                         <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
-                          {period.classType}
+                          {nextPeriod.classType}
                         </span>
-                        {isOngoing ? (
-                          <div className="flex items-center gap-1.5 rounded-xl px-3 py-1.5" style={{ backgroundColor: '#dcfce7' }}>
-                            <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-                            <span className="text-xs font-extrabold tabular-nums" style={{ color: '#15803d' }}>
-                              Ongoing · {formatCountdown(secsLeft)} left
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 rounded-xl px-3 py-1.5" style={{ backgroundColor: isNext ? '#eff6ff' : t.chipBg }}>
-                            <Clock size={12} style={{ color: isNext ? '#3b82f6' : t.textMuted }} />
-                            <span className="text-xs font-extrabold tabular-nums" style={{ color: isNext ? '#1d4ed8' : t.textMuted }}>
-                              {isNext ? 'Next · ' : ''}{formatCountdown(secsLeft)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
+
+                    {/* meta */}
+                    <div className="mt-3 space-y-1.5 text-xs" style={{ color: t.textMuted }}>
+                      <p className="flex items-center gap-1.5"><Timer size={11} /> {nextPeriod.time}</p>
+                      <p className="flex items-center gap-1.5"><MapPin size={11} /> {nextPeriod.room}</p>
+                      {nextPeriod.lecturer && (
+                        <p className="flex items-center gap-1.5"><User size={11} /> {nextPeriod.lecturer}</p>
+                      )}
+                    </div>
+
+                    {/* ── Countdown list for all remaining/upcoming periods ── */}
+                    {listPeriods.length > 1 && (
+                      <div className="mt-4 space-y-2 border-t pt-3" style={{ borderColor: t.border }}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>
+                          {isFutureDay ? `All classes — ${nextDayLabel}` : 'Later today'}
+                        </p>
+                        {listPeriods.slice(isFutureDay ? 1 : 0).map((p, idx) => {
+                          // For today's list we have _start/_end; skip the first (already shown above)
+                          const parsed = !isFutureDay ? null : parsePeriodTime(p.time);
+                          // For today: compute secs; for future day just show time string
+                          const bSecs = (!isFutureDay && p._start)
+                            ? Math.floor((p._start - now) / 1000)
+                            : null;
+                          const bh = bSecs !== null ? Math.floor(bSecs / 3600) : 0;
+                          const bm = bSecs !== null ? Math.floor((bSecs % 3600) / 60) : 0;
+                          const bs = bSecs !== null ? bSecs % 60 : 0;
+                          const b2 = getTypeBadge(p.classType);
+                          return (
+                            <div key={p.id || idx} className="flex items-start justify-between gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: t.pageBg }}>
+                              <div className="min-w-0">
+                                <p className="truncate text-[11px] font-bold" style={{ color: t.textPrimary }}>{p.moduleName}</p>
+                                <p className="text-[10px]" style={{ color: t.textMuted }}>{p.time}</p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: b2.bg, color: b2.text }}>
+                                  {p.classType}
+                                </span>
+                                {bSecs !== null && bSecs > 0 && (
+                                  <p className="mt-0.5 text-[10px] font-bold tabular-nums" style={{ color: t.textMuted }}>
+                                    {bh > 0 ? `${bh}h ${bm}m` : bm > 0 ? `${bm}m` : `${bs}s`}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="mt-8 text-center">
+                    <CheckCircle2 size={28} className="mx-auto mb-2" style={{ color: t.textMuted }} />
+                    <p className="text-sm font-bold" style={{ color: t.textPrimary }}>All done!</p>
+                    <p className="mt-1 text-xs" style={{ color: t.textMuted }}>No upcoming classes found.</p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
-          {/* ── Day selector ── */}
-          <div className="flex flex-wrap gap-2">
-            {DAY_ORDER.map((day) => (
-              <button
-                key={day}
-                type="button"
-                onClick={() => setActiveDay(day)}
-                className="rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors sm:text-sm"
-                style={{
-                  backgroundColor: activeDay === day ? t.accentPrimary : t.cardBg,
-                  borderColor: activeDay === day ? t.accentPrimary : t.border,
-                  color: activeDay === day ? t.pageBg : t.textPrimary,
-                }}
-              >
-                {DAY_SHORT[day]}
-              </button>
-            ))}
-          </div>
+          {/* ── RIGHT: day picker + full schedule ── */}
+          <div className="min-w-0 flex-1 space-y-5">
 
-          {/* ── Full schedule for selected day ── */}
-          <div className="rounded-2xl border p-5 sm:p-7" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-lg font-extrabold" style={{ color: t.textPrimary }}>{activeDayData.day}</h3>
-              <span
-                className="rounded-full px-3.5 py-1.5 text-xs font-bold"
-                style={{
-                  backgroundColor: activeDayData.isOffDay ? '#dcfce7' : t.chipBg,
-                  color: activeDayData.isOffDay ? '#15803d' : t.textMuted,
-                }}
-              >
-                {activeDayData.isOffDay ? 'Day Off' : `${activeDayData.periods.length} class${activeDayData.periods.length > 1 ? 'es' : ''}`}
-              </span>
+            {/* Day selector */}
+            <div className="flex flex-wrap gap-2">
+              {DAY_ORDER.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setActiveDay(day)}
+                  className="rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors sm:text-sm"
+                  style={{
+                    backgroundColor: activeDay === day ? t.accentPrimary : t.cardBg,
+                    borderColor: activeDay === day ? t.accentPrimary : t.border,
+                    color: activeDay === day ? t.pageBg : t.textPrimary,
+                  }}
+                >
+                  {DAY_SHORT[day]}
+                </button>
+              ))}
             </div>
 
-            {activeDayData.isOffDay ? (
-              <div className="rounded-xl border border-dashed p-10 text-center" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
-                <CheckCircle2 size={22} className="mx-auto mb-2.5" style={{ color: '#16a34a' }} />
-                <p className="text-sm font-bold" style={{ color: t.textPrimary }}>No classes today</p>
-                <p className="mt-1 text-xs" style={{ color: t.textMuted }}>Self-study &amp; project work</p>
+            {/* Schedule card */}
+            <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-extrabold" style={{ color: t.textPrimary }}>{activeDayData.day}</h3>
+                <span
+                  className="rounded-full px-3.5 py-1.5 text-xs font-bold"
+                  style={{
+                    backgroundColor: activeDayData.isOffDay ? '#dcfce7' : t.chipBg,
+                    color: activeDayData.isOffDay ? '#15803d' : t.textMuted,
+                  }}
+                >
+                  {activeDayData.isOffDay ? 'Day Off' : `${activeDayData.periods.length} class${activeDayData.periods.length > 1 ? 'es' : ''}`}
+                </span>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {activeDayData.periods.map((period) => {
-                  const badge = getTypeBadge(period.classType);
-                  return (
-                    <div key={period.id} className="rounded-2xl border p-5" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums" style={{ color: t.textMuted }}>
-                          <Timer size={14} /> {period.time}
-                        </span>
-                        <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
-                          {period.classType}
-                        </span>
-                      </div>
 
-                      <div className="mt-4 flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: t.chipBg }}>
-                          <BookOpen size={16} style={{ color: t.textMuted }} />
+              {activeDayData.isOffDay ? (
+                <div className="rounded-xl border border-dashed p-10 text-center" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
+                  <CheckCircle2 size={22} className="mx-auto mb-2.5" style={{ color: '#16a34a' }} />
+                  <p className="text-sm font-bold" style={{ color: t.textPrimary }}>No classes today</p>
+                  <p className="mt-1 text-xs" style={{ color: t.textMuted }}>Self-study &amp; project work</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {activeDayData.periods.map((period) => {
+                    const badge = getTypeBadge(period.classType);
+                    return (
+                      <div key={period.id} className="rounded-2xl border p-5" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums" style={{ color: t.textMuted }}>
+                            <Timer size={14} /> {period.time}
+                          </span>
+                          <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
+                            {period.classType}
+                          </span>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-                            {period.moduleCode}{period.group ? ` · ${period.group}` : ''}
-                          </p>
-                          <p className="mt-0.5 text-base font-extrabold leading-tight" style={{ color: t.textPrimary }}>
-                            {period.moduleName}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="mt-4 space-y-2 border-t pt-4 text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
-                        <p className="flex items-center gap-2"><User size={14} /> {period.lecturer}</p>
-                        <p className="flex items-center gap-2"><MapPin size={14} /> {period.room}</p>
+                        <div className="mt-4 flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: t.chipBg }}>
+                            <BookOpen size={16} style={{ color: t.textMuted }} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
+                              {period.moduleCode}{period.group ? ` · ${period.group}` : ''}
+                            </p>
+                            <p className="mt-0.5 text-base font-extrabold leading-tight" style={{ color: t.textPrimary }}>
+                              {period.moduleName}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 border-t pt-4 text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
+                          <p className="flex items-center gap-2"><User size={14} /> {period.lecturer}</p>
+                          <p className="flex items-center gap-2"><MapPin size={14} /> {period.room}</p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
       )}
 
