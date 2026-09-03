@@ -182,38 +182,6 @@ const SSDHelpSection = ({ t, user, studentName }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.chipBg }}>
-          <ShieldCheck size={19} style={{ color: t.textPrimary }} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-            Student Services (SSD)
-          </h2>
-          <p className="mt-0.5 text-sm font-semibold" style={{ color: t.textMuted }}>
-            Attendance, volunteering &amp; community engagement
-          </p>
-        </div>
-      </div>
-
-      {/* Student info card */}
-      <div className="flex items-center gap-4 rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: t.chipBg }}>
-          <User size={20} style={{ color: t.textPrimary }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-bold" style={{ color: t.textPrimary }}>{studentName || 'Student'}</p>
-          <p className="truncate text-sm" style={{ color: t.textMuted }}>{user?.email}</p>
-        </div>
-        {(user?.department || user?.semester) && (
-          <div className="hidden shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold sm:flex" style={{ borderColor: t.border, color: t.textMuted }}>
-            <Building2 size={13} />
-            {user?.department}{user?.semester ? ` · Sem ${user.semester}` : ''}
-          </div>
-        )}
-      </div>
-
       {/* Sub-Tabs Selector */}
       <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
         {SUB_TABS.map(({ id, label, icon: Icon }) => (
