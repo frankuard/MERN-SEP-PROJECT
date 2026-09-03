@@ -654,3 +654,45 @@ export const INITIAL_RTE_SCHEDULE_CHANGES = [
     badgeColor: 'purple',
   },
 ];
+
+// =========================================================================
+// UPCOMING EXAMS — fallback data used when the API returns nothing
+// =========================================================================
+export const UPCOMING_EXAMS = [
+  {
+    _id: 'exam_01',
+    moduleCode: '4CS001',
+    moduleName: 'Introductory Programming and Problem Solving',
+    group: 'Section A + Section B + Section C',
+    examType: 'Midterm',
+    date: 'Sep 14, 2026 (Sunday)',
+    startTime: '10:00 AM',
+    endTime: '12:00 PM',
+    room: 'LT-01 Wulfurna',
+    notes: 'Covers Weeks 1–6. Closed-book. Bring your student ID.',
+  },
+  {
+    _id: 'exam_02',
+    moduleCode: '4CS017',
+    moduleName: 'Internet Software Architecture and Database',
+    group: 'Section A + Section B',
+    examType: 'Quiz',
+    date: 'Sep 22, 2026 (Monday)',
+    startTime: '8:00 AM',
+    endTime: '9:00 AM',
+    room: 'SR-02 Compton',
+    notes: 'In-class quiz on SQL joins, normalisation & REST principles.',
+  },
+  {
+    _id: 'exam_03',
+    moduleCode: '4CS015',
+    moduleName: 'Fundamentals of Computing',
+    group: 'Section A + Section B + Section C',
+    examType: 'Practical',
+    date: 'Oct 5, 2026 (Monday)',
+    startTime: '12:00 PM',
+    endTime: '2:30 PM',
+    room: 'Lab 2, Block B 2nd Floor',
+    notes: 'Linux CLI & virtualisation lab assessment. Bring USB drive.',
+  },
+];

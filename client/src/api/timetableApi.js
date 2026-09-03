@@ -10,6 +10,15 @@ const timetableApi = {
     const res = await axiosInstance.get('/timetable/changes');
     return res.data;
   },
+  getUpcomingExams: async () => {
+    try {
+      const res = await axiosInstance.get('/timetable/exams');
+      return res.data;
+    } catch {
+      // Route may not exist yet — caller falls back to static data
+      return [];
+    }
+  },
 
   // -------- Admin — Periods --------
   getTimetableAdmin: async () => {
