@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, X } from 'lucide-react';
+import { Send, X, Mic, Square } from 'lucide-react';
 import aiChatApi from '../../api/aiChatApi';
 import { useAIChat } from '../../context/AIChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +21,7 @@ const isHelpIntent = (text) => {
 const HELP_SUGGESTIONS = [
   'Show my attendance',
   "What's today's canteen menu?",
+  'I lost my wallet',
   'Any upcoming events?',
 ];
 
@@ -111,8 +112,95 @@ const ReplyTable = ({ rows, t }) => {
   );
 };
 
+// ── Action card (confirmations + claim match choices) ───────────────
+const CardBlock = ({ card, t, onChoice, onConfirm, onCancel, busy }) => {
+  const btnBase = {
+    width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: '10px',
+    border: `1px solid ${t.border}`, background: 'transparent',
+    color: t.sidebarActiveBg, fontSize: '12.5px', fontWeight: 700,
+    cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+    fontFamily: '"Nunito", sans-serif',
+  };
+
+  // Claim flow — pick one of the matches
+  if (card.choices) {
+    return (
+      <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <p style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: t.textPrimary }}>{card.title}</p>
+        {card.choices.map((ch) => (
+          <button key={ch.index} type="button" style={btnBase} disabled={busy} onClick={() => onChoice(ch.index)}>
+            {ch.index + 1}. {ch.label}
+          </button>
+        ))}
+        <button type="button" style={{ ...btnBase, color: t.textMuted }} disabled={busy} onClick={onCancel}>
+          ✕ Cancel request
+        </button>
+      </div>
+    );
+  }
+
+  if (card.rows) {
+    return (
+      <div style={{
+        marginTop: '8px', border: `1px solid ${t.border}`, borderRadius: '12px',
+        overflow: 'hidden', background: t.pageBg,
+      }}>
+        <div style={{
+          padding: '7px 10px', fontSize: '12px', fontWeight: 800,
+          background: t.sidebarActiveBg, color: t.sidebarActiveText,
+        }}>
+          {card.title}
+        </div>
+        <div style={{ padding: '6px 10px' }}>
+          {card.rows.map((row, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '3px 0' }}>
+              <span style={{ fontSize: '11.5px', color: t.textMuted, fontWeight: 600, flexShrink: 0 }}>{row.label}</span>
+              <span style={{ fontSize: '11.5px', color: t.textPrimary, fontWeight: 700, textAlign: 'right', wordBreak: 'break-word' }}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+        {card.confirm ? (
+          <div style={{ display: 'flex', gap: '8px', padding: '8px 10px', borderTop: `1px solid ${t.border}` }}>
+            <button
+              type="button" disabled={busy}
+              onClick={onConfirm}
+              style={{
+                flex: 1, padding: '8px 10px', borderRadius: '10px', border: 'none',
+                background: t.sidebarActiveBg, color: t.sidebarActiveText,
+                fontSize: '12.5px', fontWeight: 800, cursor: busy ? 'default' : 'pointer',
+                opacity: busy ? 0.6 : 1, fontFamily: '"Nunito", sans-serif',
+              }}
+            >
+              Confirm & Submit
+            </button>
+            <button
+              type="button" disabled={busy}
+              onClick={onCancel}
+              style={{
+                padding: '8px 12px', borderRadius: '10px',
+                border: `1px solid ${t.border}`, background: 'transparent',
+                color: t.textMuted, fontSize: '12.5px', fontWeight: 700,
+                cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+                fontFamily: '"Nunito", sans-serif',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div style={{ padding: '6px 10px 8px', fontSize: '11px', color: t.textMuted, fontWeight: 600 }}>
+            Review these details — you can correct any of them in the chat.
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+};
+
 // ── Message bubble ───────────────────────────────────────
-const Bubble = ({ msg, t, showAvatar, onSuggestionClick }) => {
+const Bubble = ({ msg, t, showAvatar, onSuggestionClick, onChoice, onConfirm, onCancel, busy }) => {
   const isUser = msg.role === 'user';
   const isBot = msg.role === 'assistant' || msg.role === 'loading';
 
@@ -141,13 +229,25 @@ const Bubble = ({ msg, t, showAvatar, onSuggestionClick }) => {
         {msg.role === 'loading' ? (
           <TypingDots color={t.textMuted} />
         ) : isBot ? (
-          parseMessageContent(msg.content).map((seg, i) =>
-            seg.type === 'table' ? (
-              <ReplyTable key={i} rows={seg.rows} t={t} />
-            ) : (
-              <div key={i} style={{ marginBottom: '2px' }}>{seg.value}</div>
-            )
-          )
+          <>
+            {parseMessageContent(msg.content).map((seg, i) =>
+              seg.type === 'table' ? (
+                <ReplyTable key={i} rows={seg.rows} t={t} />
+              ) : (
+                <div key={i} style={{ marginBottom: '2px' }}>{seg.value}</div>
+              )
+            )}
+            {msg.card && (
+              <CardBlock
+                card={msg.card}
+                t={t}
+                onChoice={onChoice}
+                onConfirm={onConfirm}
+                onCancel={onCancel}
+                busy={busy}
+              />
+            )}
+          </>
         ) : (
           msg.content
         )}
@@ -190,7 +290,7 @@ const AIChatWidget = () => {
       {
         id: 'welcome',
         role: 'assistant',
-        content: `${greeting}! How may I assist you today?\nMy name is Chautari AI — I can help you with timetable, attendance, canteen prices, events, and more.`,
+        content: `${greeting}! How may I assist you today?\nMy name is Chauttari AI — I can check your attendance, canteen prices, timetable, events, and I can also submit requests for you (Lost & Found, CCTV footage, attendance reports, campus help). Just ask, or tap Voice to speak.`,
       },
     ];
   });
@@ -201,10 +301,15 @@ const AIChatWidget = () => {
   const hasUserMessaged = messages.some((m) => m.role === 'user');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false); // card / voice / image actions in flight
+  const [recording, setRecording] = useState(false);
   // 'hidden' | 'visible' | 'fading' — drives the fade-out transition below
   const [greetingBubbleState, setGreetingBubbleState] = useState('hidden');
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const recorderRef = useRef(null);
+  const streamRef = useRef(null);
+  const chunksRef = useRef([]);
 
   // Auto-popup speech bubble beside the launcher: appears once shortly
   // after page load, stays for 3 seconds, then fades out over 400ms.
@@ -245,9 +350,34 @@ const AIChatWidget = () => {
     []
   );
 
+  // Helper: run an action API call, showing typing dots until it resolves.
+  const runAction = useCallback(async (fn) => {
+    setMessages(prev => [...prev, { id: 'loading', role: 'loading', content: '' }]);
+    setBusy(true);
+    try {
+      const data = await fn();
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== 'loading'),
+        { id: `a${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: 'assistant', content: data.reply || '', card: data.card || null },
+      ]);
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Something went wrong. Please try again.';
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== 'loading'),
+        { id: `e${Date.now()}`, role: 'assistant', content: `⚠️ ${msg}` },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const handleConfirm = useCallback(() => runAction(() => aiChatApi.confirmAction()), [runAction]);
+  const handleCancel = useCallback(() => runAction(() => aiChatApi.cancelAction()), [runAction]);
+  const handleChoice = useCallback((index) => runAction(() => aiChatApi.chooseMatch(index)), [runAction]);
+
   const send = useCallback(async (overrideText) => {
     const text = (overrideText ?? input).trim();
-    if (!text || loading) return;
+    if (!text || loading || busy) return;
     setInput('');
 
     if (isHelpIntent(text)) {
@@ -271,10 +401,10 @@ const AIChatWidget = () => {
     ]);
     setLoading(true);
     try {
-      const { reply } = await aiChatApi.sendAIMessage(text, buildHistory(messages));
+      const data = await aiChatApi.sendAIMessage(text, buildHistory(messages));
       setMessages(prev => [
         ...prev.filter(m => m.id !== 'loading'),
-        { id: `a${Date.now()}`, role: 'assistant', content: reply },
+        { id: `a${Date.now()}`, role: 'assistant', content: data.reply || '', card: data.card || null },
       ]);
     } catch (err) {
       const msg = err?.response?.data?.error || 'Could not reach server. Please try again.';
@@ -285,7 +415,89 @@ const AIChatWidget = () => {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, buildHistory]);
+  }, [input, loading, busy, messages, buildHistory]);
+
+  // ── Voice → text (MediaRecorder → Groq whisper → editable text) ──
+  const handleTranscribe = useCallback(async (blob, type, ext) => {
+    setMessages(prev => [...prev, { id: 'loading', role: 'loading', content: '' }]);
+    setBusy(true);
+    try {
+      const { text } = await aiChatApi.transcribeAudio(blob, `voice-${Date.now()}.${ext}`, type);
+      const cleaned = String(text || '').trim();
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== 'loading'),
+        {
+          id: `a${Date.now()}`,
+          role: 'assistant',
+          content: cleaned
+            ? "Got it. Here's what I heard — feel free to edit it below, then press send."
+            : "I couldn't hear anything clearly. Could you try speaking a bit closer?",
+        },
+      ]);
+      if (cleaned) {
+        setInput(cleaned);
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Voice transcription failed. Please try again.';
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== 'loading'),
+        { id: `e${Date.now()}`, role: 'assistant', content: `⚠️ ${msg}` },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (recording || loading || busy) return;
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      setMessages(prev => [...prev, {
+        id: `e${Date.now()}`,
+        role: 'assistant',
+        content: "⚠️ Voice recording isn't supported in this browser. You can still type your message.",
+      }]);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let mimeType = '';
+      if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
+      else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setRecording(false);
+        const type = recorder.mimeType || 'audio/webm';
+        const ext = type.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(chunksRef.current, { type });
+        if (blob.size > 0) handleTranscribe(blob, type, ext);
+      };
+      recorder.onerror = () => setRecording(false);
+
+      recorderRef.current = recorder;
+      streamRef.current = stream;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setMessages(prev => [...prev, {
+        id: `e${Date.now()}`,
+        role: 'assistant',
+        content: "⚠️ Microphone permission was denied. You can type your message instead.",
+      }]);
+    }
+  }, [recording, loading, busy, handleTranscribe]);
+
+  const stopRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch { setRecording(false); }
+    }
+  }, []);
 
   const onKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -315,10 +527,9 @@ const AIChatWidget = () => {
   // so this floating bubble doesn't sit on top of its buttons. Desktop
   // layouts have room either way, so only shift on mobile widths.
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
- const lift = isObstructed && isMobile;
+  const lift = isObstructed && isMobile;
   const launcherBottom = lift ? '160px' : '24px';
   const chatboxBottom = lift ? '225px' : '88px';
-  const greetingBottom = lift ? '173px' : '32px';
 
   return (
     <>
@@ -368,7 +579,6 @@ const AIChatWidget = () => {
         style={{
           position: 'fixed', bottom: launcherBottom, right: '24px', zIndex: 9999,
           width: '52px', height: '52px', borderRadius: '50%',
-          transition: 'bottom 0.2s ease, transform 0.15s ease',
           border: `1.5px solid ${t.border}`,
           background: t.sidebarActiveBg,
           color: t.sidebarActiveText,
@@ -396,7 +606,7 @@ const AIChatWidget = () => {
           role="dialog"
           aria-label="Chauttari AI"
           style={{
-           position: 'fixed', bottom: chatboxBottom, right: '24px', zIndex: 9998,
+            position: 'fixed', bottom: chatboxBottom, right: '24px', zIndex: 9998,
             width: 'min(340px, 92vw)', height: 'min(460px, 72vh)',
             transition: 'bottom 0.2s ease',
             display: 'flex', flexDirection: 'column',
@@ -449,10 +659,32 @@ const AIChatWidget = () => {
               </div>
             )}
             {messages.map(msg => (
-              <Bubble key={msg.id} msg={msg} t={t} showAvatar={hasUserMessaged} onSuggestionClick={send} />
+              <Bubble
+                key={msg.id}
+                msg={msg}
+                t={t}
+                showAvatar={hasUserMessaged}
+                onSuggestionClick={send}
+                onChoice={handleChoice}
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
+                busy={busy}
+              />
             ))}
             <div ref={bottomRef} />
           </div>
+
+          {/* Recording indicator */}
+          {recording && (
+            <div style={{
+              padding: '6px 12px', fontSize: '11px', fontWeight: 700,
+              color: '#fff', background: '#c94f4f', fontFamily: '"Nunito", sans-serif',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'chTyping 1s infinite' }} />
+              Listening… tap stop to send
+            </div>
+          )}
 
           {/* Input */}
           <div style={{
@@ -460,6 +692,23 @@ const AIChatWidget = () => {
             padding: '9px 10px 10px', borderTop: `1px solid ${t.border}`,
             background: t.cardBg, flexShrink: 0,
           }}>
+            <button
+              type="button"
+              onClick={recording ? stopRecording : startRecording}
+              disabled={loading || busy}
+              aria-label={recording ? 'Stop recording' : 'Record voice'}
+              title={recording ? 'Stop recording' : 'Record voice'}
+              style={{
+                flexShrink: 0, width: '34px', height: '34px', borderRadius: '50%',
+                border: 'none', cursor: loading || busy ? 'default' : 'pointer',
+                background: recording ? '#c94f4f' : t.border,
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: loading || busy ? 0.5 : 1,
+                transition: 'transform 0.12s',
+              }}
+            >
+              {recording ? <Square size={13} /> : <Mic size={15} />}
+            </button>
             <textarea
               ref={inputRef}
               value={input}
@@ -467,7 +716,7 @@ const AIChatWidget = () => {
               onKeyDown={onKey}
               placeholder="Ask anything about campus…"
               rows={1}
-              disabled={loading}
+              disabled={loading || busy}
               style={{
                 flex: 1, resize: 'none',
                 border: `1px solid ${t.border}`, borderRadius: '10px',
@@ -477,24 +726,24 @@ const AIChatWidget = () => {
                 color: t.textPrimary, outline: 'none',
                 maxHeight: '80px', overflowY: 'auto',
                 lineHeight: '1.4', scrollbarWidth: 'none',
-                opacity: loading ? 0.6 : 1,
+                opacity: loading || busy ? 0.6 : 1,
               }}
               onFocus={e => e.currentTarget.style.borderColor = t.sidebarActiveBg}
               onBlur={e => e.currentTarget.style.borderColor = t.border}
             />
             <button
               type="button" onClick={() => send()}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || busy}
               aria-label="Send"
               style={{
                 flexShrink: 0, width: '34px', height: '34px', borderRadius: '50%',
-                border: 'none', cursor: !input.trim() || loading ? 'default' : 'pointer',
-                background: !input.trim() || loading ? t.border : t.sidebarActiveBg,
-                color: !input.trim() || loading ? t.textMuted : t.sidebarActiveText,
+                border: 'none', cursor: !input.trim() || loading || busy ? 'default' : 'pointer',
+                background: !input.trim() || loading || busy ? t.border : t.sidebarActiveBg,
+                color: !input.trim() || loading || busy ? t.textMuted : t.sidebarActiveText,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background 0.15s, transform 0.12s',
               }}
-              onMouseEnter={e => { if (input.trim() && !loading) e.currentTarget.style.transform = 'scale(1.08)'; }}
+              onMouseEnter={e => { if (input.trim() && !loading && !busy) e.currentTarget.style.transform = 'scale(1.08)'; }}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
               <Send size={15} />

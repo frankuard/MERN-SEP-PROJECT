@@ -1,25 +1,27 @@
-const mongoose                = require('mongoose');
-const Groq                    = require('groq-sdk');
+const mongoose = require('mongoose');
+
+const actionService = require('../services/aiActionService');
+const { getGroq } = require('../services/aiGroq');
 
 // All existing models — identical imports to what other controllers use
-const Attendance              = require('../models/Attendance');
+const Attendance = require('../models/Attendance');
 const AttendanceReportRequest = require('../models/AttendanceReportRequest');
-const Timetable               = require('../models/Timetable');
-const Announcement            = require('../models/Announcement');
-const Event                   = require('../models/Event');
-const EventRegistration       = require('../models/EventRegistration');
-const CanteenMenu             = require('../models/CanteenMenu');
-const CanteenCredit           = require('../models/CanteenCredit');
-const VolunteerRecord         = require('../models/VolunteerRecord');
-const VolunteerOpportunity    = require('../models/VolunteerOpportunity');
-const VolunteerApplication    = require('../models/VolunteerApplication');
-const LostFoundItem           = require('../models/LostFoundItem');
-const HelpRequest             = require('../models/HelpRequest');
-const ClassroomRequest        = require('../models/ClassroomRequest');
-const CctvRequest             = require('../models/CctvRequest');
-const BorrowRequest           = require('../models/BorrowRequest');
-const Book                    = require('../models/Book');
-const SportsRequest           = require('../models/SportsRequest');
+const Timetable = require('../models/Timetable');
+const Announcement = require('../models/Announcement');
+const Event = require('../models/Event');
+const EventRegistration = require('../models/EventRegistration');
+const CanteenMenu = require('../models/CanteenMenu');
+const CanteenCredit = require('../models/CanteenCredit');
+const VolunteerRecord = require('../models/VolunteerRecord');
+const VolunteerOpportunity = require('../models/VolunteerOpportunity');
+const VolunteerApplication = require('../models/VolunteerApplication');
+const LostFoundItem = require('../models/LostFoundItem');
+const HelpRequest = require('../models/HelpRequest');
+const ClassroomRequest = require('../models/ClassroomRequest');
+const CctvRequest = require('../models/CctvRequest');
+const BorrowRequest = require('../models/BorrowRequest');
+const Book = require('../models/Book');
+const SportsRequest = require('../models/SportsRequest');
 
 const ALL_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -46,8 +48,6 @@ const buildContext = async (user) => {
     const present   = records.filter(r => r.status === 'Present').length;
     const absent    = totalDays - present;
     const percentage = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0;
-
-    console.log(`[ChautariAI] Attendance for ${user.username} (${uid}): total=${totalDays}, present=${present}, absent=${absent}`);
 
     p.push(`  Overall Attendance : ${percentage}%`);
     p.push(`  Present Days       : ${present}`);
@@ -237,11 +237,11 @@ const buildContext = async (user) => {
 };
 
 // ─────────────────────────────────────────────────────────
-//  POST /api/ai/chat
+//  POST /api/ai/chat — action flow first, then context chat
 // ─────────────────────────────────────────────────────────
 const chat = async (req, res) => {
   try {
-    const { message, history = [] } = req.body;
+    const { message } = req.body;
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'Message is required.' });
     }
@@ -251,6 +251,23 @@ const chat = async (req, res) => {
       return res.status(503).json({ error: 'AI not configured. Add GROQ_API_KEY to server/.env.' });
     }
 
+    // 1) Action engine: server-side conversation sessions. Returns
+    //    {reply, card} when an action is active or a new one is detected,
+    //    null when this message is a normal campus Q&A.
+    try {
+      const actionResult = await actionService.handleTurn(req.user, message);
+      if (actionResult) return res.json(actionResult);
+    } catch (err) {
+      if (err?.status === 503) {
+        return res.status(503).json({ error: 'AI is busy right now. Please try again in a moment.' });
+      }
+      if (err?.status === 401) {
+        return res.status(401).json({ error: 'Invalid GROQ_API_KEY. Get a free key at console.groq.com.' });
+      }
+      throw err;
+    }
+
+    // 2) Plain campus Q&A with real database context.
     const context = await buildContext(req.user);
 
     const now = new Date();
@@ -288,10 +305,10 @@ Label | Value
   4. Do not add any other symbols, pipes, or dashes anywhere outside a [TABLE]...[/TABLE] block.
 - For a single simple fact or a yes/no answer, just answer in one plain sentence — do not force a table.`;
 
-    const groq = new Groq({ apiKey });
+    const groq = new (require('groq-sdk'))({ apiKey });
 
-    const safeHistory = Array.isArray(history)
-      ? history.slice(-6).filter(h => h && ['user','assistant'].includes(h.role) && typeof h.parts === 'string' && h.parts.trim()).map(h => ({ role: h.role, content: h.parts }))
+    const safeHistory = Array.isArray(req.body.history)
+      ? req.body.history.slice(-6).filter(h => h && ['user','assistant'].includes(h.role) && typeof h.parts === 'string' && h.parts.trim()).map(h => ({ role: h.role, content: h.parts }))
       : [];
 
     const messages = [
@@ -330,4 +347,71 @@ Label | Value
   }
 };
 
-module.exports = { chat };
+// ─────────────────────────────────────────────────────────
+//  POST /api/ai/confirm — submit the pending request
+// ─────────────────────────────────────────────────────────
+const confirmAction = async (req, res) => {
+  try {
+    const result = await actionService.confirmAction(req.user);
+    return res.json(result);
+  } catch (error) {
+    console.error('[ChautariAI] confirm error:', error?.message || error);
+    return res.status(200).json({
+      reply: error?.message || 'The request could not be submitted. Please try again.',
+      card: null,
+    });
+  }
+};
+
+// ─────────────────────────────────────────────────────────
+//  POST /api/ai/cancel — abort the pending request
+// ─────────────────────────────────────────────────────────
+const cancelAction = async (req, res) => {
+  try {
+    const result = await actionService.cancelAction(req.user);
+    return res.json(result);
+  } catch (error) {
+    console.error('[ChautariAI] cancel error:', error?.message || error);
+    return res.status(500).json({ reply: 'Could not cancel the request right now.', card: null });
+  }
+};
+
+// ─────────────────────────────────────────────────────────
+//  POST /api/ai/choose — pick a claim match by index
+// ─────────────────────────────────────────────────────────
+const chooseAction = async (req, res) => {
+  try {
+    const { index } = req.body;
+    const result = await actionService.chooseMatch(req.user, Number(index));
+    return res.json(result);
+  } catch (error) {
+    console.error('[ChautariAI] choose error:', error?.message || error);
+    return res.status(200).json({ reply: 'Something went wrong while selecting that item. Please try again.', card: null });
+  }
+};
+
+// ─────────────────────────────────────────────────────────
+//  POST /api/ai/transcribe — voice → text via Groq whisper
+// ─────────────────────────────────────────────────────────
+const transcribe = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Audio file is required.' });
+    }
+    const client = getGroq();
+    const extension = (req.file.originalname || 'audio.webm').split('.').pop() || 'webm';
+    const audioFile = new File([req.file.buffer], `voice-${Date.now()}.${extension}`, { type: req.file.mimetype });
+    const transcription = await client.audio.transcriptions.create({
+      model: 'whisper-large-v3-turbo',
+      file: audioFile,
+    });
+    return res.json({ text: transcription?.text || '' });
+  } catch (error) {
+    console.error('[ChautariAI] transcribe error:', error?.message || error);
+    if (error?.status === 503) return res.status(503).json({ error: 'AI is busy right now. Please try again.' });
+    if (error?.status === 401) return res.status(401).json({ error: 'Invalid GROQ_API_KEY.' });
+    return res.status(500).json({ error: 'Voice transcription failed. Please try again.' });
+  }
+};
+
+module.exports = { chat, confirmAction, cancelAction, chooseAction, transcribe };
