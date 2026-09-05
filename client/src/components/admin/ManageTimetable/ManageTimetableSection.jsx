@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Calendar, Plus, Pencil, Trash2, X, BookOpen, Users, School,
-  History, ClipboardCheck, Clock, CheckCircle2, XCircle, Lock,
+  History, ClipboardCheck, Clock, CheckCircle2, XCircle, Lock, FileText,
 } from 'lucide-react';
 import timetableApi from '../../../api/timetableApi';
 import moduleApi from '../../../api/moduleApi';
@@ -16,11 +16,12 @@ const BADGE_COLORS = ['amber', 'blue', 'purple', 'red'];
 const REQUEST_STATUSES = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
 
 const ADMIN_TABS = [
-  { id: 'periods', label: 'Class Periods', icon: Calendar },
-  { id: 'modules', label: 'Modules & Groups', icon: BookOpen },
-  { id: 'classrooms', label: 'Classrooms', icon: School },
-  { id: 'changes', label: 'Schedule Changes', icon: History },
-  { id: 'requests', label: 'Room Requests', icon: ClipboardCheck },
+  { id: 'periods',   label: 'Class Periods',    icon: Calendar },
+  { id: 'modules',   label: 'Modules & Groups', icon: BookOpen },
+  { id: 'classrooms',label: 'Classrooms',       icon: School },
+  { id: 'exams',     label: 'Manage Exams',     icon: FileText },
+  { id: 'changes',   label: 'Schedule Changes', icon: History },
+  { id: 'requests',  label: 'Room Requests',    icon: ClipboardCheck },
 ];
 
 const emptyPeriodForm = {
@@ -36,6 +37,13 @@ const emptyChangeForm = {
 };
 
 const emptyBlockForm = { day: DAY_ORDER[0], startTime: '', endTime: '', reason: '' };
+
+const EXAM_TYPES = ['Midterm', 'Final', 'Quiz', 'Practical', 'Assignment', 'Presentation'];
+
+const emptyExamForm = {
+  moduleName: '', moduleId: '', group: '', examType: EXAM_TYPES[0],
+  date: '', startTime: '', endTime: '', room: '', notes: '',
+};
 
 const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange }) => {
   // Same controlled/uncontrolled pattern as Sidebar.jsx — when a parent
@@ -364,6 +372,89 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
 
   const pendingRequests = (requests || []).filter((r) => r.status === 'pending');
   const reviewedRequests = (requests || []).filter((r) => r.status !== 'pending');
+
+  // -------- Exams --------
+  const [exams, setExams] = useState(null);
+  const [examModal, setExamModal] = useState(null); // { mode: 'add'|'edit', form, editingId }
+  const [examError, setExamError] = useState('');
+  const [savingExam, setSavingExam] = useState(false);
+
+  const loadExams = () => {
+    setExams(null);
+    timetableApi.getExamsAdmin().then(setExams).catch(() => setExams([]));
+  };
+
+  useEffect(() => { if (tab === 'exams') loadExams(); }, [tab]);
+
+  const openAddExam = () => {
+    setExamModal({ mode: 'add', form: { ...emptyExamForm }, editingId: null });
+    setExamError('');
+  };
+
+  const openEditExam = (ex) => {
+    // Convert stored ISO date back to YYYY-MM-DD for the date input
+    const dateVal = ex.date ? new Date(ex.date).toISOString().slice(0, 10) : '';
+    setExamModal({
+      mode: 'edit',
+      form: {
+        moduleName: ex.moduleName || '',
+        moduleId: ex.module || '',
+        group: ex.group || '',
+        examType: ex.examType || EXAM_TYPES[0],
+        date: dateVal,
+        startTime: ex.startTime || '',
+        endTime: ex.endTime || '',
+        room: ex.room || '',
+        notes: ex.notes || '',
+      },
+      editingId: ex._id,
+    });
+    setExamError('');
+  };
+
+  const saveExam = async () => {
+    const f = examModal.form;
+    if (!f.moduleName.trim()) { setExamError('Module name is required.'); return; }
+    if (!f.examType)          { setExamError('Exam type is required.'); return; }
+    if (!f.date)              { setExamError('Date is required.'); return; }
+    if (!f.startTime.trim())  { setExamError('Start time is required.'); return; }
+    if (!f.endTime.trim())    { setExamError('End time is required.'); return; }
+    if (!f.room.trim())       { setExamError('Room / venue is required.'); return; }
+
+    setSavingExam(true);
+    setExamError('');
+    const payload = {
+      moduleName: f.moduleName.trim(),
+      moduleId:   f.moduleId || undefined,
+      group:      f.group.trim(),
+      examType:   f.examType,
+      date:       f.date,
+      startTime:  f.startTime.trim(),
+      endTime:    f.endTime.trim(),
+      room:       f.room.trim(),
+      notes:      f.notes.trim(),
+    };
+    try {
+      if (examModal.mode === 'add') await timetableApi.createExam(payload);
+      else await timetableApi.updateExam(examModal.editingId, payload);
+      setExamModal(null);
+      loadExams();
+    } catch (err) {
+      setExamError(err?.response?.data?.message || 'Could not save exam.');
+    } finally {
+      setSavingExam(false);
+    }
+  };
+
+  const deleteExam = async (id) => {
+    try { await timetableApi.deleteExam(id); loadExams(); } catch { /* list stays as-is */ }
+  };
+
+  const examDateDisplay = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  };
 
   // -------- Shared modal input style helper --------
   const inputStyle = { borderColor: t.border, backgroundColor: t.pageBg, color: t.textPrimary };
@@ -1249,6 +1340,237 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                     style={{ backgroundColor: t.accentPrimary }}
                   >
                     {savingChange ? 'Saving...' : changeModal.mode === 'add' ? 'Publish Change' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===================== MANAGE EXAMS ===================== */}
+      {tab === 'exams' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: t.textMuted }}>
+                All exams — past and upcoming. Students only see future exams.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openAddExam}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white"
+              style={{ backgroundColor: t.accentPrimary }}
+            >
+              <Plus size={14} /> Add Exam
+            </button>
+          </div>
+
+          {exams === null && (
+            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              Loading exams...
+            </div>
+          )}
+
+          {exams !== null && exams.length === 0 && (
+            <div className="rounded-2xl border border-dashed px-4 py-10 text-center text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
+              No exams scheduled yet. Click "Add Exam" to create the first one.
+            </div>
+          )}
+
+          {exams !== null && exams.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {exams.map((ex) => {
+                const isPast = ex.date && new Date(ex.date) < new Date(new Date().setHours(0, 0, 0, 0));
+                return (
+                  <div
+                    key={ex._id}
+                    className="rounded-xl border p-4"
+                    style={{
+                      backgroundColor: t.cardBg,
+                      borderColor: t.border,
+                      opacity: isPast ? 0.6 : 1,
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                            style={{ backgroundColor: t.chipBg, color: t.textMuted }}
+                          >
+                            {ex.examType}
+                          </span>
+                          {isPast && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: '#f3f4f6', color: '#6b7280' }}>
+                              Past
+                            </span>
+                          )}
+                          {!ex.isActive && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>
+                              Hidden
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1.5 text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>
+                          {ex.moduleName}
+                        </p>
+                        {ex.moduleCode && (
+                          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>{ex.moduleCode}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button type="button" onClick={() => openEditExam(ex)}>
+                          <Pencil size={14} style={{ color: t.textMuted }} />
+                        </button>
+                        <button type="button" onClick={() => deleteExam(ex._id)}>
+                          <Trash2 size={14} style={{ color: '#dc2626' }} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-1 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
+                      <p className="font-semibold" style={{ color: t.textPrimary }}>{examDateDisplay(ex.date)}</p>
+                      <p>{ex.startTime} – {ex.endTime}</p>
+                      <p>{ex.room}</p>
+                      {ex.group && <p style={{ color: t.textMuted }}>{ex.group}</p>}
+                      {ex.notes && <p className="italic">{ex.notes}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add / Edit exam modal */}
+          {examModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-md rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                    {examModal.mode === 'add' ? 'Add Exam' : 'Edit Exam'}
+                  </h4>
+                  <button type="button" onClick={() => setExamModal(null)}>
+                    <X size={16} style={{ color: t.textMuted }} />
+                  </button>
+                </div>
+
+                <div className="mt-4 max-h-[70vh] space-y-3 overflow-y-auto pr-1">
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Module / Subject name</label>
+                    <input
+                      value={examModal.form.moduleName}
+                      onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, moduleName: e.target.value } })}
+                      placeholder="Database Systems"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Module (optional — auto-fills code)</label>
+                    <select
+                      value={examModal.form.moduleId}
+                      onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, moduleId: e.target.value } })}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    >
+                      <option value="">None / manual name only</option>
+                      {modules.map((m) => <option key={m._id} value={m._id}>{m.code} — {m.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Group / Section (optional)</label>
+                    <input
+                      value={examModal.form.group}
+                      onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, group: e.target.value } })}
+                      placeholder="Section A + Section B"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Exam type</label>
+                    <select
+                      value={examModal.form.examType}
+                      onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, examType: e.target.value } })}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    >
+                      {EXAM_TYPES.map((et) => <option key={et} value={et}>{et}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Date</label>
+                    <input
+                      type="date"
+                      value={examModal.form.date}
+                      onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, date: e.target.value } })}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>Start time</label>
+                      <input
+                        value={examModal.form.startTime}
+                        onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, startTime: e.target.value } })}
+                        placeholder="10:00 AM"
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>End time</label>
+                      <input
+                        value={examModal.form.endTime}
+                        onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, endTime: e.target.value } })}
+                        placeholder="12:00 PM"
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Room / Venue</label>
+                    <input
+                      value={examModal.form.room}
+                      onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, room: e.target.value } })}
+                      placeholder="LT-01 Wulfurna"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Notes / additional info (optional)</label>
+                    <textarea
+                      value={examModal.form.notes}
+                      onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, notes: e.target.value } })}
+                      rows={2}
+                      placeholder="Covers Weeks 1–6. Closed-book. Bring student ID."
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  {examError && <p className="text-xs font-semibold" style={{ color: '#dc2626' }}>{examError}</p>}
+
+                  <button
+                    type="button"
+                    disabled={savingExam}
+                    onClick={saveExam}
+                    className="w-full rounded-xl py-2.5 text-xs font-bold text-white disabled:opacity-70"
+                    style={{ backgroundColor: t.accentPrimary }}
+                  >
+                    {savingExam ? 'Saving...' : examModal.mode === 'add' ? 'Add Exam' : 'Save Changes'}
                   </button>
                 </div>
               </div>

@@ -26,6 +26,7 @@ const attendanceRoutes = require('./routes/attendance.routes');
 const helpRoutes = require('./routes/help.routes');
 const resourceRoutes = require('./routes/resource.routes');
 const timetableRoutes = require('./routes/timetable.routes');
+const examRoutes = require('./routes/exam.routes');
 
 const moduleRoutes = require('./routes/modules.routes');
 const groupRoutes = require('./routes/groups.routes');
@@ -83,6 +84,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/canteen', canteenRoutes);
 
 app.use('/api/timetable', timetableRoutes);
+app.use('/api/timetable/exams', examRoutes);
 
 
 app.use('/api/announcements', announcementRoutes);

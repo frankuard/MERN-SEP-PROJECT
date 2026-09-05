@@ -20,6 +20,24 @@ const timetableApi = {
     }
   },
 
+  // -------- Admin — Exams --------
+  getExamsAdmin: async () => {
+    const res = await axiosInstance.get('/timetable/exams/admin');
+    return res.data;
+  },
+  createExam: async (payload) => {
+    const res = await axiosInstance.post('/timetable/exams', payload);
+    return res.data;
+  },
+  updateExam: async (id, payload) => {
+    const res = await axiosInstance.patch(`/timetable/exams/${id}`, payload);
+    return res.data;
+  },
+  deleteExam: async (id) => {
+    const res = await axiosInstance.delete(`/timetable/exams/${id}`);
+    return res.data;
+  },
+
   // -------- Admin — Periods --------
   getTimetableAdmin: async () => {
     const res = await axiosInstance.get('/timetable/admin');

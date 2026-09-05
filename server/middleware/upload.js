@@ -43,4 +43,23 @@ const uploadDocument = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB — documents tend to be bigger than images
 });
 
-module.exports = { uploadImage, uploadDocument };
+// ---------- Audio (AI voice transcription) ----------
+const audioFileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    'audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp3',
+    'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/x-m4a',
+  ];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only audio files (webm, ogg, mp3, m4a, wav) are allowed'), false);
+  }
+};
+
+const uploadAudio = multer({
+  storage,
+  fileFilter: audioFileFilter,
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — voice notes should never need more
+});
+
+module.exports = { uploadImage, uploadDocument, uploadAudio };
