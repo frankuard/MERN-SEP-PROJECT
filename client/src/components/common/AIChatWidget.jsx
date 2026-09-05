@@ -20,8 +20,12 @@ const isHelpIntent = (text) => {
 };
 const HELP_SUGGESTIONS = [
   'Show my attendance',
+  'Request my attendance report',
   "What's today's canteen menu?",
   'I lost my wallet',
+  'I want to volunteer for the next event',
+  'The projector in LT01 is not working',
+  'I need CCTV footage from the canteen',
   'Any upcoming events?',
 ];
 
@@ -290,7 +294,7 @@ const AIChatWidget = () => {
       {
         id: 'welcome',
         role: 'assistant',
-        content: `${greeting}! How may I assist you today?\nMy name is Chauttari AI — I can check your attendance, canteen prices, timetable, events, and I can also submit requests for you (Lost & Found, CCTV footage, attendance reports, campus help). Just ask, or tap Voice to speak.`,
+        content: `${greeting}! How may I assist you today?\nMy name is Chauttari AI — I can check your attendance, timetable, canteen menu, events, and volunteering records.\n\nI can also take actions for you:\n• Lost & Found — report a lost/found item or claim one\n• Volunteer — apply for upcoming volunteer events\n• Attendance report — request an official report\n• Campus help — report a facility issue\n• CCTV request — request footage review\n\nJust tell me what you need, or tap Voice to speak.`,
       },
     ];
   });

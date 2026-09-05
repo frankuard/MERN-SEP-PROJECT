@@ -1,14 +1,17 @@
 const mongoose = require('mongoose');
 const LostFoundItem = require('../models/LostFoundItem');
+const VolunteerOpportunity = require('../models/VolunteerOpportunity');
+const VolunteerApplication = require('../models/VolunteerApplication');
 const { groqJson } = require('./aiGroq');
 const { getSession, setSession, clearSession } = require('./aiActionSession');
+const { createNotification, createNotificationForRole } = require('../utils/createNotification');
 
-// ─────────────────────────────────────────────────────────────
+
 //  Reuse existing request controllers instead of duplicating
 //  business logic. Each handler receives a tiny stub req/res so
 //  the exact same code paths (validation, notifications, model
 //  writes) run as if the request came from the normal web form.
-// ─────────────────────────────────────────────────────────────
+
 const lostFoundController = require('../controllers/lostFoundController');
 const helpController = require('../controllers/helpController');
 const attendanceController = require('../controllers/attendanceController');
@@ -28,10 +31,7 @@ const runController = (handler, user, body, params = {}) =>
       .catch(reject);
   });
 
-// ─────────────────────────────────────────────────────────────
-//  Action registry — deterministic required/optional fields so
-//  the LLM is NEVER the source of truth for validation.
-// ─────────────────────────────────────────────────────────────
+
 const ACTIONS = {
   lost_found_report: {
     label: 'Lost & Found Report',
@@ -82,8 +82,20 @@ const ACTIONS = {
       problem: 'What do you need help with?',
       location: 'Which classroom, lab, or location is this about?',
     },
-    optionalQuestion: 'Is this a technical issue (equipment, Wi-Fi, projector) or something else?',
+    optionalQuestion: 'Is this a technical issue (equipment, Wi-Fi, projector) or something else? (You can say skip.)',
     optionalSatisfied: (d) => Boolean(d.category),
+  },
+  // volunteer_application is handled by its own bespoke flow below,
+  // not through the generic collect/confirm pipeline, but we register
+  // it here so detectIntent can return it as a valid action name.
+  volunteer_application: {
+    label: 'Volunteer Application',
+    cardTitle: 'Volunteer Application',
+    fields: [],
+    required: [],
+    questions: {},
+    optionalQuestion: null,
+    optionalSatisfied: () => true,
   },
 };
 
@@ -99,8 +111,7 @@ const ALLOWED_UPDATES = {
 // ─────────────────────────────────────────────────────────────
 const todayNP = () => {
   const now = new Date();
-  const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' }); // YYYY-MM-DD
-  return today;
+  return now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' }); // YYYY-MM-DD
 };
 
 const clean = (value, max = 500) =>
@@ -134,8 +145,7 @@ const claimKeywords = (message) => {
     )
     .replace(/\s+/g, ' ')
     .trim();
-  const words = text.split(' ').filter((w) => w.length > 1 && !['and', 'with', 'from', 'near', 'about', 'one'].includes(w));
-  return words;
+  return text.split(' ').filter((w) => w.length > 1 && !['and', 'with', 'from', 'near', 'about', 'one'].includes(w));
 };
 
 const CONFIRM_RE = /^(yes|yeah|yep|confirm|ok|okay|sure|submit|submit it|go\s*ahead|correct|that's right|agree)$/i;
@@ -172,21 +182,26 @@ Classify the student's latest message into exactly ONE action intent.
 Return ONLY a JSON object: {"action":"..."}
 Allowed actions:
 - "lost_found_report": student is REPORTING they lost or found an item. e.g. "I lost my wallet", "I found a black bag", "I lost my AirPods in LT01 yesterday".
-- "lost_found_claim": student wants to CLAIM an item already in lost & found. e.g. "I want to claim the black wallet", "that backpack is mine", "I found my lost phone".
-- "attendance_report": student is REQUESTING an attendance report. e.g. "I need my attendance report", "request my attendance report".
+- "lost_found_claim": student wants to CLAIM an item already in lost & found. e.g. "I want to claim the black wallet", "that backpack is mine", "I found my lost phone in lost and found".
+- "attendance_report": student is REQUESTING an attendance report document. e.g. "I need my attendance report", "request my attendance report", "send me my attendance report".
 - "cctv_request": student is REQUESTING CCTV/camera footage. e.g. "I need cctv footage from LT01", "can you request cctv footage near the canteen".
-- "campus_help": student reports a campus problem needing action. e.g. "the projector in LT01 isn't working", "there is no wifi in lab 2".
-- "none": everything else (questions about attendance/canteen/events/timetable, greetings, chit-chat).
+- "campus_help": student reports a campus facility problem needing admin action. e.g. "the projector in LT01 isn't working", "there is no wifi in lab 2", "the AC is broken in SR01".
+- "volunteer_application": student wants to apply as a volunteer. e.g. "I want to volunteer", "apply me for volunteering", "I want to volunteer for the next event", "register me as a volunteer", "apply for the next two events".
+- "none": everything else (questions about attendance percentages, canteen menu, timetable, events, greetings, chit-chat).
 
 Message: "${message}"
-Return {"action":"none|lost_found_report|lost_found_claim|attendance_report|cctv_request|campus_help"}`;
+Return {"action":"none|lost_found_report|lost_found_claim|attendance_report|cctv_request|campus_help|volunteer_application"}`;
 
+// ACTION_HINTS: fast regex pre-filter before calling the LLM for intent detection.
+// Must include keywords that could signal any of the 6 supported actions.
 const ACTION_HINTS =
-  /\b(lost|lose|losing|found|claim|claiming|reclaim|cctv|camera|footage|attendance report|report request|projector|wifi|wi-fi|internet|not working|isn't working|isn\'t working|broken|problem with|issue with|help with|can you request|need.*report|wallet|airpod|earbud|passport|id card|charger|backpack)\b/i;
+  /\b(lost|lose|losing|found|claim|claiming|reclaim|cctv|camera|footage|attendance report|report request|projector|wifi|wi-fi|internet|not working|isn't working|isn\'t working|broken|problem with|issue with|help with|can you request|need.*report|wallet|airpod|earbud|passport|id card|charger|backpack|volunteer|volunteering|apply.*volunteer|register.*volunteer|volunteer.*event|i want to volunteer)\b/i;
 
 const detectIntent = async (message) => {
   const parsed = await groqJson([{ role: 'user', content: intentPrompt(message) }], { maxTokens: 100 });
   const action = parsed?.action;
+  // volunteer_application is valid even though its ACTIONS entry has no fields
+  if (action === 'volunteer_application') return 'volunteer_application';
   return ACTIONS[action] ? action : null;
 };
 
@@ -206,9 +221,9 @@ const sanitizeUpdates = (action, updates) => {
   return out;
 };
 
-// ─────────────────────────────────────────────────────────────
-//  Lost & Found claim — database search + selection + details
-// ─────────────────────────────────────────────────────────────
+
+//  Lost & Found claim — search + selection + details
+
 const searchFoundItems = async (user, keywords) => {
   const terms = [...new Set((Array.isArray(keywords) ? keywords : [keywords]).filter(Boolean))];
   if (!terms.length) return [];
@@ -237,7 +252,7 @@ const claimSearchTurn = async (user, message, session) => {
       card: null,
     };
   }
-  let matches = await searchFoundItems(user, keywords);
+  const matches = await searchFoundItems(user, keywords);
   if (!matches.length) {
     return {
       reply: "I couldn't find a matching item in the Lost & Found list. Try more details (color, location, brand) or say \"cancel\" to stop. Would you like to report it as lost instead?",
@@ -324,6 +339,90 @@ const claimDetailsTurn = async (user, message, session) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+//  Volunteer application — search open opportunities, select,
+//  confirm, then call applyToOpportunity for each one.
+// ─────────────────────────────────────────────────────────────
+
+// How many events the student wants — extracted from the message.
+// "next event" → 1, "next two events" → 2, "next 3 events" → 3, etc.
+const parseVolunteerCount = (message) => {
+  const m = message.toLowerCase();
+  if (/\b(two|2)\b/.test(m)) return 2;
+  if (/\b(three|3)\b/.test(m)) return 3;
+  if (/\b(four|4)\b/.test(m)) return 4;
+  if (/\b(five|5)\b/.test(m)) return 5;
+  const numMatch = m.match(/\b([1-9])\b/);
+  if (numMatch) return Number(numMatch[1]);
+  return 1; // default: next single event
+};
+
+const opportunityLabel = (op) =>
+  `${op.eventTitle}${op.role ? ` — ${op.role}` : ''}${op.date ? ` (${op.date})` : ''}`;
+
+const volunteerSearchTurn = async (user, message, session) => {
+  const count = parseVolunteerCount(message);
+  session.volunteerCount = count;
+
+  // Fetch open opportunities the student has not already applied to
+  const allOpen = await VolunteerOpportunity.find({ isOpen: true }).sort({ createdAt: 1 }).lean();
+  const myApps = await VolunteerApplication.find({ student: user._id, status: 'applied' }).select('opportunity').lean();
+  const appliedIds = new Set(myApps.map((a) => a.opportunity.toString()));
+
+  const available = allOpen.filter((op) => !appliedIds.has(op._id.toString()));
+
+  if (!available.length) {
+    clearSession(user._id);
+    return {
+      reply: "There are no open volunteer opportunities right now, or you have already applied to all of them. Check back later.",
+      card: null,
+    };
+  }
+
+  // If the student asks for more than what's available, cap it
+  const slots = available.slice(0, Math.min(count, available.length));
+
+  if (count > 1 && slots.length < count) {
+    session.volunteerCount = slots.length;
+  }
+
+  if (slots.length === 1 && count === 1) {
+    // Auto-select the single next opportunity — skip the pick screen
+    session.selectedOpportunities = slots.map((op) => ({ id: op._id.toString(), label: opportunityLabel(op) }));
+    session.step = 'confirm';
+    setSession(user._id, session);
+    return {
+      reply: 'Here is the volunteer opportunity I found:',
+      card: {
+        title: 'Volunteer Application',
+        action: 'volunteer_application',
+        confirm: true,
+        rows: slots.map((op) => ({
+          label: op.eventTitle,
+          value: `${op.role || 'Volunteer'}${op.date ? ' · ' + op.date : ''}${op.slotsAvailable !== null ? ` · ${op.slotsAvailable} slots` : ''}`,
+        })),
+      },
+    };
+  }
+
+  // Multiple or ambiguous — show all available so user can confirm
+  session.selectedOpportunities = slots.map((op) => ({ id: op._id.toString(), label: opportunityLabel(op) }));
+  session.step = 'confirm';
+  setSession(user._id, session);
+  return {
+    reply: `Here ${slots.length === 1 ? 'is the opportunity' : `are the next ${slots.length} opportunities`} I will apply you for — confirm to submit:`,
+    card: {
+      title: 'Volunteer Application',
+      action: 'volunteer_application',
+      confirm: true,
+      rows: slots.map((op, i) => ({
+        label: `#${i + 1} ${op.eventTitle}`,
+        value: `${op.role || 'Volunteer'}${op.date ? ' · ' + op.date : ''}`,
+      })),
+    },
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
 //  Collect-type actions (report / cctv / attendance / help)
 // ─────────────────────────────────────────────────────────────
 const questionFor = (action, field, draft) => {
@@ -391,7 +490,6 @@ const buildConfirmCard = (action, draft, user) => {
 
 const handleCollectTurn = async (user, message, session) => {
   const action = session.action;
-  const def = ACTIONS[action];
 
   let parsed;
   try {
@@ -400,7 +498,9 @@ const handleCollectTurn = async (user, message, session) => {
     if (err?.status === 503 || err?.status === 401) throw err;
     parsed = {};
   }
-  if (!parsed || !parsed.control || !parsed.updates) parsed = { control: parsed?.control || 'none', updates: parsed?.updates || {} };
+  if (!parsed || !parsed.control || !parsed.updates) {
+    parsed = { control: parsed?.control || 'none', updates: parsed?.updates || {} };
+  }
 
   const updates = sanitizeUpdates(action, parsed.updates);
   session.draft = { ...session.draft, ...updates };
@@ -408,10 +508,8 @@ const handleCollectTurn = async (user, message, session) => {
   return evaluateCollectDraft(user, session, message);
 };
 
-// After any draft update, decide what the assistant should say next:
-// a missing required field, the one-time optional detail question,
-// or the confirmation card. This deterministic gating is what keeps the
-// LLM from ever being the arbiter of whether a request is complete.
+// Deterministic gate: decide next prompt, optional detail question,
+// or confirmation card. LLM never decides whether collection is complete.
 const evaluateCollectDraft = async (user, session, lastMessage = '') => {
   const action = session.action;
   const def = ACTIONS[action];
@@ -419,8 +517,7 @@ const evaluateCollectDraft = async (user, session, lastMessage = '') => {
   const missing = def.required.filter((f) => !clean(session.draft[f]) && f !== 'type');
   if (action === 'lost_found_report' && !session.draft.type) missing.push('type');
 
-  // Don't let a "skip / don't know" answer deadlock the conversation — a
-  // student can decline a required field twice, then we accept "Unknown".
+  // Allow "skip" twice on a required field before auto-filling "Unknown"
   if (missing.length && SKIP_RE.test(lastMessage)) {
     session.skipHits = (session.skipHits || 0) + 1;
     if (session.skipHits >= 2) {
@@ -430,8 +527,7 @@ const evaluateCollectDraft = async (user, session, lastMessage = '') => {
     }
     setSession(user._id, session);
     return {
-      reply:
-        "I understand you're not sure, but I still need that detail to submit this. Give your best guess, or say \"cancel\" to stop.",
+      reply: "I understand you're not sure, but I still need that detail to submit this. Give your best guess, or say \"cancel\" to stop.",
       card: null,
     };
   }
@@ -441,7 +537,7 @@ const evaluateCollectDraft = async (user, session, lastMessage = '') => {
     return { reply: questionFor(action, missing[0], session.draft), card: null };
   }
 
-  // Optional descriptive questions — asked exactly once per request.
+  // Optional descriptive question — asked exactly once per session
   if (!session.optionalAsked && def.optionalQuestion && !def.optionalSatisfied(session.draft)) {
     session.optionalAsked = true;
     setSession(user._id, session);
@@ -464,11 +560,9 @@ const handleTurn = async (user, message, history = []) => {
 
   let session = getSession(user._id);
 
-  // In-confirmation phase: typed confirmation works like the button.
+  // In-confirmation phase: typed yes/no works like the card buttons
   if (session && session.step === 'confirm') {
-    if (CONFIRM_RE.test(trimmed)) {
-      return confirmAction(user);
-    }
+    if (CONFIRM_RE.test(trimmed)) return confirmAction(user);
     if (CANCEL_RE.test(trimmed)) {
       clearSession(user._id);
       return { reply: 'Request cancelled. Type or ask me for anything else anytime.', card: null };
@@ -483,13 +577,19 @@ const handleTurn = async (user, message, history = []) => {
   if (RESTART_RE.test(trimmed)) {
     if (session) {
       session.draft = {};
-      session.step = session.action === 'lost_found_claim' ? 'search' : 'collect';
+      session.step = (session.action === 'lost_found_claim' || session.action === 'volunteer_application')
+        ? 'search'
+        : 'collect';
       session.optionalAsked = false;
       session.matches = null;
       session.itemId = null;
+      session.selectedOpportunities = null;
       setSession(user._id, session);
       if (session.action === 'lost_found_claim') {
-        return { reply: 'Okay, let\'s start again. What item are you trying to claim?', card: null };
+        return { reply: "Okay, let's start again. What item are you trying to claim?", card: null };
+      }
+      if (session.action === 'volunteer_application') {
+        return { reply: "Okay, let's start again. How many events would you like to volunteer for?", card: null };
       }
       const first = ACTIONS[session.action].required[0];
       return { reply: questionFor(session.action, first, session.draft), card: null };
@@ -511,15 +611,18 @@ const handleTurn = async (user, message, history = []) => {
     session = {
       action: intent,
       draft: {},
-      step: intent === 'lost_found_claim' ? 'search' : 'collect',
+      step: (intent === 'lost_found_claim' || intent === 'volunteer_application') ? 'search' : 'collect',
       optionalAsked: false,
       matches: null,
       itemId: null,
+      selectedOpportunities: null,
+      volunteerCount: 1,
       createdAt: Date.now(),
     };
     setSession(user._id, session);
   }
 
+  // ── Lost & Found claim flow ──────────────────────────
   if (session.action === 'lost_found_claim') {
     if (session.step === 'search') return claimSearchTurn(user, trimmed, session);
     if (session.step === 'choose') return claimChooseTurn(user, trimmed, session);
@@ -530,11 +633,20 @@ const handleTurn = async (user, message, history = []) => {
     }
   }
 
+  // ── Volunteer application flow ───────────────────────
+  if (session.action === 'volunteer_application') {
+    if (session.step === 'search') return volunteerSearchTurn(user, trimmed, session);
+    if (session.step === 'confirm') {
+      if (CONFIRM_RE.test(trimmed)) return confirmAction(user);
+      return { reply: 'Reply "yes" to submit the volunteer application, or "cancel" to stop.', card: null };
+    }
+  }
+
   return handleCollectTurn(user, trimmed, session);
 };
 
 // ─────────────────────────────────────────────────────────────
-//  Choose a claim match (called by choice buttons)
+//  Choose a claim match (called by choice buttons in frontend)
 // ─────────────────────────────────────────────────────────────
 const chooseMatch = async (user, index) => {
   const session = getSession(user._id);
@@ -555,7 +667,8 @@ const chooseMatch = async (user, index) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  Confirm / cancel execution — reuses existing controllers
+//  Confirm / cancel — reuses existing controllers + sends
+//  admin notifications where the normal flow doesn't already.
 // ─────────────────────────────────────────────────────────────
 const confirmAction = async (user) => {
   const session = getSession(user._id);
@@ -566,6 +679,8 @@ const confirmAction = async (user) => {
   let result;
   try {
     switch (session.action) {
+
+      // ── Lost & Found: report ─────────────────────────
       case 'lost_found_report': {
         const { title, description, category } = composeReport(session.draft);
         result = await runController(
@@ -582,12 +697,21 @@ const confirmAction = async (user) => {
           }
         );
         if (result.statusCode >= 400) throw new Error(result.body?.message || 'The report was rejected.');
+        // Notify all admins/staff so they see the new item in the panel
+        createNotificationForRole(['admin', 'staff'], {
+          type: 'lost_found',
+          title: `New ${session.draft.type === 'found' ? 'Found' : 'Lost'} Item Reported`,
+          message: `${user.username} reported: "${title}" at ${session.draft.location}`,
+          link: 'lost-found',
+        }, user._id);
         clearSession(user._id);
         return {
-          reply: `Done! Your ${session.draft.type} report for "${title}" has been submitted to the Lost & Found office. An admin will review it.`,
+          reply: `Done! Your ${session.draft.type} report for "${title}" has been submitted. An admin will review it shortly.`,
           card: null,
         };
       }
+
+      // ── Lost & Found: claim ──────────────────────────
       case 'lost_found_claim': {
         result = await runController(
           lostFoundController.claimLostFoundItem,
@@ -596,13 +720,25 @@ const confirmAction = async (user) => {
           { id: session.draft.itemId }
         );
         if (result.statusCode >= 400) throw new Error(result.body?.message || 'The claim was rejected.');
+
+        // Notify admins/staff to review the pending claim
+        const claimedItem = result.body;
+        createNotificationForRole(['admin', 'staff'], {
+          type: 'lost_found',
+          title: 'New Lost & Found Claim',
+          message: `${user.username} has claimed "${claimedItem?.title || 'an item'}" — awaiting your review.`,
+          link: 'lost-found',
+        }, user._id);
+
         clearSession(user._id);
         return {
-          reply: 'Your claim has been submitted for admin review. You will be notified once it is approved.',
+          reply: 'Your claim has been submitted successfully. The admin has been notified and will review it. You will receive a notification once a decision is made.',
           card: null,
         };
       }
-      case 'cctv_request':
+
+      // ── CCTV request ─────────────────────────────────
+      case 'cctv_request': {
         result = await runController(
           lostFoundController.createCctvRequest,
           user,
@@ -616,36 +752,170 @@ const confirmAction = async (user) => {
           }
         );
         if (result.statusCode >= 400) throw new Error(result.body?.message || 'The request was rejected.');
+
+        // Notify admins/staff to review the CCTV request
+        createNotificationForRole(['admin', 'staff'], {
+          type: 'cctv_request',
+          title: 'New CCTV Footage Request',
+          message: `${user.username} requested footage for ${session.draft.location} on ${session.draft.date} (${session.draft.timeFrom}–${session.draft.timeTo}). Reason: ${session.draft.reason}`,
+          link: 'lost-found',
+        }, user._id);
+
         clearSession(user._id);
         return {
-          reply: `Your CCTV request for ${session.draft.location} on ${session.draft.date} has been submitted. It will be reviewed by the admin.`,
+          reply: `Your CCTV request for ${session.draft.location} on ${session.draft.date} has been submitted successfully and sent to the administration for review. You will be notified of the outcome.`,
           card: null,
         };
-      case 'attendance_report':
+      }
+
+      // ── Attendance report ────────────────────────────
+      case 'attendance_report': {
         result = await runController(
           attendanceController.createReportRequest,
           user,
           { reason: session.draft.reason || '' }
         );
         if (result.statusCode >= 400) throw new Error(result.body?.message || 'The request was rejected.');
+
+        // Notify the student that their request was received
+        createNotification(user._id, {
+          type: 'attendance_report',
+          title: 'Attendance Report Requested',
+          message: 'Your attendance report request has been submitted to SSD. You will be notified once it is ready.',
+          link: 'ssd-help',
+        });
+        // Notify admins to process it
+        createNotificationForRole(['admin'], {
+          type: 'attendance_report',
+          title: 'New Attendance Report Request',
+          message: `${user.username} (${user.email}) has requested an attendance report. Reason: ${session.draft.reason || 'Not specified'}`,
+          link: 'ssd-help',
+        }, user._id);
+
         clearSession(user._id);
         return {
-          reply: 'Your attendance report request has been submitted to SSD. You will be notified once the report is ready.',
+          reply: 'Your attendance report request has been submitted successfully. The admin has been notified and you will receive a notification once your report is ready.',
           card: null,
         };
+      }
+
+      // ── Campus help ──────────────────────────────────
       case 'campus_help': {
         const parts = [session.draft.problem];
         if (session.draft.location) parts.push(`Location: ${session.draft.location}`);
         if (session.draft.category) parts.push(`Category: ${session.draft.category}`);
+        if (session.draft.details) parts.push(session.draft.details);
         const requestText = parts.join(' | ');
+
         result = await runController(helpController.createHelpRequest, user, { request: requestText, attachments: [] });
         if (result.statusCode >= 400) throw new Error(result.body?.message || 'The request was rejected.');
+        // helpController.createHelpRequest already calls createNotificationForRole(['staff','admin'])
+        // so no extra notification needed here — it's already wired.
         clearSession(user._id);
         return {
-          reply: 'Your Campus Help request has been submitted. An admin will get back to you shortly.',
+          reply: 'Your campus help request has been submitted and the admin team has been notified. They will get back to you shortly.',
           card: null,
         };
       }
+
+      // ── Volunteer application ────────────────────────
+      case 'volunteer_application': {
+        const selected = session.selectedOpportunities;
+        if (!selected || !selected.length) {
+          clearSession(user._id);
+          return { reply: 'No opportunities were selected. Please try again.', card: null };
+        }
+
+        const succeeded = [];
+        const failed = [];
+
+        for (const op of selected) {
+          try {
+            // Call applyToOpportunity directly — avoids HTTP round-trip,
+            // uses identical validation + slot-check logic as the form UI.
+            const existing = await VolunteerApplication.findOne({
+              opportunity: op.id,
+              student: user._id,
+            });
+
+            if (existing && existing.status === 'applied') {
+              failed.push({ label: op.label, reason: 'Already applied' });
+              continue;
+            }
+
+            const opportunity = await VolunteerOpportunity.findById(op.id);
+            if (!opportunity || !opportunity.isOpen) {
+              failed.push({ label: op.label, reason: 'Opportunity no longer available' });
+              continue;
+            }
+
+            // Check slot availability
+            if (opportunity.slotsAvailable !== null) {
+              const count = await VolunteerApplication.countDocuments({
+                opportunity: opportunity._id,
+                status: 'applied',
+              });
+              if (count >= opportunity.slotsAvailable) {
+                failed.push({ label: op.label, reason: 'No slots available' });
+                continue;
+              }
+            }
+
+            if (existing) {
+              existing.status = 'applied';
+              await existing.save();
+            } else {
+              await VolunteerApplication.create({
+                opportunity: opportunity._id,
+                student: user._id,
+                status: 'applied',
+              });
+            }
+
+            // Notify the student that their application was submitted
+            createNotification(user._id, {
+              type: 'volunteer_opportunity',
+              title: 'Volunteer Application Submitted',
+              message: `Your application for "${opportunity.eventTitle}" (${opportunity.role || 'Volunteer'}) has been submitted successfully.`,
+              link: 'ssd-help',
+            });
+
+            // Notify admins of the new volunteer application
+            createNotificationForRole(['admin'], {
+              type: 'volunteer_opportunity',
+              title: 'New Volunteer Application',
+              message: `${user.username} applied to volunteer for "${opportunity.eventTitle}" — ${opportunity.role || 'Volunteer'}${opportunity.date ? ' on ' + opportunity.date : ''}.`,
+              link: 'ssd-help',
+            }, user._id);
+
+            succeeded.push(op.label);
+          } catch (opErr) {
+            console.error('[ChautariAI] Volunteer apply error:', opErr?.message);
+            failed.push({ label: op.label, reason: opErr?.message || 'Submission failed' });
+          }
+        }
+
+        clearSession(user._id);
+
+        if (!succeeded.length) {
+          const reasons = failed.map((f) => `${f.label} (${f.reason})`).join(', ');
+          return {
+            reply: `Your volunteer application could not be submitted. ${reasons}. Please try again or contact SSD directly.`,
+            card: null,
+          };
+        }
+
+        let reply = `Your volunteer application${succeeded.length > 1 ? 's have' : ' has'} been submitted successfully.`;
+        if (succeeded.length > 0) {
+          reply += ` Applied for: ${succeeded.join(', ')}.`;
+        }
+        if (failed.length > 0) {
+          reply += ` Could not apply for: ${failed.map((f) => `${f.label} (${f.reason})`).join(', ')}.`;
+        }
+
+        return { reply, card: null };
+      }
+
       default:
         clearSession(user._id);
         return { reply: 'This action type is not supported.', card: null };
