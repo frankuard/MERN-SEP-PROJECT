@@ -27,8 +27,6 @@ const DashboardHome = ({
         onNavigateTab={onNavigateTab}
       />
 
-      <CanteenSpecial t={t} onNavigateTab={onNavigateTab} />
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div
           className="rounded-[28px] p-5 sm:p-6"
@@ -49,6 +47,8 @@ const DashboardHome = ({
           <UpcomingEvents t={t} onNavigateTab={onNavigateTab} />
         </div>
       </div>
+
+      <CanteenSpecial t={t} onNavigateTab={onNavigateTab} />
     </div>
   );
 };
