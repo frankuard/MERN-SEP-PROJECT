@@ -147,14 +147,6 @@ const CampusHelpSection = ({ t, user }) => {
 
   return (
     <div className="dashboard-playful space-y-6 pb-4 animate-in fade-in duration-200">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
-          Campus Help
-        </h2>
-        <p className="mt-1.5 text-base leading-relaxed" style={{ color: t.textMuted }}>
-          Official contacts and peer support, all in one place.
-        </p>
-      </div>
 
       {/* Jump-link buttons */}
       <div className="flex flex-wrap gap-3">

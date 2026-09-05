@@ -1,64 +1,123 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Calendar, Timer, MapPin, User, BookOpen, School, History, CheckCircle2,
-  ArrowRightLeft, Clock, X, Users, Lock, GraduationCap, CalendarX,
+  Calendar, Timer, MapPin, User, BookOpen, School, CheckCircle2,
+  Clock, X, Users, Lock, GraduationCap, CalendarX, FileText, Bell, Zap,
 } from 'lucide-react';
 import timetableApi from '../../api/timetableApi';
 import classroomApi from '../../api/classroomApi';
 import classroomRequestApi from '../../api/classroomRequestApi';
-import { TIMETABLE_ROUTINE, INITIAL_RTE_SCHEDULE_CHANGES } from '../../data/studentDashboardData';
+import { TIMETABLE_ROUTINE, UPCOMING_EXAMS } from '../../data/studentDashboardData';
 
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
 
 const TYPE_BADGE = {
-  lecture: { bg: '#dbeafe', text: '#1d4ed8' },
+  lecture:  { bg: '#dbeafe', text: '#1d4ed8' },
   tutorial: { bg: '#ede9fe', text: '#6d28d9' },
   workshop: { bg: '#fef3c7', text: '#b45309' },
 };
 
-const CHANGE_BADGE = {
-  amber: { bg: '#fef3c7', text: '#b45309' },
-  blue: { bg: '#dbeafe', text: '#1d4ed8' },
-  purple: { bg: '#ede9fe', text: '#6d28d9' },
-  red: { bg: '#fee2e2', text: '#dc2626' },
+const CURRENT_STATUS_STYLE = {
+  vacant:  { bg: '#dcfce7', text: '#15803d', label: 'Vacant Now',  icon: CheckCircle2 },
+  class:   { bg: '#dbeafe', text: '#1d4ed8', label: 'In Class',    icon: GraduationCap },
+  blocked: { bg: '#f3f4f6', text: '#4b5563', label: 'Reserved',    icon: Lock },
+  closed:  { bg: '#f3f4f6', text: '#4b5563', label: 'Closed',      icon: CalendarX },
 };
 
-const CURRENT_STATUS_STYLE = {
-  vacant: { bg: '#dcfce7', text: '#15803d', label: 'Vacant Now', icon: CheckCircle2 },
-  class: { bg: '#dbeafe', text: '#1d4ed8', label: 'In Class', icon: GraduationCap },
-  blocked: { bg: '#f3f4f6', text: '#4b5563', label: 'Reserved', icon: Lock },
-  closed: { bg: '#f3f4f6', text: '#4b5563', label: 'Closed', icon: CalendarX },
+const EXAM_TYPE_BADGE = {
+  midterm:   { bg: '#fef3c7', text: '#b45309' },
+  final:     { bg: '#fee2e2', text: '#dc2626' },
+  quiz:      { bg: '#ede9fe', text: '#6d28d9' },
+  practical: { bg: '#dbeafe', text: '#1d4ed8' },
 };
 
 const SUB_TABS = [
-  { id: 'schedule', label: 'Class Schedule', icon: Calendar },
-  { id: 'vacant', label: 'Vacant Classrooms', icon: School },
-  { id: 'changes', label: 'Temporary Changes', icon: History },
+  { id: 'schedule', label: 'Class Schedule',    icon: Calendar },
+  { id: 'exams',    label: 'Upcoming Exams',    icon: FileText },
+  { id: 'vacant',   label: 'Vacant Classrooms', icon: School   },
 ];
 
+// ─── time helpers ─────────────────────────────────────────────────────────────
+
+/** Parse "8:00 AM" → today's Date. Returns null on failure. */
+function parseTimeToday(timeStr) {
+  if (!timeStr) return null;
+  const clean = timeStr.trim().toUpperCase();
+  const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (!match) return null;
+  let [, h, m, meridiem] = match;
+  h = parseInt(h, 10);
+  m = parseInt(m, 10);
+  if (meridiem === 'PM' && h !== 12) h += 12;
+  if (meridiem === 'AM' && h === 12) h = 0;
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+/** Split "8:00 AM – 10:00 AM" → { start, end } as Dates for today. */
+function parsePeriodTime(timeStr) {
+  if (!timeStr) return null;
+  const parts = timeStr.split('–').map((s) => s.trim());
+  if (parts.length !== 2) return null;
+  const start = parseTimeToday(parts[0]);
+  const end   = parseTimeToday(parts[1]);
+  if (!start || !end) return null;
+  return { start, end };
+}
+
+/** e.g. 3661 → "1h 1m 1s" */
+function formatCountdown(totalSeconds) {
+  if (totalSeconds <= 0) return '0s';
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+/** Coarser format for exam countdown: "3d 2h" / "2h 15m" / "45m" */
+function formatExamCountdown(totalSeconds) {
+  if (totalSeconds <= 0) return 'Now';
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+// ─── component ────────────────────────────────────────────────────────────────
+
 const TimetableSection = ({ t }) => {
-  const [subTab, setSubTab] = useState('schedule');
+  const [subTab,    setSubTab]    = useState('schedule');
   const [activeDay, setActiveDay] = useState(DAY_ORDER[new Date().getDay()]);
+  const [now,       setNow]       = useState(new Date());
 
-  const [routine, setRoutine] = useState(null); // null = not loaded yet
-  const [changes, setChanges] = useState(null);
+  const [routine, setRoutine] = useState(null);
+  const [exams,   setExams]   = useState(null);
 
-  // -------- Vacant classrooms (per-day, backend-computed) --------
-  const [vacantDay, setVacantDay] = useState(DAY_ORDER[new Date().getDay()]);
-  const [rooms, setRooms] = useState(null); // array from getVacantClassrooms(day) — each room has freeWindows + currentStatus
-  const [myRequests, setMyRequests] = useState(null);
-  const [requestForm, setRequestForm] = useState(null); // { classroomId, roomName } or null
-  const [formDay, setFormDay] = useState(DAY_ORDER[new Date().getDay()]);
-  const [formStart, setFormStart] = useState('');
-  const [formEnd, setFormEnd] = useState('');
-  const [formReason, setFormReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [vacantDay,   setVacantDay]   = useState(DAY_ORDER[new Date().getDay()]);
+  const [rooms,       setRooms]       = useState(null);
+  const [myRequests,  setMyRequests]  = useState(null);
+  const [requestForm, setRequestForm] = useState(null);
+  const [formDay,     setFormDay]     = useState(DAY_ORDER[new Date().getDay()]);
+  const [formStart,   setFormStart]   = useState('');
+  const [formEnd,     setFormEnd]     = useState('');
+  const [formReason,  setFormReason]  = useState('');
+  const [submitting,  setSubmitting]  = useState(false);
+  const [formError,   setFormError]   = useState('');
 
   const isVacantDayClosed = vacantDay === 'Saturday';
 
-  // -------- Load class schedule --------
+  // tick every second
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // load schedule
   useEffect(() => {
     let mounted = true;
     timetableApi.getTimetable()
@@ -67,102 +126,79 @@ const TimetableSection = ({ t }) => {
     return () => { mounted = false; };
   }, []);
 
-  // -------- Load schedule changes (only when tab opened) --------
+  // load exams (lazy)
   useEffect(() => {
-    if (subTab !== 'changes' || changes !== null) return;
+    if (subTab !== 'exams' || exams !== null) return;
     let mounted = true;
-    timetableApi.getScheduleChanges()
-      .then((data) => { if (mounted) setChanges(Array.isArray(data) && data.length > 0 ? data : INITIAL_RTE_SCHEDULE_CHANGES); })
-      .catch(() => { if (mounted) setChanges(INITIAL_RTE_SCHEDULE_CHANGES); });
+    timetableApi.getUpcomingExams()
+      .then((data) => { if (mounted) setExams(Array.isArray(data) && data.length > 0 ? data : UPCOMING_EXAMS); })
+      .catch(() => { if (mounted) setExams(UPCOMING_EXAMS); });
     return () => { mounted = false; };
-  }, [subTab, changes]);
+  }, [subTab, exams]);
 
-  // -------- Load vacant rooms for the selected day + my requests --------
-  const loadVacantData = (day) => {
+  // load vacant rooms
+  const loadVacantData = useCallback((day) => {
     setRooms(null);
     classroomApi.getVacantClassrooms(day).then(setRooms).catch(() => setRooms([]));
     classroomRequestApi.getMyRequests().then(setMyRequests).catch(() => setMyRequests([]));
-  };
+  }, []);
 
   useEffect(() => {
     if (subTab !== 'vacant') return;
     if (isVacantDayClosed) { setRooms([]); setMyRequests([]); return; }
     loadVacantData(vacantDay);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subTab, vacantDay]);
+  }, [subTab, vacantDay, isVacantDayClosed, loadVacantData]);
 
-  const source = routine || TIMETABLE_ROUTINE;
+  // derived
+  const source        = routine || TIMETABLE_ROUTINE;
   const activeDayData = source.find((d) => d.day === activeDay) || { day: activeDay, isOffDay: true, periods: [] };
-  const getTypeBadge = (type) => TYPE_BADGE[type?.toLowerCase()] || { bg: t.chipBg, text: t.textMuted };
+  const getTypeBadge  = (type) => TYPE_BADGE[type?.toLowerCase()]  || { bg: t.chipBg, text: t.textMuted };
+  const getExamBadge  = (type) => EXAM_TYPE_BADGE[type?.toLowerCase()] || { bg: t.chipBg, text: t.textMuted };
 
-  // Latest (most recent) request this student has for a given classroom + day.
+  // today's upcoming / ongoing classes (does NOT change when user picks a different day tab)
+  const todayName     = DAY_ORDER[now.getDay()];
+  const todayData     = source.find((d) => d.day === todayName) || { isOffDay: true, periods: [] };
+  const upcomingToday = (!todayData.isOffDay ? todayData.periods : [])
+    .map((p) => { const parsed = parsePeriodTime(p.time); return parsed ? { ...p, _start: parsed.start, _end: parsed.end } : null; })
+    .filter((p) => p && p._end > now)
+    .sort((a, b) => a._start - b._start);
+
+  // first future (not yet started) index — kept for reference but card uses upcomingToday[0]
+  // vacant helpers
   const latestRequestFor = (classroomId) => {
     if (!myRequests) return null;
-    const forRoom = myRequests.filter(
-      (r) => (r.classroom?._id || r.classroom) === classroomId && r.day === vacantDay
-    );
-    if (forRoom.length === 0) return null;
+    const forRoom = myRequests.filter((r) => (r.classroom?._id || r.classroom) === classroomId && r.day === vacantDay);
+    if (!forRoom.length) return null;
     return forRoom.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
   };
 
   const openRequestForm = (classroomId, roomName) => {
     setRequestForm({ classroomId, roomName });
-    setFormDay(vacantDay);
-    setFormStart('');
-    setFormEnd('');
-    setFormReason('');
-    setFormError('');
+    setFormDay(vacantDay); setFormStart(''); setFormEnd(''); setFormReason(''); setFormError('');
   };
 
   const submitRequest = async () => {
-    if (!formStart.trim() || !formEnd.trim()) {
-      setFormError('Start and end time are required.');
-      return;
-    }
-    setSubmitting(true);
-    setFormError('');
+    if (!formStart.trim() || !formEnd.trim()) { setFormError('Start and end time are required.'); return; }
+    setSubmitting(true); setFormError('');
     try {
       await classroomRequestApi.createRequest({
         classroomId: requestForm.classroomId,
-        day: formDay,
-        startTime: formStart.trim(),
-        endTime: formEnd.trim(),
-        reason: formReason.trim(),
+        day: formDay, startTime: formStart.trim(), endTime: formEnd.trim(), reason: formReason.trim(),
       });
       setRequestForm(null);
       loadVacantData(vacantDay);
     } catch (err) {
       setFormError(err?.response?.data?.message || 'Could not submit request.');
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   const releaseRequest = async (requestId) => {
-    try {
-      await classroomRequestApi.cancelMyRequest(requestId);
-      loadVacantData(vacantDay);
-    } catch {
-      // silently ignore — list will just reflect prior state until retried
-    }
+    try { await classroomRequestApi.cancelMyRequest(requestId); loadVacantData(vacantDay); } catch { /* silent */ }
   };
 
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.chipBg }}>
-          <Clock size={19} style={{ color: t.textPrimary }} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
-            Semester 2 Timetable
-          </h2>
-          <p className="mt-0.5 text-sm font-semibold" style={{ color: t.textMuted }}>
-            Class schedule, vacant rooms &amp; temporary changes
-          </p>
-        </div>
-      </div>
 
       {/* Sub-tab switcher */}
       <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
@@ -171,104 +207,393 @@ const TimetableSection = ({ t }) => {
             key={id}
             type="button"
             onClick={() => setSubTab(id)}
-            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors"
+            className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors"
             style={{
               backgroundColor: subTab === id ? t.accentPrimary : 'transparent',
               color: subTab === id ? t.pageBg : t.textPrimary,
             }}
           >
-            <Icon size={14} /> {label}
+            <Icon size={15} /> {label}
           </button>
         ))}
       </div>
 
-      {/* ===================== CLASS SCHEDULE ===================== */}
+      {/* ══════════════════════ CLASS SCHEDULE ══════════════════════ */}
       {subTab === 'schedule' && (
-        <div className="space-y-5">
-          <div className="flex flex-wrap gap-2">
-            {DAY_ORDER.map((day) => (
-              <button
-                key={day}
-                type="button"
-                onClick={() => setActiveDay(day)}
-                className="rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors sm:text-sm"
-                style={{
-                  backgroundColor: activeDay === day ? t.accentPrimary : t.cardBg,
-                  borderColor: activeDay === day ? t.accentPrimary : t.border,
-                  color: activeDay === day ? t.pageBg : t.textPrimary,
-                }}
-              >
-                {DAY_SHORT[day]}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
 
-          <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-bold" style={{ color: t.textPrimary }}>{activeDayData.day}</h3>
-              <span
-                className="rounded-full px-3 py-1 text-xs font-bold"
+          {/* ── LEFT: Coming Up sidebar card ── */}
+          {(() => {
+            // Find the next period: today's upcoming first, then walk forward through the week
+            let nextPeriod   = upcomingToday[0] || null;
+            let nextDayLabel = todayName;
+            let isFutureDay  = false;
+
+            if (!nextPeriod) {
+              // No classes left today — scan the rest of the week cyclically
+              for (let offset = 1; offset <= 6; offset++) {
+                const dayIdx  = (now.getDay() + offset) % 7;
+                const dayName = DAY_ORDER[dayIdx];
+                const dayData = source.find((d) => d.day === dayName);
+                if (dayData && !dayData.isOffDay && dayData.periods.length > 0) {
+                  // Parse periods for that future day (absolute times don't matter — we just
+                  // need a sorted list; use order-based sort if no parseable time)
+                  const sorted = [...dayData.periods].sort((a, b) => {
+                    const pa = parsePeriodTime(a.time);
+                    const pb = parsePeriodTime(b.time);
+                    if (pa && pb) return pa.start - pb.start;
+                    return 0;
+                  });
+                  nextPeriod   = sorted[0];
+                  nextDayLabel = dayName;
+                  isFutureDay  = true;
+                  break;
+                }
+              }
+            }
+
+            const isOngoing = nextPeriod && !isFutureDay && nextPeriod._start && nextPeriod._start <= now && nextPeriod._end > now;
+
+            // Seconds until next period starts (or remaining if ongoing)
+            let secsLeft = 0;
+            if (nextPeriod && !isFutureDay) {
+              secsLeft = isOngoing
+                ? Math.floor((nextPeriod._end   - now) / 1000)
+                : Math.floor((nextPeriod._start - now) / 1000);
+            }
+            const h = Math.floor(secsLeft / 3600);
+            const m = Math.floor((secsLeft % 3600) / 60);
+            const s = secsLeft % 60;
+
+            const badge = nextPeriod ? getTypeBadge(nextPeriod.classType) : null;
+
+            // All periods to show in the countdown list (today remaining, or next-day all)
+            const listPeriods = isFutureDay
+              ? (() => {
+                  const dayData = source.find((d) => d.day === nextDayLabel);
+                  return dayData ? [...dayData.periods].sort((a, b) => {
+                    const pa = parsePeriodTime(a.time);
+                    const pb = parsePeriodTime(b.time);
+                    return (pa && pb) ? pa.start - pb.start : 0;
+                  }) : [];
+                })()
+              : upcomingToday;
+
+            return (
+              <div
+                className="w-full shrink-0 rounded-2xl p-5 lg:w-56 xl:w-64"
                 style={{
-                  backgroundColor: activeDayData.isOffDay ? '#dcfce7' : t.chipBg,
-                  color: activeDayData.isOffDay ? '#15803d' : t.textMuted,
+                  backgroundColor: t.cardBg,
+                  border: `1px solid ${t.border}`,
+                  boxShadow: t.shadowCard,
+                  minHeight: '320px',
                 }}
               >
-                {activeDayData.isOffDay ? 'Day Off' : `${activeDayData.periods.length} class${activeDayData.periods.length > 1 ? 'es' : ''}`}
-              </span>
+                {/* heading */}
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: t.accentPrimary }}>
+                    <Zap size={14} style={{ color: t.pageBg }} />
+                  </div>
+                  <span className="text-sm font-extrabold" style={{ color: t.textPrimary }}>Coming Up</span>
+                </div>
+
+                {nextPeriod ? (
+                  <>
+                    {/* day label */}
+                    <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold" style={{ color: t.textMuted }}>
+                      <Clock size={12} />
+                      {isOngoing ? 'Ongoing now' : isFutureDay ? nextDayLabel : todayName}
+                    </div>
+
+                    {/* big countdown — only show live timer for today's classes */}
+                    {!isFutureDay && (
+                      <>
+                        <div
+                          className="mt-1 font-extrabold leading-none tabular-nums"
+                          style={{ fontSize: '2.4rem', color: t.textPrimary }}
+                        >
+                          {isOngoing
+                            ? `${h > 0 ? `${h}h ` : ''}${m}m ${s}s`
+                            : h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`}
+                        </div>
+                        <p className="mt-0.5 text-xs font-semibold" style={{ color: t.textMuted }}>
+                          {isOngoing ? 'remaining' : 'until class starts'}
+                        </p>
+                      </>
+                    )}
+                    {isFutureDay && (
+                      <p className="mt-2 text-xs font-semibold" style={{ color: t.textMuted }}>
+                        Next classes on {nextDayLabel}
+                      </p>
+                    )}
+
+                    {/* module name */}
+                    <p className="mt-4 text-sm font-extrabold leading-snug" style={{ color: t.textPrimary }}>
+                      {nextPeriod.moduleName}
+                    </p>
+
+                    {/* badges */}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                        {nextPeriod.moduleCode}
+                      </span>
+                      {badge && (
+                        <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
+                          {nextPeriod.classType}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* meta */}
+                    <div className="mt-3 space-y-1.5 text-xs" style={{ color: t.textMuted }}>
+                      <p className="flex items-center gap-1.5"><Timer size={11} /> {nextPeriod.time}</p>
+                      <p className="flex items-center gap-1.5"><MapPin size={11} /> {nextPeriod.room}</p>
+                      {nextPeriod.lecturer && (
+                        <p className="flex items-center gap-1.5"><User size={11} /> {nextPeriod.lecturer}</p>
+                      )}
+                    </div>
+
+                    {/* ── Countdown list for all remaining/upcoming periods ── */}
+                    {listPeriods.length > 1 && (
+                      <div className="mt-4 space-y-2 border-t pt-3" style={{ borderColor: t.border }}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>
+                          {isFutureDay ? `All classes — ${nextDayLabel}` : 'Later today'}
+                        </p>
+                        {listPeriods.slice(isFutureDay ? 1 : 0).map((p, idx) => {
+                          // For today's list we have _start/_end; skip the first (already shown above)
+                          const parsed = !isFutureDay ? null : parsePeriodTime(p.time);
+                          // For today: compute secs; for future day just show time string
+                          const bSecs = (!isFutureDay && p._start)
+                            ? Math.floor((p._start - now) / 1000)
+                            : null;
+                          const bh = bSecs !== null ? Math.floor(bSecs / 3600) : 0;
+                          const bm = bSecs !== null ? Math.floor((bSecs % 3600) / 60) : 0;
+                          const bs = bSecs !== null ? bSecs % 60 : 0;
+                          const b2 = getTypeBadge(p.classType);
+                          return (
+                            <div key={p.id || idx} className="flex items-start justify-between gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: t.pageBg }}>
+                              <div className="min-w-0">
+                                <p className="truncate text-[11px] font-bold" style={{ color: t.textPrimary }}>{p.moduleName}</p>
+                                <p className="text-[10px]" style={{ color: t.textMuted }}>{p.time}</p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: b2.bg, color: b2.text }}>
+                                  {p.classType}
+                                </span>
+                                {bSecs !== null && bSecs > 0 && (
+                                  <p className="mt-0.5 text-[10px] font-bold tabular-nums" style={{ color: t.textMuted }}>
+                                    {bh > 0 ? `${bh}h ${bm}m` : bm > 0 ? `${bm}m` : `${bs}s`}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="mt-8 text-center">
+                    <CheckCircle2 size={28} className="mx-auto mb-2" style={{ color: t.textMuted }} />
+                    <p className="text-sm font-bold" style={{ color: t.textPrimary }}>All done!</p>
+                    <p className="mt-1 text-xs" style={{ color: t.textMuted }}>No upcoming classes found.</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── RIGHT: day picker + full schedule ── */}
+          <div className="min-w-0 flex-1 space-y-5">
+
+            {/* Day selector */}
+            <div className="flex flex-wrap gap-2">
+              {DAY_ORDER.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setActiveDay(day)}
+                  className="rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors sm:text-sm"
+                  style={{
+                    backgroundColor: activeDay === day ? t.accentPrimary : t.cardBg,
+                    borderColor: activeDay === day ? t.accentPrimary : t.border,
+                    color: activeDay === day ? t.pageBg : t.textPrimary,
+                  }}
+                >
+                  {DAY_SHORT[day]}
+                </button>
+              ))}
             </div>
 
-            {activeDayData.isOffDay ? (
-              <div className="rounded-xl border border-dashed p-8 text-center" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
-                <CheckCircle2 size={20} className="mx-auto mb-2" style={{ color: '#16a34a' }} />
-                <p className="text-sm font-bold" style={{ color: t.textPrimary }}>No classes today</p>
-                <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>Self-study &amp; project work</p>
+            {/* Schedule card */}
+            <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-extrabold" style={{ color: t.textPrimary }}>{activeDayData.day}</h3>
+                <span
+                  className="rounded-full px-3.5 py-1.5 text-xs font-bold"
+                  style={{
+                    backgroundColor: activeDayData.isOffDay ? '#dcfce7' : t.chipBg,
+                    color: activeDayData.isOffDay ? '#15803d' : t.textMuted,
+                  }}
+                >
+                  {activeDayData.isOffDay ? 'Day Off' : `${activeDayData.periods.length} class${activeDayData.periods.length > 1 ? 'es' : ''}`}
+                </span>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {activeDayData.periods.map((period) => {
-                  const badge = getTypeBadge(period.classType);
-                  return (
-                    <div key={period.id} className="rounded-xl border p-4" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-xs font-bold tabular-nums" style={{ color: t.textMuted }}>
-                          <Timer size={13} /> {period.startTime} – {period.endTime}
-                        </span>
-                        <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
-                          {period.classType}
-                        </span>
-                      </div>
 
-                      <div className="mt-3 flex items-start gap-2">
-                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: t.chipBg }}>
-                          <BookOpen size={14} style={{ color: t.textMuted }} />
+              {activeDayData.isOffDay ? (
+                <div className="rounded-xl border border-dashed p-10 text-center" style={{ borderColor: t.border, backgroundColor: t.pageBg }}>
+                  <CheckCircle2 size={22} className="mx-auto mb-2.5" style={{ color: '#16a34a' }} />
+                  <p className="text-sm font-bold" style={{ color: t.textPrimary }}>No classes today</p>
+                  <p className="mt-1 text-xs" style={{ color: t.textMuted }}>Self-study &amp; project work</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {activeDayData.periods.map((period) => {
+                    const badge = getTypeBadge(period.classType);
+                    return (
+                      <div key={period.id} className="rounded-2xl border p-5" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums" style={{ color: t.textMuted }}>
+                            <Timer size={14} /> {period.time}
+                          </span>
+                          <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
+                            {period.classType}
+                          </span>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-                            {period.moduleCode}{period.group ? ` · ${period.group}` : ''}
-                          </p>
-                          <p className="text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>
-                            {period.moduleName}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="mt-3 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
-                        <p className="flex items-center gap-1.5"><User size={12} /> {period.lecturer}</p>
-                        <p className="flex items-center gap-1.5"><MapPin size={12} /> {period.room}</p>
+                        <div className="mt-4 flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: t.chipBg }}>
+                            <BookOpen size={16} style={{ color: t.textMuted }} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
+                              {period.moduleCode}{period.group ? ` · ${period.group}` : ''}
+                            </p>
+                            <p className="mt-0.5 text-base font-extrabold leading-tight" style={{ color: t.textPrimary }}>
+                              {period.moduleName}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 border-t pt-4 text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
+                          <p className="flex items-center gap-2"><User size={14} /> {period.lecturer}</p>
+                          <p className="flex items-center gap-2"><MapPin size={14} /> {period.room}</p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
       )}
 
-      {/* ===================== VACANT CLASSROOMS ===================== */}
-      {subTab === 'vacant' && (
+      {/* ══════════════════════ UPCOMING EXAMS ══════════════════════ */}
+      {subTab === 'exams' && (
         <div className="space-y-4">
-          {/* Day tabs — same pattern as Class Schedule */}
+          {exams === null && (
+            <div className="rounded-2xl border px-4 py-10 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              Loading upcoming exams...
+            </div>
+          )}
+
+          {exams !== null && exams.length === 0 && (
+            <div className="rounded-2xl border px-4 py-12 text-center" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <FileText size={28} className="mx-auto mb-3" style={{ color: t.textMuted }} />
+              <p className="text-base font-bold" style={{ color: t.textPrimary }}>No upcoming exams</p>
+              <p className="mt-1 text-sm" style={{ color: t.textMuted }}>Check back closer to the exam period.</p>
+            </div>
+          )}
+
+          {exams !== null && exams.length > 0 && (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {exams.map((exam) => {
+                const badge = getExamBadge(exam.examType);
+
+                // countdown to exam
+                let secsToExam = null;
+                if (exam.date && exam.startTime) {
+                  const cleanDate = exam.date.replace(/\(.*?\)/, '').trim();
+                  const examDt    = new Date(`${cleanDate} ${exam.startTime}`);
+                  if (!isNaN(examDt)) secsToExam = Math.floor((examDt - now) / 1000);
+                }
+
+                return (
+                  <div key={exam._id} className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                    {/* header */}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: badge.bg }}>
+                          <FileText size={18} style={{ color: badge.text }} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
+                            {exam.moduleCode}{exam.group ? ` · ${exam.group}` : ''}
+                          </p>
+                          <p className="mt-0.5 text-base font-extrabold leading-tight" style={{ color: t.textPrimary }}>
+                            {exam.moduleName}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
+                        {exam.examType}
+                      </span>
+                    </div>
+
+                    {/* countdown banner */}
+                    {secsToExam !== null && (
+                      <div
+                        className="mt-4 flex items-center justify-between rounded-xl px-4 py-3"
+                        style={{ backgroundColor: secsToExam <= 0 ? '#dcfce7' : '#eff6ff' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Bell size={14} style={{ color: secsToExam <= 0 ? '#15803d' : '#3b82f6' }} />
+                          <span className="text-xs font-bold" style={{ color: secsToExam <= 0 ? '#15803d' : '#1d4ed8' }}>
+                            {secsToExam <= 0 ? 'Exam today / in progress' : 'Starts in'}
+                          </span>
+                        </div>
+                        {secsToExam > 0 && (
+                          <span className="text-sm font-extrabold tabular-nums" style={{ color: '#1d4ed8' }}>
+                            {formatExamCountdown(secsToExam)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* details */}
+                    <div className="mt-4 space-y-2.5 border-t pt-4 text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
+                      {exam.date && (
+                        <p className="flex items-center gap-2">
+                          <Calendar size={14} />
+                          <span className="font-semibold" style={{ color: t.textPrimary }}>{exam.date}</span>
+                        </p>
+                      )}
+                      {exam.startTime && exam.endTime && (
+                        <p className="flex items-center gap-2"><Timer size={14} />{exam.startTime} – {exam.endTime}</p>
+                      )}
+                      {exam.room && (
+                        <p className="flex items-center gap-2"><MapPin size={14} /> {exam.room}</p>
+                      )}
+                      {exam.notes && (
+                        <p className="mt-2 rounded-lg px-3 py-2 text-xs leading-relaxed italic" style={{ backgroundColor: t.pageBg }}>
+                          {exam.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════ VACANT CLASSROOMS ══════════════════════ */}
+      {subTab === 'vacant' && (
+        <div className="space-y-5">
+          {/* day tabs */}
           <div className="flex flex-wrap gap-2">
             {DAY_ORDER.map((day) => (
               <button
@@ -288,56 +613,51 @@ const TimetableSection = ({ t }) => {
           </div>
 
           {isVacantDayClosed && (
-            <div className="flex flex-col items-center gap-2 rounded-2xl border px-4 py-8 text-center text-sm font-semibold" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
-              <CalendarX size={20} />
+            <div className="flex flex-col items-center gap-2 rounded-2xl border px-4 py-10 text-center text-sm font-semibold" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+              <CalendarX size={22} />
               College is closed on Saturdays — no classrooms to show.
             </div>
           )}
 
           {!isVacantDayClosed && rooms === null && (
-            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+            <div className="rounded-2xl border px-4 py-10 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
               Checking room availability for {vacantDay}...
             </div>
           )}
 
           {!isVacantDayClosed && rooms !== null && rooms.length === 0 && (
-            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
+            <div className="rounded-2xl border px-4 py-10 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
               No classrooms have been added yet.
             </div>
           )}
 
           {!isVacantDayClosed && rooms !== null && rooms.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {rooms.map((room) => {
-                // New backend shape: room.freeWindows = [{startTime, endTime}, ...]
-                // room.currentStatus = null unless vacantDay is today, else {state, until, moduleCode?, moduleName?, reason?}
-                const freeWindows = room.freeWindows || [];
-                const hasFreeTime = freeWindows.length > 0;
-                const current = room.currentStatus;
+                const freeWindows  = room.freeWindows || [];
+                const hasFreeTime  = freeWindows.length > 0;
+                const current      = room.currentStatus;
                 const currentBadge = current ? (CURRENT_STATUS_STYLE[current.state] || CURRENT_STATUS_STYLE.vacant) : null;
-                const CurrentIcon = currentBadge?.icon;
-
-                // Personal request status layered on top, same as before
-                const myReq = latestRequestFor(room._id);
-                const reqStatus = myReq?.status || null; // pending | approved | rejected | null
+                const CurrentIcon  = currentBadge?.icon;
+                const myReq        = latestRequestFor(room._id);
+                const reqStatus    = myReq?.status || null;
 
                 return (
-                  <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                  <div key={room._id} className="flex flex-col justify-between rounded-2xl border p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
                     <div>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="min-w-0 truncate text-base font-bold" style={{ color: t.textPrimary }}>{room.name}</p>
+                        <p className="min-w-0 truncate text-lg font-extrabold" style={{ color: t.textPrimary }}>{room.name}</p>
                         {currentBadge && (
-                          <span className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: currentBadge.bg, color: currentBadge.text }}>
-                            {CurrentIcon && <CurrentIcon size={12} />} {currentBadge.label}
+                          <span className="shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: currentBadge.bg, color: currentBadge.text }}>
+                            {CurrentIcon && <CurrentIcon size={13} />} {currentBadge.label}
                           </span>
                         )}
                       </div>
 
-                      <div className="mt-4 space-y-1.5 border-t pt-3 text-xs" style={{ borderColor: t.border, color: t.textMuted }}>
-                        <p className="flex items-center gap-1.5"><Users size={12} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
+                      <div className="mt-4 space-y-2 border-t pt-4 text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
+                        <p className="flex items-center gap-2"><Users size={14} /> Capacity: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.capacity} seats</span></p>
                         {room.facilities && <p>Amenities: <span className="font-semibold" style={{ color: t.textPrimary }}>{room.facilities}</span></p>}
 
-                        {/* Right-now line, only when vacantDay is today */}
                         {current && current.state === 'vacant' && (
                           <p className="font-semibold" style={{ color: '#15803d' }}>Free right now, until {current.until}</p>
                         )}
@@ -352,16 +672,15 @@ const TimetableSection = ({ t }) => {
                           </p>
                         )}
 
-                        {/* Free windows for the selected day */}
                         <div className="pt-1.5">
                           <p className="font-bold" style={{ color: t.textPrimary }}>
                             {hasFreeTime ? 'Free windows:' : 'No free windows'}
                           </p>
                           {hasFreeTime && (
-                            <ul className="mt-1 space-y-0.5">
+                            <ul className="mt-1.5 space-y-1">
                               {freeWindows.map((w, i) => (
                                 <li key={i} className="flex items-center gap-1.5">
-                                  <Clock size={11} /> {w.startTime} – {w.endTime}
+                                  <Clock size={12} /> {w.startTime} – {w.endTime}
                                 </li>
                               ))}
                             </ul>
@@ -375,7 +694,7 @@ const TimetableSection = ({ t }) => {
                     </div>
 
                     {!hasFreeTime && (
-                      <button type="button" disabled className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white opacity-60" style={{ backgroundColor: t.textMuted }}>
+                      <button type="button" disabled className="mt-5 w-full rounded-xl py-3 text-sm font-bold text-white opacity-60" style={{ backgroundColor: t.textMuted }}>
                         Not Available
                       </button>
                     )}
@@ -388,7 +707,7 @@ const TimetableSection = ({ t }) => {
                           if (!reqStatus || reqStatus === 'rejected') openRequestForm(room._id, room.name);
                           if (reqStatus === 'approved') releaseRequest(myReq._id);
                         }}
-                        className="mt-4 w-full rounded-xl py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-70"
+                        className="mt-5 w-full rounded-xl py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-70"
                         style={{ backgroundColor: reqStatus === 'approved' ? '#16a34a' : reqStatus === 'pending' ? '#f59e0b' : t.accentPrimary }}
                       >
                         {!reqStatus && 'Take Permission'}
@@ -476,68 +795,6 @@ const TimetableSection = ({ t }) => {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ===================== TEMPORARY CHANGES ===================== */}
-      {subTab === 'changes' && (
-        <div className="space-y-3">
-          {changes === null && (
-            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
-              Loading schedule changes...
-            </div>
-          )}
-
-          {changes !== null && changes.length === 0 && (
-            <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
-              No temporary schedule changes right now.
-            </div>
-          )}
-
-          {changes?.map((change) => {
-            const badge = CHANGE_BADGE[change.badgeColor] || { bg: t.chipBg, text: t.textMuted };
-            const originalStr = `${change.originalDay}, ${change.originalStartTime}–${change.originalEndTime} · ${change.originalRoom}`;
-            const newParts = [];
-            if (change.newDay) newParts.push(change.newDay);
-            if (change.newStartTime && change.newEndTime) newParts.push(`${change.newStartTime}–${change.newEndTime}`);
-            if (change.newRoom) newParts.push(change.newRoom);
-            const newStr = newParts.length > 0 ? newParts.join(' · ') : 'Cancelled';
-
-            return (
-              <div key={change._id} className="rounded-2xl border p-4 sm:p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-                      {change.moduleCode}{change.group ? ` · ${change.group}` : ''}
-                    </p>
-                    <p className="text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>
-                      {change.moduleName}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: badge.bg, color: badge.text }}>
-                    {change.status}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" style={{ color: t.textMuted }}>
-                  <span className="rounded-lg px-2.5 py-1" style={{ backgroundColor: t.pageBg }}>{originalStr}</span>
-                  <ArrowRightLeft size={13} />
-                  <span className="rounded-lg px-2.5 py-1 font-semibold" style={{ backgroundColor: t.pageBg, color: t.textPrimary }}>{newStr}</span>
-                </div>
-
-                {change.reason && (
-                  <p className="mt-2 text-xs" style={{ color: t.textMuted }}>
-                    Reason: <span style={{ color: t.textPrimary }}>{change.reason}</span>
-                  </p>
-                )}
-
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] font-semibold" style={{ color: t.textMuted }}>
-                  {change.effectiveDate && <span>Effective: {change.effectiveDate}</span>}
-                  {change.publishedBy && <span>· {change.publishedBy}</span>}
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
     </div>

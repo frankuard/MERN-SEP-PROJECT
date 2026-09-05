@@ -19,7 +19,7 @@ const PAGE_TITLES = {
   'campus-help': 'Campus Help',
   chat: 'Chat',
   profile: 'My Profile',
-  rte: 'RTE',
+  rte: 'Routine & Timetable',
 };
 
 const StudentNavbar = ({

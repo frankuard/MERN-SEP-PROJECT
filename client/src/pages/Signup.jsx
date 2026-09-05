@@ -11,6 +11,13 @@ const ROLES = [
   { value: 'student', label: 'Student' },
 ];
 
+const DEPARTMENT_SEMESTERS = {
+  'BCS': 6,
+  'B.Sc. Cybersecurity': 6,
+  'BIBM': 8,
+  'MBA': 2,
+};
+
 const Signup = () => {
   const { register, login, isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -70,6 +77,14 @@ const Signup = () => {
       nextErrors.confirmPassword = 'Please confirm your password.';
     } else if (formData.password !== formData.confirmPassword) {
       nextErrors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (!formData.department) {
+      nextErrors.department = 'Please select your department.';
+    }
+
+    if (!formData.semester) {
+      nextErrors.semester = 'Please select your semester.';
     }
 
     setErrors(nextErrors);
@@ -249,30 +264,44 @@ const Signup = () => {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="department" className="mb-2 block text-sm font-semibold text-[#374151]">
-                    Department <span className="font-normal text-[#6b7280]">(optional)</span>
+                    Department
                   </label>
-                  <input
+                  <select
                     id="department"
                     name="department"
-                    type="text"
                     value={formData.department}
                     onChange={(event) => updateField('department', event.target.value)}
-                    className={`${inputClass} pl-4!`}
-                  />
+                    className={`${inputClass} pl-4! ${errors.department ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+                  >
+                    <option value="">Select department</option>
+                    <option value="BCS">BCS</option>
+                    <option value="B.Sc. Cybersecurity">B.Sc. Cybersecurity</option>
+                    <option value="BIBM">BIBM</option>
+                    <option value="MBA">MBA</option>
+                  </select>
+                  {errors.department && <p className="mt-1.5 text-xs text-red-500">{errors.department}</p>}
                 </div>
 
                 <div>
                   <label htmlFor="semester" className="mb-2 block text-sm font-semibold text-[#374151]">
-                    Semester <span className="font-normal text-[#6b7280]">(optional)</span>
+                    Semester
                   </label>
-                  <input
+                  <select
                     id="semester"
                     name="semester"
-                    type="text"
                     value={formData.semester}
                     onChange={(event) => updateField('semester', event.target.value)}
-                    className={`${inputClass} pl-4!`}
-                  />
+                    disabled={!formData.department}
+                    className={`${inputClass} pl-4! ${errors.semester ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+                  >
+                    <option value="">Select semester</option>
+                    {formData.department && DEPARTMENT_SEMESTERS[formData.department] &&
+                      Array.from({ length: DEPARTMENT_SEMESTERS[formData.department] }, (_, i) => (
+                        <option key={i + 1} value={String(i + 1)}>Semester {i + 1}</option>
+                      ))
+                    }
+                  </select>
+                  {errors.semester && <p className="mt-1.5 text-xs text-red-500">{errors.semester}</p>}
                 </div>
               </div>
 

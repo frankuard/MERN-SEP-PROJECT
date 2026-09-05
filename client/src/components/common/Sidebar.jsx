@@ -222,9 +222,6 @@ const Sidebar = ({
         {/* Nav */}
         <div className="relative min-h-0 flex-1">
           <div ref={navRef} className="h-full overflow-y-auto px-3 pb-2">
-            <p className={`px-2 pb-2 text-[10px] font-bold uppercase tracking-widest ${collapsed ? 'lg:hidden' : ''}`} style={{ color: t.sidebarMuted }}>
-              Menu
-            </p>
             <nav className="flex flex-col gap-1" aria-label="Sidebar Navigation">
               {items.map((item) => {
                 const Icon = item.icon;
