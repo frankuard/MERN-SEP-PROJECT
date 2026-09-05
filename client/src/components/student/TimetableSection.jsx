@@ -6,7 +6,7 @@ import {
 import timetableApi from '../../api/timetableApi';
 import classroomApi from '../../api/classroomApi';
 import classroomRequestApi from '../../api/classroomRequestApi';
-import { TIMETABLE_ROUTINE, UPCOMING_EXAMS } from '../../data/studentDashboardData';
+import { TIMETABLE_ROUTINE } from '../../data/studentDashboardData';
 
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
@@ -131,8 +131,8 @@ const TimetableSection = ({ t }) => {
     if (subTab !== 'exams' || exams !== null) return;
     let mounted = true;
     timetableApi.getUpcomingExams()
-      .then((data) => { if (mounted) setExams(Array.isArray(data) && data.length > 0 ? data : UPCOMING_EXAMS); })
-      .catch(() => { if (mounted) setExams(UPCOMING_EXAMS); });
+      .then((data) => { if (mounted) setExams(Array.isArray(data) ? data : []); })
+      .catch(() => { if (mounted) setExams([]); });
     return () => { mounted = false; };
   }, [subTab, exams]);
 
