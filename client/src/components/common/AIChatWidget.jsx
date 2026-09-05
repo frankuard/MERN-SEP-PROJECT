@@ -519,9 +519,11 @@ const AIChatWidget = () => {
     document.head.appendChild(s);
   }, []);
 
-  // ── Auth guard: hide on login / signup / public pages ──
+  // ── Auth guard: hide on login / signup / public pages, and for non-students ──
   // Placed AFTER all hooks to satisfy React's rules of hooks
-  if (!isAuthenticated) return null;
+  const { user } = useAuth();
+  if (!isAuthenticated || !user) return null;
+  if (user.role !== 'student') return null;
   // Hide entirely while the human-to-human chat panel is open.
   if (isSuppressed) return null;
 
