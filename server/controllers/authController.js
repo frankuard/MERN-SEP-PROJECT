@@ -30,7 +30,7 @@ const register = async (req, res) => {
   try {
     if (!ensureDatabase(res)) return;
 
-    const { username, email, password, role, department, semester } = req.body;
+    const { username, email, password, role, department, semester, group } = req.body;
 
     // 1. Required field validation
     if (!username || !email || !password) {
@@ -75,6 +75,7 @@ const register = async (req, res) => {
       status,
       department,
       semester,
+      group,
     });
 
     // 8. Build response without password
@@ -87,6 +88,7 @@ const register = async (req, res) => {
       status: user.status,
       department: user.department,
       semester: user.semester,
+      group: user.group,
       createdAt: user.createdAt,
     };
 
@@ -163,6 +165,7 @@ const loginUser = async (req, res) => {
         status: user.status,
         department: user.department,
         semester: user.semester,
+        group: user.group,
         adminSection: user.adminSection,
         profileImage: user.profileImage,
       },
@@ -206,6 +209,7 @@ const getMe = async (req, res) => {
         status: req.user.status,
         department: req.user.department,
         semester: req.user.semester,
+        group: req.user.group,
         adminSection: req.user.adminSection,
         profileImage: req.user.profileImage,
         coverPhoto: req.user.coverPhoto,

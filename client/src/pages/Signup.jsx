@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getDashboardPath, useAuth } from '../context/AuthContext';
 import { DevAuthError } from '../utils/devAuth';
 import { DEPARTMENT_SEMESTERS, DEPARTMENTS, getSemesterOptions } from '../data/departmentSemesters';
+import { getLevelForSemester, getCohortGroupOptions, buildGroupCode } from '../data/levelGroups';
 
 // Teacher and staff signup is disabled for now — only student registration
 // is open. Re-add the other entries here when that's ready to launch.
@@ -24,6 +25,7 @@ const Signup = () => {
     role: 'student',
     department: '',
     semester: '',
+    cohortGroup: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -45,6 +47,11 @@ const Signup = () => {
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  // Computed live from department + semester, not stored as its own field.
+  // Only resolves for known departments — custom ones stay level-less.
+  const computedLevel = getLevelForSemester(formData.department, formData.semester);
+  const cohortGroupOptions = getCohortGroupOptions(computedLevel);
 
   const validate = () => {
     const nextErrors = {};
@@ -79,6 +86,10 @@ const Signup = () => {
 
     if (!formData.semester) {
       nextErrors.semester = 'Please select your semester.';
+    }
+
+    if (computedLevel && !formData.cohortGroup) {
+      nextErrors.cohortGroup = 'Please select your cohort group.';
     }
 
     setErrors(nextErrors);
@@ -116,6 +127,9 @@ const Signup = () => {
     }
     if (formData.semester.trim()) {
       payload.semester = formData.semester.trim();
+    }
+    if (computedLevel && formData.cohortGroup) {
+      payload.group = buildGroupCode(computedLevel, formData.cohortGroup);
     }
 
     try {
@@ -264,7 +278,14 @@ const Signup = () => {
                     id="department"
                     name="department"
                     value={formData.department}
-                    onChange={(event) => updateField('department', event.target.value)}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        department: event.target.value,
+                        semester: '',
+                        cohortGroup: '',
+                      }))
+                    }
                     className={`${inputClass} pl-4! ${errors.department ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
                   >
                     <option value="">Select department</option>
@@ -283,7 +304,13 @@ const Signup = () => {
                     id="semester"
                     name="semester"
                     value={formData.semester}
-                    onChange={(event) => updateField('semester', event.target.value)}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        semester: event.target.value,
+                        cohortGroup: '',
+                      }))
+                    }
                     disabled={!formData.department}
                     className={`${inputClass} pl-4! ${errors.semester ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
                   >
@@ -294,6 +321,27 @@ const Signup = () => {
                   </select>
                   {errors.semester && <p className="mt-1.5 text-xs text-red-500">{errors.semester}</p>}
                 </div>
+
+                {computedLevel && (
+                  <div className="sm:col-span-2">
+                    <label htmlFor="cohortGroup" className="mb-2 block text-sm font-semibold text-[#374151]">
+                      Cohort Group (Level {computedLevel})
+                    </label>
+                    <select
+                      id="cohortGroup"
+                      name="cohortGroup"
+                      value={formData.cohortGroup}
+                      onChange={(event) => updateField('cohortGroup', event.target.value)}
+                      className={`${inputClass} pl-4! ${errors.cohortGroup ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+                    >
+                      <option value="">Select cohort group</option>
+                      {cohortGroupOptions.map((cg) => (
+                        <option key={cg} value={String(cg)}>CG{cg}</option>
+                      ))}
+                    </select>
+                    {errors.cohortGroup && <p className="mt-1.5 text-xs text-red-500">{errors.cohortGroup}</p>}
+                  </div>
+                )}
               </div>
 
               <div>

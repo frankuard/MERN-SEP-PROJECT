@@ -7,6 +7,7 @@ import uploadApi from '../../api/uploadApi';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import ImageCropModal from '../common/ImageCropModal';
+import { parseGroupCode, buildGroupLabel } from '../../data/levelGroups';
 import toast from 'react-hot-toast';
 
 const Card = ({ t, children, className = '' }) => (
@@ -223,6 +224,10 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, onOpenChat, a
   const targetId = user._id || user.id;
   const alreadyFriend = isFriend(targetId);
   const requestSent = justSentTo.has(targetId) || outgoingRequestIds.has(targetId);
+  const parsedGroup = parseGroupCode(user.group);
+  const groupLabel = user.group
+    ? (parsedGroup ? buildGroupLabel(parsedGroup.level, parsedGroup.cohortGroup) : user.group)
+    : '';
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -311,11 +316,13 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, onOpenChat, a
       <div className="mb-6 flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-extrabold" style={{ color: t.textPrimary }}>{user?.username}</h2>
-          {(user?.department || user?.semester) && (
+          {(user?.department || user?.semester || groupLabel) && (
             <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
               {user?.department}
               {user?.department && user?.semester ? ' · ' : ''}
               {user?.semester ? `Semester ${user.semester}` : ''}
+              {(user?.department || user?.semester) && groupLabel ? ' · ' : ''}
+              {groupLabel}
             </p>
           )}
         </div>

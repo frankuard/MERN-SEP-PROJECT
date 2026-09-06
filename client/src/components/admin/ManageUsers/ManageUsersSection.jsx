@@ -13,6 +13,7 @@ import {
 
 import adminUserApi from '../../../api/adminUserApi';
 import { DEPARTMENTS, getSemesterOptions } from '../../../data/departmentSemesters';
+import { getLevelForSemester, getCohortGroupOptions, buildGroupCode, buildGroupLabel, parseGroupCode } from '../../../data/levelGroups';
 
 const ROLE_FILTERS = ['All', 'student', 'teacher', 'staff', 'admin'];
 
@@ -104,6 +105,7 @@ const ManageUsersSection = ({ t }) => {
   const openEdit = (u) => {
     const existingDept = u.department || '';
     const isKnownDept = !existingDept || DEPARTMENTS.includes(existingDept);
+    const parsedGroup = parseGroupCode(u.group);
 
     setEditModal({
       userId: u.id,
@@ -114,6 +116,9 @@ const ManageUsersSection = ({ t }) => {
         username: u.username || '',
         department: isKnownDept ? existingDept : '',
         semester: u.semester || '',
+        // Only the cohort number — the Level half is recomputed live from
+        // department+semester below, so it can never go stale.
+        cohortGroup: parsedGroup ? String(parsedGroup.cohortGroup) : '',
       },
     });
 
@@ -132,6 +137,13 @@ const ManageUsersSection = ({ t }) => {
     // in — an admin who typed something there clearly meant to override it.
     const finalDepartment = editModal.customDepartment?.trim() || f.department.trim();
 
+    // No resolvable level (custom department, or nothing picked) means no
+    // group code — never save a half-built one.
+    const finalGroup =
+      editModalLevel && f.cohortGroup
+        ? buildGroupCode(editModalLevel, f.cohortGroup)
+        : '';
+
     setSaving(true);
     setEditError('');
 
@@ -140,6 +152,7 @@ const ManageUsersSection = ({ t }) => {
         username: f.username.trim(),
         department: finalDepartment,
         semester: f.semester.trim(),
+        group: finalGroup,
       });
 
       setEditModal(null);
@@ -171,6 +184,13 @@ const ManageUsersSection = ({ t }) => {
       setDeleting(false);
     }
   };
+
+  // Recalculated every render from whatever department+semester currently
+  // sit in the edit form, so it never goes stale mid-edit.
+  const editModalLevel = editModal
+    ? getLevelForSemester(editModal.form.department, editModal.form.semester)
+    : null;
+  const editModalCohortOptions = getCohortGroupOptions(editModalLevel);
 
   // Slightly darker input background
   const inputStyle = {
@@ -331,6 +351,11 @@ const ManageUsersSection = ({ t }) => {
                 text: t.textMuted,
               };
 
+            const parsedGroup = parseGroupCode(u.group);
+            const groupLabel = u.group
+              ? (parsedGroup ? buildGroupLabel(parsedGroup.level, parsedGroup.cohortGroup) : u.group)
+              : '';
+
             return (
               <div
                 key={u.id}
@@ -387,6 +412,13 @@ const ManageUsersSection = ({ t }) => {
                       ? `Semester ${u.semester}`
                       : 'No semester set'}
                   </p>
+
+                  {groupLabel && (
+                    <p className="flex items-center gap-1.5">
+                      <Users size={12} />
+                      {groupLabel}
+                    </p>
+                  )}
                 </div>
 
                 {/* Edit and Delete buttons */}
@@ -495,9 +527,10 @@ const ManageUsersSection = ({ t }) => {
                         ...editModal.form,
                         department: e.target.value,
                         // Changing department invalidates whatever semester
-                        // was set for the old one — clear it so an admin
-                        // can't accidentally save a mismatched pair.
+                        // (and cohort group, which depends on level) was
+                        // set for the old one — clear both.
                         semester: '',
+                        cohortGroup: '',
                       },
                     })
                   }
@@ -527,6 +560,7 @@ const ManageUsersSection = ({ t }) => {
                       form: {
                         ...editModal.form,
                         semester: e.target.value,
+                        cohortGroup: '',
                       },
                     })
                   }
@@ -540,6 +574,34 @@ const ManageUsersSection = ({ t }) => {
                   ))}
                 </select>
               </div>
+
+              {editModalLevel && (
+                <div>
+                  <label
+                    className="text-xs font-bold"
+                    style={{ color: t.textMuted }}
+                  >
+                    Cohort Group (Level {editModalLevel})
+                  </label>
+
+                  <select
+                    value={editModal.form.cohortGroup}
+                    onChange={(e) =>
+                      setEditModal({
+                        ...editModal,
+                        form: { ...editModal.form, cohortGroup: e.target.value },
+                      })
+                    }
+                    className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                    style={inputStyle}
+                  >
+                    <option value="">No cohort group set</option>
+                    {editModalCohortOptions.map((cg) => (
+                      <option key={cg} value={String(cg)}>CG{cg}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* ── Custom department — admin-only override ──────────
                   Separate from the dropdown above on purpose: this is a
