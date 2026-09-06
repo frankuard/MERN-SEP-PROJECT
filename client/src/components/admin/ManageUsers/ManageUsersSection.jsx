@@ -12,8 +12,14 @@ import {
 } from 'lucide-react';
 
 import adminUserApi from '../../../api/adminUserApi';
+import { DEPARTMENTS, getSemesterOptions } from '../../../data/departmentSemesters';
 
 const ROLE_FILTERS = ['All', 'student', 'teacher', 'staff', 'admin'];
+
+// Sentinel value for "department not in the known list" — covers users
+// with a custom/admin-set department so they remain filterable instead of
+// disappearing from every specific department filter.
+const OTHER_DEPARTMENT = '__other__';
 
 const ROLE_BADGE = {
   student: { bg: '#dbeafe', text: '#1d4ed8' },
@@ -25,6 +31,8 @@ const ROLE_BADGE = {
 const ManageUsersSection = ({ t }) => {
   const [users, setUsers] = useState(null);
   const [roleFilter, setRoleFilter] = useState('All');
+  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [semesterFilter, setSemesterFilter] = useState('All');
   const [search, setSearch] = useState('');
 
   const [editModal, setEditModal] = useState(null);
@@ -48,6 +56,21 @@ const ManageUsersSection = ({ t }) => {
     loadUsers();
   }, []);
 
+  // Semester options depend on which department is currently selected in
+  // the filter bar — same dependent-dropdown pattern as the edit modal.
+  // "All" and "Other" departments don't have a fixed semester range, so
+  // the semester filter resets/disables for those.
+  const semesterFilterOptions = useMemo(() => {
+    if (departmentFilter === 'All' || departmentFilter === OTHER_DEPARTMENT) return [];
+    return getSemesterOptions(departmentFilter);
+  }, [departmentFilter]);
+
+  // Reset semester filter whenever department filter changes to something
+  // that invalidates the current semester selection.
+  useEffect(() => {
+    setSemesterFilter('All');
+  }, [departmentFilter]);
+
   const filteredUsers = useMemo(() => {
     if (!users) return [];
 
@@ -56,21 +79,40 @@ const ManageUsersSection = ({ t }) => {
     return users.filter((u) => {
       const matchesRole = roleFilter === 'All' || u.role === roleFilter;
 
+      const userDept = u.department || '';
+      const isKnownDept = DEPARTMENTS.includes(userDept);
+
+      let matchesDepartment = true;
+      if (departmentFilter === OTHER_DEPARTMENT) {
+        matchesDepartment = Boolean(userDept) && !isKnownDept;
+      } else if (departmentFilter !== 'All') {
+        matchesDepartment = userDept === departmentFilter;
+      }
+
+      const matchesSemester =
+        semesterFilter === 'All' || String(u.semester || '') === String(semesterFilter);
+
       const matchesSearch =
         !q ||
         u.username?.toLowerCase().includes(q) ||
         u.email?.toLowerCase().includes(q);
 
-      return matchesRole && matchesSearch;
+      return matchesRole && matchesDepartment && matchesSemester && matchesSearch;
     });
-  }, [users, roleFilter, search]);
+  }, [users, roleFilter, departmentFilter, semesterFilter, search]);
 
   const openEdit = (u) => {
+    const existingDept = u.department || '';
+    const isKnownDept = !existingDept || DEPARTMENTS.includes(existingDept);
+
     setEditModal({
       userId: u.id,
+      // If their current department isn't in the known list, show it in
+      // the custom field instead of leaving the dropdown blank.
+      customDepartment: isKnownDept ? '' : existingDept,
       form: {
         username: u.username || '',
-        department: u.department || '',
+        department: isKnownDept ? existingDept : '',
         semester: u.semester || '',
       },
     });
@@ -86,13 +128,17 @@ const ManageUsersSection = ({ t }) => {
       return;
     }
 
+    // Custom department field takes priority over the dropdown when filled
+    // in — an admin who typed something there clearly meant to override it.
+    const finalDepartment = editModal.customDepartment?.trim() || f.department.trim();
+
     setSaving(true);
     setEditError('');
 
     try {
       await adminUserApi.updateUser(editModal.userId, {
         username: f.username.trim(),
-        department: f.department.trim(),
+        department: finalDepartment,
         semester: f.semester.trim(),
       });
 
@@ -163,42 +209,90 @@ const ManageUsersSection = ({ t }) => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div
-          className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1"
-          style={{ borderColor: t.border }}
-        >
-          {ROLE_FILTERS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRoleFilter(r)}
-              className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold capitalize transition-colors"
-              style={{
-                backgroundColor:
-                  roleFilter === r ? t.accentPrimary : 'transparent',
-                color: roleFilter === r ? t.pageBg : t.textPrimary,
-              }}
-            >
-              {r}
-            </button>
-          ))}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1"
+            style={{ borderColor: t.border }}
+          >
+            {ROLE_FILTERS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRoleFilter(r)}
+                className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold capitalize transition-colors"
+                style={{
+                  backgroundColor:
+                    roleFilter === r ? t.accentPrimary : 'transparent',
+                  color: roleFilter === r ? t.pageBg : t.textPrimary,
+                }}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+              style={{ color: t.textMuted }}
+            />
+
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or email..."
+              className="w-full rounded-xl border py-2 pl-9 pr-3 text-sm"
+              style={inputStyle}
+            />
+          </div>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search
-            size={14}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: t.textMuted }}
-          />
+        {/* Course (department) + semester filters */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-1.5">
+            <Building2 size={13} style={{ color: t.textMuted }} />
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="rounded-xl border py-2 px-3 text-xs font-bold"
+              style={inputStyle}
+            >
+              <option value="All">All Courses</option>
+              {DEPARTMENTS.map((dept) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+              <option value={OTHER_DEPARTMENT}>Other / Custom</option>
+            </select>
+          </div>
 
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name or email..."
-            className="w-full rounded-xl border py-2 pl-9 pr-3 text-sm"
-            style={inputStyle}
-          />
+          <div className="flex items-center gap-1.5">
+            <GraduationCap size={13} style={{ color: t.textMuted }} />
+            <select
+              value={semesterFilter}
+              onChange={(e) => setSemesterFilter(e.target.value)}
+              disabled={semesterFilterOptions.length === 0}
+              className="rounded-xl border py-2 px-3 text-xs font-bold disabled:opacity-50"
+              style={inputStyle}
+            >
+              <option value="All">All Semesters</option>
+              {semesterFilterOptions.map((sem) => (
+                <option key={sem} value={String(sem)}>Semester {sem}</option>
+              ))}
+            </select>
+          </div>
+
+          {(departmentFilter !== 'All' || semesterFilter !== 'All') && (
+            <button
+              type="button"
+              onClick={() => { setDepartmentFilter('All'); setSemesterFilter('All'); }}
+              className="cursor-pointer text-xs font-bold underline"
+              style={{ color: t.textMuted }}
+            >
+              Clear course filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -392,7 +486,7 @@ const ManageUsersSection = ({ t }) => {
                   Department
                 </label>
 
-                <input
+                <select
                   value={editModal.form.department}
                   onChange={(e) =>
                     setEditModal({
@@ -400,13 +494,21 @@ const ManageUsersSection = ({ t }) => {
                       form: {
                         ...editModal.form,
                         department: e.target.value,
+                        // Changing department invalidates whatever semester
+                        // was set for the old one — clear it so an admin
+                        // can't accidentally save a mismatched pair.
+                        semester: '',
                       },
                     })
                   }
-                  placeholder="e.g. Computer Science"
                   className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                   style={inputStyle}
-                />
+                >
+                  <option value="">No department set</option>
+                  {DEPARTMENTS.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -417,7 +519,7 @@ const ManageUsersSection = ({ t }) => {
                   Semester
                 </label>
 
-                <input
+                <select
                   value={editModal.form.semester}
                   onChange={(e) =>
                     setEditModal({
@@ -428,10 +530,67 @@ const ManageUsersSection = ({ t }) => {
                       },
                     })
                   }
-                  placeholder="e.g. 5"
+                  disabled={!editModal.form.department}
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm disabled:opacity-60"
+                  style={inputStyle}
+                >
+                  <option value="">No semester set</option>
+                  {getSemesterOptions(editModal.form.department).map((sem) => (
+                    <option key={sem} value={String(sem)}>Semester {sem}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* ── Custom department — admin-only override ──────────
+                  Separate from the dropdown above on purpose: this is a
+                  free-text field never added to the shared department
+                  list, so it can never appear as a Signup option. Useful
+                  for one-off cases (visiting students, new programs not
+                  yet formalized, etc). Filling this in takes priority
+                  over the dropdown above when saving. */}
+              <div className="border-t pt-3" style={{ borderColor: t.border }}>
+                <label
+                  className="text-xs font-bold"
+                  style={{ color: t.textMuted }}
+                >
+                  Or set a custom department (admin only — won't appear in Signup)
+                </label>
+
+                <input
+                  value={editModal.customDepartment || ''}
+                  onChange={(e) =>
+                    setEditModal({
+                      ...editModal,
+                      customDepartment: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. Visiting Exchange Program"
                   className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                   style={inputStyle}
                 />
+
+                {editModal.customDepartment?.trim() && (
+                  <div className="mt-2">
+                    <label
+                      className="text-xs font-bold"
+                      style={{ color: t.textMuted }}
+                    >
+                      Custom Semester / Term
+                    </label>
+                    <input
+                      value={editModal.form.semester}
+                      onChange={(e) =>
+                        setEditModal({
+                          ...editModal,
+                          form: { ...editModal.form, semester: e.target.value },
+                        })
+                      }
+                      placeholder="e.g. Fall Term"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    />
+                  </div>
+                )}
               </div>
 
               {editError && (

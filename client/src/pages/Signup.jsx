@@ -4,19 +4,13 @@ import { Eye, EyeOff, Loader2, Lock, Mail, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getDashboardPath, useAuth } from '../context/AuthContext';
 import { DevAuthError } from '../utils/devAuth';
+import { DEPARTMENT_SEMESTERS, DEPARTMENTS, getSemesterOptions } from '../data/departmentSemesters';
 
 // Teacher and staff signup is disabled for now — only student registration
 // is open. Re-add the other entries here when that's ready to launch.
 const ROLES = [
   { value: 'student', label: 'Student' },
 ];
-
-const DEPARTMENT_SEMESTERS = {
-  'BCS': 6,
-  'B.Sc. Cybersecurity': 6,
-  'BIBM': 8,
-  'MBA': 2,
-};
 
 const Signup = () => {
   const { register, login, isAuthenticated, user, loading: authLoading } = useAuth();
@@ -274,10 +268,9 @@ const Signup = () => {
                     className={`${inputClass} pl-4! ${errors.department ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
                   >
                     <option value="">Select department</option>
-                    <option value="BCS">BCS</option>
-                    <option value="B.Sc. Cybersecurity">B.Sc. Cybersecurity</option>
-                    <option value="BIBM">BIBM</option>
-                    <option value="MBA">MBA</option>
+                    {DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
                   </select>
                   {errors.department && <p className="mt-1.5 text-xs text-red-500">{errors.department}</p>}
                 </div>
@@ -295,11 +288,9 @@ const Signup = () => {
                     className={`${inputClass} pl-4! ${errors.semester ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
                   >
                     <option value="">Select semester</option>
-                    {formData.department && DEPARTMENT_SEMESTERS[formData.department] &&
-                      Array.from({ length: DEPARTMENT_SEMESTERS[formData.department] }, (_, i) => (
-                        <option key={i + 1} value={String(i + 1)}>Semester {i + 1}</option>
-                      ))
-                    }
+                    {getSemesterOptions(formData.department).map((sem) => (
+                      <option key={sem} value={String(sem)}>Semester {sem}</option>
+                    ))}
                   </select>
                   {errors.semester && <p className="mt-1.5 text-xs text-red-500">{errors.semester}</p>}
                 </div>

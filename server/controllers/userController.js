@@ -94,8 +94,8 @@ const changePassword = async (req, res) => {
 const getUserProfile = async (req, res) => {
   try {
     const target = await User.findById(req.params.id).select(
-      'username bio profileImage coverPhoto department role'
-    );
+  'username bio profileImage coverPhoto department semester role'
+);
     if (!target) {
       return res.status(404).json({ message: 'User not found' });
     }

@@ -311,8 +311,12 @@ const ProfileSection = ({ t, profileUserId, onBack, onViewProfile, onOpenChat, a
       <div className="mb-6 flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-extrabold" style={{ color: t.textPrimary }}>{user?.username}</h2>
-          {user?.department && (
-            <p className="text-xs font-semibold" style={{ color: t.textMuted }}>{user.department}</p>
+          {(user?.department || user?.semester) && (
+            <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
+              {user?.department}
+              {user?.department && user?.semester ? ' · ' : ''}
+              {user?.semester ? `Semester ${user.semester}` : ''}
+            </p>
           )}
         </div>
 
