@@ -2,9 +2,12 @@ import React from 'react';
 import { MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '../../context/ChatContext';
+import { useAuth } from '../../context/AuthContext';
 
 const ChatButton = ({ t }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role || 'student';
   const {
     totalUnread,
     pendingGroupInviteCount,
@@ -19,7 +22,7 @@ const ChatButton = ({ t }) => {
   return (
     <button
       type="button"
-      onClick={() => navigate('/student/chat')}
+      onClick={() => navigate(`/${role}/chat`)}
       className="relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-black/5 dark:hover:bg-white/5"
       style={{ color: t.textPrimary }}
     >
