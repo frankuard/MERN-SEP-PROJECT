@@ -244,13 +244,6 @@ const createScheduleChange = async (req, res) => {
       link: 'rte',
     });
 
-    createNotificationForRole('student', {
-      type: 'timetable',
-      title: 'Schedule Change Published',
-      message: `${change.moduleCode} — ${change.status} (${change.originalDay})`,
-      link: 'rte',
-    });
-
     res.status(201).json(change);
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
