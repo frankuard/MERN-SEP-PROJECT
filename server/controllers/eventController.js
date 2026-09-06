@@ -162,6 +162,8 @@ const createEvent = async (req, res) => {
           ? capacity
           : null,
 
+      status: req.body.status || 'upcoming',
+
       isPublished:
         isPublished !== undefined
           ? isPublished
