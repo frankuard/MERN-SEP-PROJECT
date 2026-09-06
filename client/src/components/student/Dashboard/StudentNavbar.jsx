@@ -66,7 +66,8 @@ const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
         <img
           src="/bic-logo-full.png"
           alt="Biratnagar International College"
-          className="hidden h-[61px] w-auto shrink-0 object-contain sm:block lg:h-[68px]"
+          className="hidden h-[83px] w-auto shrink-0 object-contain sm:block lg:h-[93px]"
+          style={{ filter: 'brightness(0.94)' }}
         />
 
         <span className="hidden h-7 w-px shrink-0 sm:block" style={{ backgroundColor: t.border }} />
