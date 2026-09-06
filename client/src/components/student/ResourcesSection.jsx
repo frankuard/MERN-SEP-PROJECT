@@ -166,7 +166,7 @@ const YourBooksLog = ({ myBorrows, t }) => {
 /* ------------------------------------------------------------------ */
 /* Main component                                                      */
 /* ------------------------------------------------------------------ */
-const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
+const ResourcesSection = ({ t }) => {
   const [resourcesActiveCategory, setResourcesActiveCategory] = useState('library');
   const [bookSearchQuery, setBookSearchQuery] = useState('');
   const [activeBookCategory, setActiveBookCategory] = useState('All');
@@ -175,6 +175,12 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
   const [myBorrows, setMyBorrows] = useState([]);
   const [modalBook, setModalBook] = useState(null);
   const [loadingBooks, setLoadingBooks] = useState(true);
+
+  // ── Sports state ──────────────────────────────────────────────────────────
+  const [sportsItems, setSportsItems] = useState([]);
+  const [loadingSportsItems, setLoadingSportsItems] = useState(false);
+  const [mySportsRequests, setMySportsRequests] = useState([]);
+  const [submittingSports, setSubmittingSports] = useState(false);
 
   const loadBooks = useCallback(() => {
     setLoadingBooks(true);
@@ -190,10 +196,40 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
       .catch(() => {});
   }, []);
 
+  const loadSportsItems = useCallback(() => {
+    setLoadingSportsItems(true);
+    resourcesApi.getSportsItems()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setSportsItems(data);
+          // Keep selected item in sync when items load
+          setSportsForm((prev) => ({ ...prev, itemId: data[0]._id }));
+        } else {
+          setSportsItems([]);
+        }
+      })
+      .catch(() => { setSportsItems([]); })
+      .finally(() => setLoadingSportsItems(false));
+  }, []);
+
+  const loadMySportsRequests = useCallback(() => {
+    resourcesApi.getMySportsRequests()
+      .then((data) => { if (Array.isArray(data)) setMySportsRequests(data); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => { loadBooks(); loadMyBorrows(); }, [loadBooks, loadMyBorrows]);
 
+  // Lazy-load sports data only when that tab is opened
+  useEffect(() => {
+    if (resourcesActiveCategory === 'sports') {
+      loadSportsItems();
+      loadMySportsRequests();
+    }
+  }, [resourcesActiveCategory, loadSportsItems, loadMySportsRequests]);
+
   const [sportsForm, setSportsForm] = useState({
-    item: 'Cricket Bat',
+    itemId: '',
     qty: 1,
     slot: '',
     note: '',
@@ -242,14 +278,32 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
     }
   };
 
-  const handleSportsSubmit = (e) => {
+  const handleSportsSubmit = async (e) => {
     e.preventDefault();
     if (!sportsForm.slot.trim()) {
       toast.error('Please enter a time slot');
       return;
     }
-    const qty = sportsForm.qty === '' ? 1 : sportsForm.qty;
-    onSportsRequestSubmit({ ...sportsForm, qty });
+    if (!sportsForm.itemId) {
+      toast.error('Please select a sports item');
+      return;
+    }
+    const qty = sportsForm.qty === '' ? 1 : Number(sportsForm.qty);
+    setSubmittingSports(true);
+    try {
+      await resourcesApi.requestSportsItem(sportsForm.itemId, {
+        quantity: qty,
+        slot: sportsForm.slot.trim(),
+        note: sportsForm.note?.trim() || '',
+      });
+      toast.success('Sports equipment request submitted!');
+      setSportsForm((prev) => ({ ...prev, slot: '', note: '', qty: 1 }));
+      loadMySportsRequests();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to submit request');
+    } finally {
+      setSubmittingSports(false);
+    }
   };
 
   return (
@@ -388,18 +442,28 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
                       Select Sports Item Needed
                     </label>
                     <select
-                      value={sportsForm.item}
-                      onChange={(e) => setSportsForm({ ...sportsForm, item: e.target.value })}
+                      value={sportsForm.itemId}
+                      onChange={(e) => setSportsForm({ ...sportsForm, itemId: e.target.value })}
                       className="w-full rounded-2xl p-3 text-xs outline-none font-semibold"
                       style={{ backgroundColor: t.pageBg, border: `1px solid ${t.border}`, color: t.textPrimary }}
                     >
-                      <option value="Cricket Bat">🏏 Cricket Bat</option>
-                      <option value="Football">⚽ Football</option>
-                      <option value="Basketball">🏀 Basketball</option>
-                      <option value="Table Tennis">🏓 Table Tennis (Rackets &amp; Balls)</option>
-                      <option value="Chess">♟️ Chess Set</option>
-                      <option value="Ludo">🎲 Ludo Board</option>
+                      {loadingSportsItems && (
+                        <option value="">Loading items...</option>
+                      )}
+                      {!loadingSportsItems && sportsItems.length === 0 && (
+                        <option value="">No equipment available</option>
+                      )}
+                      {sportsItems.map((item) => (
+                        <option key={item._id} value={item._id}>
+                          {item.icon} {item.name}
+                        </option>
+                      ))}
                     </select>
+                    {!loadingSportsItems && sportsItems.length === 0 && (
+                      <p className="mt-2 text-xs font-semibold" style={{ color: t.textMuted }}>
+                        No sports equipment has been added yet — check back later.
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -444,10 +508,11 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
 
                   <button
                     type="submit"
-                    className="dashboard-btn-bounce w-full cursor-pointer rounded-full bg-black py-3.5 text-xs font-extrabold text-white"
+                    disabled={submittingSports || loadingSportsItems || sportsItems.length === 0}
+                    className="dashboard-btn-bounce w-full cursor-pointer rounded-full bg-black py-3.5 text-xs font-extrabold text-white disabled:opacity-50"
                     style={{ boxShadow: t.shadowSoft }}
                   >
-                    Submit Sports Equipment Request
+                    {submittingSports ? 'Submitting...' : 'Submit Sports Equipment Request'}
                   </button>
                 </form>
               </div>
@@ -460,17 +525,38 @@ const ResourcesSection = ({ t, sportsGearRequests, onSportsRequestSubmit }) => {
                   Pick up approved equipment from Ground Floor Sports In-charge desk
                 </p>
                 <div className="space-y-3">
-                  {sportsGearRequests.map((req, i) => (
+                  {mySportsRequests.length === 0 && (
+                    <p className="text-xs font-semibold py-4 text-center" style={{ color: t.textMuted }}>
+                      No requests yet. Submit one using the form.
+                    </p>
+                  )}
+                  {mySportsRequests.map((req, i) => (
                     <div
-                      key={req.id}
+                      key={req._id}
                       className="dashboard-card-lift flex items-center justify-between rounded-[20px] p-4 text-xs"
                       style={{ backgroundColor: t[CARD_TINTS[i % CARD_TINTS.length]], boxShadow: t.shadowSoft }}
                     >
                       <div>
-                        <h4 className="font-extrabold text-sm" style={{ color: t.textPrimary }}>{req.item} (Qty: {req.qty})</h4>
+                        <h4 className="font-extrabold text-sm" style={{ color: t.textPrimary }}>
+                          {req.item?.icon} {req.item?.name} (Qty: {req.quantity})
+                        </h4>
                         <p className="text-[11px] font-semibold mt-0.5" style={{ color: t.textSecondary }}>Slot: {req.slot}</p>
                       </div>
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-extrabold text-emerald-800">{req.status}</span>
+                      <span
+                        className="rounded-full px-3 py-1 text-[11px] font-extrabold capitalize"
+                        style={{
+                          backgroundColor:
+                            req.status === 'approved' ? '#d1fae5' :
+                            req.status === 'rejected' ? '#fee2e2' :
+                            req.status === 'returned' ? '#e0e7ff' : '#fef3c7',
+                          color:
+                            req.status === 'approved' ? '#047857' :
+                            req.status === 'rejected' ? '#b91c1c' :
+                            req.status === 'returned' ? '#3730a3' : '#b45309',
+                        }}
+                      >
+                        {req.status}
+                      </span>
                     </div>
                   ))}
                 </div>

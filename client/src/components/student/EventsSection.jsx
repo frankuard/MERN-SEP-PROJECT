@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Clock, MapPin, Building2, Users,
-  CalendarOff, RefreshCw, AlertCircle, Loader2, ImageOff,
+  CalendarOff, RefreshCw, AlertCircle,
 } from 'lucide-react';
 import eventsApi from '../../api/eventsApi';
 
-const ACCENT = '#2f4336';
-const COLLEGE_ACCENT = '#2563eb';
-const COMMUNITY_ACCENT = '#9333ea';
+const ACCENT            = '#2f4336';
+const COLLEGE_ACCENT    = '#2563eb';
+const COMMUNITY_ACCENT  = '#9333ea';
 
 const accentFor = (type) => (type === 'college' ? COLLEGE_ACCENT : COMMUNITY_ACCENT);
-const iconFor = (type) => (type === 'college' ? Building2 : Users);
+const iconFor   = (type) => (type === 'college' ? Building2 : Users);
 
 const formatDate = (isoString) => {
   if (!isoString) return 'Date TBA';
@@ -19,52 +19,85 @@ const formatDate = (isoString) => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-/* ------------------------------------------------------------------ */
-/* Filter pills — polished segmented control                           */
-/* ------------------------------------------------------------------ */
-const FilterTabs = ({ active, onChange, t }) => {
-  const options = [
-    { id: 'all', label: 'All Events' },
-    { id: 'college', label: 'College Events' },
-    { id: 'community', label: 'Community Events' },
-  ];
-
-  return (
-    <div
-      className="inline-flex items-center gap-1 rounded-full border p-1"
-      style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
-      role="tablist"
-    >
-      {options.map((opt) => {
-        const isActive = active === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(opt.id)}
-            className="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-            style={{
-              backgroundColor: isActive ? ACCENT : 'transparent',
-              color: isActive ? '#ffffff' : t.textMuted,
-              ['--tw-ring-color']: ACCENT,
-            }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+// ── Status badge config (matches admin STATUS_BADGE exactly) ──────────────────
+const STATUS_BADGE = {
+  upcoming:  { bg: '#dbeafe', text: '#1d4ed8',  label: 'Upcoming'  },
+  ongoing:   { bg: '#dcfce7', text: '#15803d',  label: 'Ongoing'   },
+  completed: { bg: '#f1f5f9', text: '#475569',  label: 'Completed' },
+  cancelled: { bg: '#fee2e2', text: '#b91c1c',  label: 'Cancelled' },
 };
 
-/* ------------------------------------------------------------------ */
-/* Event image / themed fallback banner                                */
-/* ------------------------------------------------------------------ */
+// ── Primary tab switcher (Upcoming Events / All Events) ───────────────────────
+const PrimaryTabs = ({ active, onChange, t }) => (
+  <div
+    className="inline-flex items-center gap-1 rounded-full border p-1"
+    style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
+    role="tablist"
+  >
+    {[
+      { id: 'upcoming', label: 'Upcoming Events' },
+      { id: 'all',      label: 'All Events'      },
+    ].map(({ id, label }) => {
+      const isActive = active === id;
+      return (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={isActive}
+          onClick={() => onChange(id)}
+          className="rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+          style={{
+            backgroundColor: isActive ? ACCENT : 'transparent',
+            color: isActive ? '#ffffff' : t.textMuted,
+          }}
+        >
+          {label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+// ── College / Community side filter chips ─────────────────────────────────────
+const TypeFilter = ({ active, onChange, t }) => (
+  <div className="flex flex-wrap items-center gap-2">
+    {[
+      { id: 'all',       label: 'All Types'        },
+      { id: 'college',   label: 'College Events'   },
+      { id: 'community', label: 'Community Events' },
+    ].map(({ id, label }) => {
+      const isActive = active === id;
+      const accent =
+        id === 'college'   ? COLLEGE_ACCENT :
+        id === 'community' ? COMMUNITY_ACCENT : t.textPrimary;
+      return (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(id)}
+          className="rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all duration-200"
+          style={{
+            backgroundColor: isActive
+              ? id === 'all' ? t.accentPrimary : accent
+              : t.cardBg,
+            borderColor: isActive
+              ? id === 'all' ? t.accentPrimary : accent
+              : t.border,
+            color: isActive ? '#ffffff' : t.textMuted,
+          }}
+        >
+          {label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+// ── Event image / themed fallback banner ──────────────────────────────────────
 const EventBanner = ({ event }) => {
   const accent = accentFor(event.type);
-  const Icon = iconFor(event.type);
+  const Icon   = iconFor(event.type);
 
   if (event.eventImage) {
     return (
@@ -102,9 +135,7 @@ const EventBanner = ({ event }) => {
   );
 };
 
-/* ------------------------------------------------------------------ */
-/* Organizer row                                                       */
-/* ------------------------------------------------------------------ */
+// ── Organizer row ─────────────────────────────────────────────────────────────
 const OrganizerRow = ({ organizer, t }) => {
   const name = organizer?.name || 'Campus Organizer';
   const logo = organizer?.logo;
@@ -138,11 +169,10 @@ const OrganizerRow = ({ organizer, t }) => {
   );
 };
 
-/* ------------------------------------------------------------------ */
-/* Event card                                                          */
-/* ------------------------------------------------------------------ */
+// ── Event card ────────────────────────────────────────────────────────────────
 const EventCard = ({ event, t }) => {
-  const accent = accentFor(event.type);
+  const accent      = accentFor(event.type);
+  const statusInfo  = STATUS_BADGE[event.status] || STATUS_BADGE.upcoming;
 
   return (
     <div
@@ -151,14 +181,24 @@ const EventCard = ({ event, t }) => {
     >
       <EventBanner event={event} />
 
-           <div className="mt-3 flex flex-wrap items-center gap-2">
+      {/* Type badge + status badge + registration indicator */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <span
           className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider"
           style={{ backgroundColor: accent, color: '#ffffff' }}
         >
           {event.type === 'college' ? 'College' : 'Community'}
         </span>
-        {event.registrationEnabled && (
+
+        {/* Status badge */}
+        <span
+          className="rounded-full px-3 py-1 text-[11px] font-bold capitalize"
+          style={{ backgroundColor: statusInfo.bg, color: statusInfo.text }}
+        >
+          {statusInfo.label}
+        </span>
+
+        {event.registrationEnabled && event.status !== 'cancelled' && event.status !== 'completed' && (
           <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: ACCENT }}>
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ACCENT }} />
             Registration open
@@ -166,8 +206,8 @@ const EventCard = ({ event, t }) => {
         )}
       </div>
 
-      <h4 className="mt-3 text-lg font-extrabold leading-snug sm:text-xl" style={{ color: t.textPrimary }}>    
-            {event.title}
+      <h4 className="mt-3 text-lg font-extrabold leading-snug sm:text-xl" style={{ color: t.textPrimary }}>
+        {event.title}
       </h4>
 
       {event.description && (
@@ -186,7 +226,7 @@ const EventCard = ({ event, t }) => {
         {event.startTime && (
           <div className="flex items-center gap-2">
             <Clock size={14} className="shrink-0" />
-            <span>{event.startTime}</span>
+            <span>{event.startTime}{event.endTime ? ` – ${event.endTime}` : ''}</span>
           </div>
         )}
         {event.venue && (
@@ -197,16 +237,14 @@ const EventCard = ({ event, t }) => {
         )}
       </div>
 
-      <div className="mt-4 pt-3 border-t" style={{ borderColor: t.border }}>
+      <div className="mt-4 border-t pt-3" style={{ borderColor: t.border }}>
         <OrganizerRow organizer={event.organizer} t={t} />
       </div>
     </div>
   );
 };
 
-/* ------------------------------------------------------------------ */
-/* Loading / error / empty states                                      */
-/* ------------------------------------------------------------------ */
+// ── Loading skeleton ──────────────────────────────────────────────────────────
 const LoadingGrid = ({ t }) => (
   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
     {[...Array(3)].map((_, i) => (
@@ -216,14 +254,15 @@ const LoadingGrid = ({ t }) => (
         style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}
       >
         <div className="h-40 w-full rounded-xl" style={{ backgroundColor: t.pageBg }} />
-        <div className="mt-4 h-4 w-2/3 rounded" style={{ backgroundColor: t.pageBg }} />
-        <div className="mt-2 h-3 w-full rounded" style={{ backgroundColor: t.pageBg }} />
-        <div className="mt-2 h-3 w-4/5 rounded" style={{ backgroundColor: t.pageBg }} />
+        <div className="mt-4 h-4 w-2/3 rounded"  style={{ backgroundColor: t.pageBg }} />
+        <div className="mt-2 h-3 w-full rounded"  style={{ backgroundColor: t.pageBg }} />
+        <div className="mt-2 h-3 w-4/5 rounded"  style={{ backgroundColor: t.pageBg }} />
       </div>
     ))}
   </div>
 );
 
+// ── Error / empty states ──────────────────────────────────────────────────────
 const ErrorState = ({ onRetry, t }) => (
   <div
     className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-12 text-center"
@@ -260,48 +299,81 @@ const EmptyState = ({ message, t }) => (
   </div>
 );
 
-/* ------------------------------------------------------------------ */
-/* Main component                                                      */
-/* ------------------------------------------------------------------ */
+// ── Main component ────────────────────────────────────────────────────────────
 const EventsSection = ({ t }) => {
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [events, setEvents] = useState([]);
-  const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
+  // Primary tab: 'upcoming' | 'all'
+  const [primaryTab,  setPrimaryTab]  = useState('upcoming');
+  // Side type filter: 'all' | 'college' | 'community'
+  const [typeFilter,  setTypeFilter]  = useState('all');
+  // All published events fetched once
+  const [allEvents,   setAllEvents]   = useState([]);
+  const [fetchStatus, setFetchStatus] = useState('loading'); // 'loading' | 'success' | 'error'
 
-  const fetchEvents = useCallback(async (filter) => {
-    setStatus('loading');
+  // Reset type filter when switching primary tab so context is fresh
+  const handlePrimaryTabChange = (tab) => {
+    setPrimaryTab(tab);
+    setTypeFilter('all');
+  };
+
+  const fetchAllEvents = useCallback(async () => {
+    setFetchStatus('loading');
     try {
-      // getEvents expects a params OBJECT (e.g. { type: 'college' }), not a
-      // bare string — passing the filter directly silently produced no
-      // query string at all, so every filter click returned the same
-      // unfiltered list.
-      const params = filter === 'all' ? {} : { type: filter };
-      const data = await eventsApi.getEvents(params);
-      setEvents(Array.isArray(data) ? data : []);
-      setStatus('success');
+      // Fetch all published events (no type param = all types)
+      const data = await eventsApi.getEvents({});
+      setAllEvents(Array.isArray(data) ? data : []);
+      setFetchStatus('success');
     } catch {
-      setStatus('error');
+      setFetchStatus('error');
     }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      await fetchEvents(activeFilter);
-      if (cancelled) return;
-    })();
-    return () => { cancelled = true; };
-  }, [activeFilter, fetchEvents]);
+    fetchAllEvents();
+  }, [fetchAllEvents]);
 
-  const emptyMessage = activeFilter === 'college'
-    ? 'No college events scheduled right now.'
-    : activeFilter === 'community'
-      ? 'No community events scheduled right now.'
-      : 'No events available right now.';
+  // ── Client-side filtering ──────────────────────────────────────────────────
+  const visibleEvents = (() => {
+    let events = allEvents;
+
+    // 1. Primary tab filter
+    if (primaryTab === 'upcoming') {
+      // Show only upcoming + ongoing (admin-controlled statuses)
+      events = events.filter((ev) => ev.status === 'upcoming' || ev.status === 'ongoing');
+      // Sort: ongoing first (already started), then by date ascending
+      events = [...events].sort((a, b) => {
+        const aOngoing = a.status === 'ongoing' ? 0 : 1;
+        const bOngoing = b.status === 'ongoing' ? 0 : 1;
+        if (aOngoing !== bOngoing) return aOngoing - bOngoing;
+        return new Date(a.date) - new Date(b.date);
+      });
+    } else {
+      // All Events — all statuses, sorted by date descending (newest first)
+      events = [...events].sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    // 2. Side type filter
+    if (typeFilter !== 'all') {
+      events = events.filter((ev) => ev.type === typeFilter);
+    }
+
+    return events;
+  })();
+
+  // ── Empty state message ────────────────────────────────────────────────────
+  const emptyMessage = (() => {
+    const typeLabel =
+      typeFilter === 'college'   ? 'college '   :
+      typeFilter === 'community' ? 'community ' : '';
+
+    return primaryTab === 'upcoming'
+      ? `No upcoming ${typeLabel}events right now.`
+      : `No ${typeLabel}events found.`;
+  })();
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-200">
-      {/* Header row */}
+    <div className="space-y-6 animate-in fade-in duration-200">
+
+      {/* Header row — title + primary tab switcher */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
@@ -311,19 +383,23 @@ const EventsSection = ({ t }) => {
             Discover what's happening around campus.
           </p>
         </div>
-        <FilterTabs active={activeFilter} onChange={setActiveFilter} t={t} />
+        <PrimaryTabs active={primaryTab} onChange={handlePrimaryTabChange} t={t} />
       </div>
 
-      {status === 'loading' && <LoadingGrid t={t} />}
+      {/* Side type filter (College / Community) */}
+      <TypeFilter active={typeFilter} onChange={setTypeFilter} t={t} />
 
-      {status === 'error' && (
-        <ErrorState onRetry={() => fetchEvents(activeFilter)} t={t} />
+      {/* Content */}
+      {fetchStatus === 'loading' && <LoadingGrid t={t} />}
+
+      {fetchStatus === 'error' && (
+        <ErrorState onRetry={fetchAllEvents} t={t} />
       )}
 
-      {status === 'success' && (
-        events.length > 0 ? (
+      {fetchStatus === 'success' && (
+        visibleEvents.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {events.map((ev) => (
+            {visibleEvents.map((ev) => (
               <EventCard key={ev._id} event={ev} t={t} />
             ))}
           </div>

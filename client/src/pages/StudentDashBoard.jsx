@@ -105,10 +105,6 @@ const StudentDashboard = () => {
   // Resources State
   const [libraryBooks, setLibraryBooks] = useState(INITIAL_LIBRARY_BOOKS);
   const [pendingBookApprovals, setPendingBookApprovals] = useState({});
-  const [sportsGearRequests, setSportsGearRequests] = useState([
-    { id: 'sp_1', item: 'Cricket Bat', qty: 2, slot: 'Lunch Break (01:00 PM)', status: 'Approved' },
-    { id: 'sp_2', item: 'Table Tennis (Rackets & Balls)', qty: 1, slot: 'Sports Hour (04:00 PM)', status: 'Ready for Pickup' },
-  ]);
   const [budgetClaims, setBudgetClaims] = useState([
     { id: 'bc_1', title: 'XPERIA Hackathon Refreshments & Banner', amount: 3500, category: 'Club Event & Project', status: 'Approved by SSD' },
   ]);
@@ -317,18 +313,6 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleSportsRequestSubmit = (formData) => {
-    const newReq = {
-      id: `sp_${Date.now()}`,
-      item: formData.item,
-      qty: formData.qty,
-      slot: formData.slot,
-      status: 'Approved & Ready for Pickup',
-    };
-    setSportsGearRequests((prev) => [newReq, ...prev]);
-    toast.success(`Requested ${formData.qty} × ${formData.item}! Approved by Sports Dept.`, { icon: '⚽' });
-  };
-
   const handleBudgetClaimSubmit = (formData) => {
     const newClaim = {
       id: `bc_${Date.now()}`,
@@ -518,8 +502,6 @@ const StudentDashboard = () => {
             {activeTab === 'resources' && (
   <ResourcesSection
     t={t}
-    sportsGearRequests={sportsGearRequests}
-    onSportsRequestSubmit={handleSportsRequestSubmit}
   />
 )}
 

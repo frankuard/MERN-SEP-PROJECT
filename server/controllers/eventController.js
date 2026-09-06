@@ -162,6 +162,8 @@ const createEvent = async (req, res) => {
           ? capacity
           : null,
 
+      status: req.body.status || 'upcoming',
+
       isPublished:
         isPublished !== undefined
           ? isPublished
@@ -171,10 +173,11 @@ const createEvent = async (req, res) => {
     });
 
     if (event.isPublished) {
+      const typeLabel = event.type === 'college' ? 'College' : 'Community';
       createNotificationForRole('student', {
         type: 'event',
         title: 'New Event Added',
-        message: `${event.title} — ${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+        message: `${typeLabel} event: ${event.title} — ${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
         link: 'events',
       });
     }
@@ -205,19 +208,109 @@ const updateEvent = async (req, res) => {
       });
     }
 
+    // Snapshot the fields that drive specific notifications BEFORE the update
+    const prevStatus = event.status;
+    const prevType   = event.type;
+    const prevPublished = event.isPublished;
+
     Object.assign(event, req.body);
 
     await event.save();
 
-    // Only notify students for events that are actually visible to them —
-    // an edit to a draft (isPublished: false) shouldn't notify anyone yet.
+    // Only send notifications for published events visible to students
     if (event.isPublished) {
-      createNotificationForRole('student', {
-        type: 'event',
-        title: 'Event Updated',
-        message: `${event.title} was updated — check the latest details`,
-        link: 'events',
-      });
+      const typeLabel = event.type === 'college' ? 'College' : 'Community';
+      const dateStr   = new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      // ── Status changed ───────────────────────────────────────────────────
+      if (req.body.status !== undefined && event.status !== prevStatus) {
+        switch (event.status) {
+          case 'ongoing':
+            // Notify all students — event is happening now
+            createNotificationForRole('student', {
+              type: 'event',
+              title: `${event.title} is now Ongoing`,
+              message: `${typeLabel} event "${event.title}" has started. Venue: ${event.venue}.`,
+              link: 'events',
+            });
+            break;
+
+          case 'completed':
+            // Notify only registered students — relevant to them specifically
+            EventRegistration.find({ event: event._id, status: 'registered' })
+              .select('user')
+              .then((regs) => {
+                regs.forEach((reg) => {
+                  createNotification(reg.user, {
+                    type: 'event',
+                    title: `${event.title} has Completed`,
+                    message: `The event "${event.title}" you registered for has been marked as completed.`,
+                    link: 'events',
+                  });
+                });
+              })
+              .catch(() => {});
+            break;
+
+          case 'cancelled':
+            // Notify only registered students — they need to know their plans changed
+            EventRegistration.find({ event: event._id, status: 'registered' })
+              .select('user')
+              .then((regs) => {
+                regs.forEach((reg) => {
+                  createNotification(reg.user, {
+                    type: 'event',
+                    title: `${event.title} has been Cancelled`,
+                    message: `The event "${event.title}" you registered for has been cancelled.`,
+                    link: 'events',
+                  });
+                });
+              })
+              .catch(() => {});
+            break;
+
+          case 'upcoming':
+          default:
+            // Status reset to upcoming (e.g. un-cancelling) — notify all students
+            createNotificationForRole('student', {
+              type: 'event',
+              title: `${event.title} is Upcoming`,
+              message: `${typeLabel} event "${event.title}" is scheduled for ${dateStr}.`,
+              link: 'events',
+            });
+            break;
+        }
+      }
+
+      // ── Type changed (college ↔ community) ──────────────────────────────
+      else if (req.body.type !== undefined && event.type !== prevType) {
+        createNotificationForRole('student', {
+          type: 'event',
+          title: `Event Type Updated — ${event.title}`,
+          message: `"${event.title}" is now a ${typeLabel} event (${dateStr}).`,
+          link: 'events',
+        });
+      }
+
+      // ── Event just published (was draft, now live) ───────────────────────
+      else if (!prevPublished && event.isPublished) {
+        createNotificationForRole('student', {
+          type: 'event',
+          title: 'New Event Added',
+          message: `${typeLabel} event: ${event.title} — ${dateStr}`,
+          link: 'events',
+        });
+      }
+
+      // ── Generic detail update (title, date, venue, etc.) ────────────────
+      else if (req.body.status === undefined && req.body.type === undefined) {
+        createNotificationForRole('student', {
+          type: 'event',
+          title: 'Event Updated',
+          message: `"${event.title}" details have been updated — ${dateStr} at ${event.venue}.`,
+          link: 'events',
+        });
+      }
     }
 
     res.status(200).json({
