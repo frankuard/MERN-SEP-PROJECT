@@ -516,7 +516,7 @@ const SportsRequestsTab = ({ t }) => {
     try {
       await resourcesApi.approveSportsRequest(id);
       toast.success('Request approved');
-      load();
+      setStatusFilter('All');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to approve');
     } finally {
@@ -529,7 +529,7 @@ const SportsRequestsTab = ({ t }) => {
     try {
       await resourcesApi.rejectSportsRequest(id);
       toast.success('Request rejected');
-      load();
+      setStatusFilter('All');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to reject');
     } finally {
@@ -542,7 +542,7 @@ const SportsRequestsTab = ({ t }) => {
     try {
       await resourcesApi.markSportsReturned(id);
       toast.success('Marked as returned');
-      load();
+      setStatusFilter('All');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to mark returned');
     } finally {
