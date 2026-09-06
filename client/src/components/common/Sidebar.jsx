@@ -170,7 +170,7 @@ const Sidebar = ({
             </div>
             <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>
               <p className="truncate text-[15px] font-extrabold" style={{ color: t.sidebarText }}>
-                {username}
+                CHAUTARI
               </p>
               {subLabel && (
                 <p className="truncate text-xs font-medium" style={{ color: t.sidebarMuted }}>
