@@ -16,8 +16,7 @@ const getGroq = () => {
 const CHAT_MODEL = 'qwen/qwen3.8-27b';
 const CHAT_FALLBACK_MODEL = 'allam-2-7b';
 
-// Robustly pull the first JSON object out of a model reply. Models sometimes
-// wrap JSON in code fences or add stray text; this keeps parsing reliable.
+
 const extractJson = (text) => {
   const s = String(text || '').trim();
   const fenced = s.match(/\{[\s\S]*\}/);
