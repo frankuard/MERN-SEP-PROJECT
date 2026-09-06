@@ -82,7 +82,7 @@ export const themes = {
     divider: '#ebebeb',
     progressTrack: '#e8e8e8',
     progressFill: '#111111',
-    navbarBg: '#ffffff',
+    navbarBg: '#efefef',
     navbarChip: '#f0f0f0',
     navbarChipText: '#111111',
     navbarDateBg: '#111111',

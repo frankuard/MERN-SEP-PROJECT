@@ -7,10 +7,7 @@ const { getSession, setSession, clearSession } = require('./aiActionSession');
 const { createNotification, createNotificationForRole } = require('../utils/createNotification');
 
 
-//  Reuse existing request controllers instead of duplicating
-//  business logic. Each handler receives a tiny stub req/res so
-//  the exact same code paths (validation, notifications, model
-//  writes) run as if the request came from the normal web form.
+
 
 const lostFoundController = require('../controllers/lostFoundController');
 const helpController = require('../controllers/helpController');
@@ -85,9 +82,7 @@ const ACTIONS = {
     optionalQuestion: 'Is this a technical issue (equipment, Wi-Fi, projector) or something else? (You can say skip.)',
     optionalSatisfied: (d) => Boolean(d.category),
   },
-  // volunteer_application is handled by its own bespoke flow below,
-  // not through the generic collect/confirm pipeline, but we register
-  // it here so detectIntent can return it as a valid action name.
+ 
   volunteer_application: {
     label: 'Volunteer Application',
     cardTitle: 'Volunteer Application',
@@ -106,9 +101,7 @@ const ALLOWED_UPDATES = {
   campus_help: ['problem', 'location', 'category', 'priority', 'details'],
 };
 
-// ─────────────────────────────────────────────────────────────
-//  Helpers
-// ─────────────────────────────────────────────────────────────
+
 const todayNP = () => {
   const now = new Date();
   return now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' }); // YYYY-MM-DD

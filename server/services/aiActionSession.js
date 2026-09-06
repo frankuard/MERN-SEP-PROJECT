@@ -1,7 +1,4 @@
-// In-memory, single-user action session store for the AI action pipeline.
-// One active draft per user until it is confirmed, cancelled, or times out.
-// Kept server-side so the student never has to pass their own identity or
-// a forged payload around — the backend always resolves the real req.user.
+
 
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -30,7 +27,7 @@ const clearSession = (userId) => {
 
 const hasSession = (userId) => Boolean(getSession(userId));
 
-// Opportunistic cleanup so idle sessions don't pile up forever.
+
 setInterval(() => {
   const now = Date.now();
   for (const [key, session] of sessions.entries()) {
