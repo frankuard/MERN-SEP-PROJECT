@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Home, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import NavbarMeta from './NavbarMeta';
 import NotificationBell from '../../common/NotificationBell';
 import ChatButton from '../../common/ChatButton';
@@ -48,7 +48,7 @@ const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
         borderBottom: `1px solid ${t.border}`,
       }}
     >
-      {/* Left — hamburger (mobile) / home icon (desktop) + BIC logo + page title */}
+      {/* Left — hamburger (mobile) + logo + page title */}
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         {/* Mobile menu trigger — lives inside this sticky header instead of
             a separate position:fixed button, so it's guaranteed to stay
@@ -63,24 +63,10 @@ const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
           <Menu size={22} strokeWidth={2.5} />
         </button>
 
-        <button
-          type="button"
-          onClick={onNavigateHome}
-          className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors lg:flex"
-          style={{
-            backgroundColor: activeTab === 'dashboard' ? (t.navbarChip || t.chipBg) : 'transparent',
-            color: t.textPrimary,
-          }}
-          aria-label="Go to Dashboard"
-          title="Dashboard"
-        >
-          <Home size={22} strokeWidth={2.5} />
-        </button>
-
         <img
           src="/bic-logo-full.png"
           alt="Biratnagar International College"
-          className="hidden h-9 w-auto shrink-0 object-contain sm:block lg:h-10"
+          className="hidden h-[61px] w-auto shrink-0 object-contain sm:block lg:h-[68px]"
         />
 
         <span className="hidden h-7 w-px shrink-0 sm:block" style={{ backgroundColor: t.border }} />
