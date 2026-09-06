@@ -178,6 +178,7 @@ const ResourcesSection = ({ t }) => {
 
   // ── Sports state ──────────────────────────────────────────────────────────
   const [sportsItems, setSportsItems] = useState([]);
+  const [loadingSportsItems, setLoadingSportsItems] = useState(false);
   const [mySportsRequests, setMySportsRequests] = useState([]);
   const [submittingSports, setSubmittingSports] = useState(false);
 
@@ -196,15 +197,19 @@ const ResourcesSection = ({ t }) => {
   }, []);
 
   const loadSportsItems = useCallback(() => {
+    setLoadingSportsItems(true);
     resourcesApi.getSportsItems()
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setSportsItems(data);
           // Keep selected item in sync when items load
           setSportsForm((prev) => ({ ...prev, itemId: data[0]._id }));
+        } else {
+          setSportsItems([]);
         }
       })
-      .catch(() => {});
+      .catch(() => { setSportsItems([]); })
+      .finally(() => setLoadingSportsItems(false));
   }, []);
 
   const loadMySportsRequests = useCallback(() => {
@@ -442,8 +447,11 @@ const ResourcesSection = ({ t }) => {
                       className="w-full rounded-2xl p-3 text-xs outline-none font-semibold"
                       style={{ backgroundColor: t.pageBg, border: `1px solid ${t.border}`, color: t.textPrimary }}
                     >
-                      {sportsItems.length === 0 && (
+                      {loadingSportsItems && (
                         <option value="">Loading items...</option>
+                      )}
+                      {!loadingSportsItems && sportsItems.length === 0 && (
+                        <option value="">No equipment available</option>
                       )}
                       {sportsItems.map((item) => (
                         <option key={item._id} value={item._id}>
@@ -451,6 +459,11 @@ const ResourcesSection = ({ t }) => {
                         </option>
                       ))}
                     </select>
+                    {!loadingSportsItems && sportsItems.length === 0 && (
+                      <p className="mt-2 text-xs font-semibold" style={{ color: t.textMuted }}>
+                        No sports equipment has been added yet — check back later.
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -495,7 +508,7 @@ const ResourcesSection = ({ t }) => {
 
                   <button
                     type="submit"
-                    disabled={submittingSports || sportsItems.length === 0}
+                    disabled={submittingSports || loadingSportsItems || sportsItems.length === 0}
                     className="dashboard-btn-bounce w-full cursor-pointer rounded-full bg-black py-3.5 text-xs font-extrabold text-white disabled:opacity-50"
                     style={{ boxShadow: t.shadowSoft }}
                   >
