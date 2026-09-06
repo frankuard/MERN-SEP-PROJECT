@@ -51,9 +51,10 @@ const sendFriendRequest = async (req, res) => {
     const other = await User.findById(userId).select('username email role status');
     if (!other) return res.status(404).json({ message: 'User not found' });
 
-    // Student-to-student only, for now.
-    if (me.role !== 'student' || other.role !== 'student') {
-      return res.status(403).json({ message: 'Chat is currently available for students only' });
+    // Students and teachers can add each other — the chat/friend pool is
+    // open to both roles. Admins stay out of it.
+    if (me.role === 'admin' || other.role === 'admin') {
+      return res.status(403).json({ message: 'Chat is currently available for students and teachers only' });
     }
     if (other.status !== 'approved') {
       return res.status(400).json({ message: 'That user is not available to add' });
