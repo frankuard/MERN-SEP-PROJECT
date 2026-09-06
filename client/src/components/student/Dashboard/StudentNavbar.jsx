@@ -6,6 +6,7 @@ import ChatButton from '../../common/ChatButton';
 
 
 const PAGE_TITLES = {
+  // Student tabs
   dashboard: 'Dashboard',
   events: 'Campus Events',
   'lost-found': 'Lost & Found',
@@ -20,6 +21,9 @@ const PAGE_TITLES = {
   chat: 'Chat',
   profile: 'My Profile',
   rte: 'Routine & Timetable',
+  // Teacher tabs
+  announcements: 'Announcements',
+  requests: 'Student Requests',
 };
 
 const StudentNavbar = ({

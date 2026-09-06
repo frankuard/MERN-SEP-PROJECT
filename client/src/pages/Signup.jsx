@@ -7,10 +7,10 @@ import { DevAuthError } from '../utils/devAuth';
 import { DEPARTMENT_SEMESTERS, DEPARTMENTS, getSemesterOptions } from '../data/departmentSemesters';
 import { getLevelForSemester, getCohortGroupOptions, buildGroupCode } from '../data/levelGroups';
 
-// Teacher and staff signup is disabled for now — only student registration
-// is open. Re-add the other entries here when that's ready to launch.
+// Teacher signup is now enabled alongside student registration.
 const ROLES = [
   { value: 'student', label: 'Student' },
+  { value: 'teacher', label: 'Teacher' },
 ];
 
 const Signup = () => {
@@ -84,12 +84,14 @@ const Signup = () => {
       nextErrors.department = 'Please select your department.';
     }
 
-    if (!formData.semester) {
-      nextErrors.semester = 'Please select your semester.';
-    }
+    if (formData.role === 'student') {
+      if (!formData.semester) {
+        nextErrors.semester = 'Please select your semester.';
+      }
 
-    if (computedLevel && !formData.cohortGroup) {
-      nextErrors.cohortGroup = 'Please select your cohort group.';
+      if (computedLevel && !formData.cohortGroup) {
+        nextErrors.cohortGroup = 'Please select your cohort group.';
+      }
     }
 
     setErrors(nextErrors);
@@ -258,7 +260,14 @@ const Signup = () => {
                   id="role"
                   name="role"
                   value={formData.role}
-                  onChange={(event) => updateField('role', event.target.value)}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      role: event.target.value,
+                      semester: '',
+                      cohortGroup: '',
+                    }))
+                  }
                   className={selectClass}
                 >
                   {ROLES.map((role) => (
@@ -267,10 +276,15 @@ const Signup = () => {
                     </option>
                   ))}
                 </select>
+                {formData.role === 'teacher' && (
+                  <p className="mt-1.5 text-xs text-[#6b7280]">
+                    You will be logged in directly after creating your account.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
+                <div className={formData.role === 'teacher' ? 'sm:col-span-2' : ''}>
                   <label htmlFor="department" className="mb-2 block text-sm font-semibold text-[#374151]">
                     Department
                   </label>
@@ -296,33 +310,35 @@ const Signup = () => {
                   {errors.department && <p className="mt-1.5 text-xs text-red-500">{errors.department}</p>}
                 </div>
 
-                <div>
-                  <label htmlFor="semester" className="mb-2 block text-sm font-semibold text-[#374151]">
-                    Semester
-                  </label>
-                  <select
-                    id="semester"
-                    name="semester"
-                    value={formData.semester}
-                    onChange={(event) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        semester: event.target.value,
-                        cohortGroup: '',
-                      }))
-                    }
-                    disabled={!formData.department}
-                    className={`${inputClass} pl-4! ${errors.semester ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
-                  >
-                    <option value="">Select semester</option>
-                    {getSemesterOptions(formData.department).map((sem) => (
-                      <option key={sem} value={String(sem)}>Semester {sem}</option>
-                    ))}
-                  </select>
-                  {errors.semester && <p className="mt-1.5 text-xs text-red-500">{errors.semester}</p>}
-                </div>
+                {formData.role === 'student' && (
+                  <div>
+                    <label htmlFor="semester" className="mb-2 block text-sm font-semibold text-[#374151]">
+                      Semester
+                    </label>
+                    <select
+                      id="semester"
+                      name="semester"
+                      value={formData.semester}
+                      onChange={(event) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          semester: event.target.value,
+                          cohortGroup: '',
+                        }))
+                      }
+                      disabled={!formData.department}
+                      className={`${inputClass} pl-4! ${errors.semester ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+                    >
+                      <option value="">Select semester</option>
+                      {getSemesterOptions(formData.department).map((sem) => (
+                        <option key={sem} value={String(sem)}>Semester {sem}</option>
+                      ))}
+                    </select>
+                    {errors.semester && <p className="mt-1.5 text-xs text-red-500">{errors.semester}</p>}
+                  </div>
+                )}
 
-                {computedLevel && (
+                {formData.role === 'student' && computedLevel && (
                   <div className="sm:col-span-2">
                     <label htmlFor="cohortGroup" className="mb-2 block text-sm font-semibold text-[#374151]">
                       Cohort Group (Level {computedLevel})

@@ -13,14 +13,19 @@ const {
   createScheduleChange,
   updateScheduleChange,
   deleteScheduleChange,
+  getTeacherUpcomingClasses,
 } = require('../controllers/timetableController');
 
-const allRoles = roleMiddleware('student', 'teacher', 'staff', 'admin');
-const adminOnly = roleMiddleware('admin');
+const allRoles    = roleMiddleware('student', 'teacher', 'staff', 'admin');
+const teacherOnly = roleMiddleware('teacher');
+const adminOnly   = roleMiddleware('admin');
 
-// -------- Student --------
-router.get('/', authMiddleware, allRoles, getTimetable);
-router.get('/changes', authMiddleware, allRoles, getScheduleChanges);
+// -------- Student / all-roles --------
+router.get('/',       authMiddleware, allRoles,    getTimetable);
+router.get('/changes',authMiddleware, allRoles,    getScheduleChanges);
+
+// -------- Teacher --------
+router.get('/teacher/upcoming', authMiddleware, teacherOnly, getTeacherUpcomingClasses);
 
 // -------- Admin — Periods (registered before '/:id' patterns) --------
 router.get('/admin', authMiddleware, adminOnly, getTimetableAdmin);
