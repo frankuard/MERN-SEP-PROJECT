@@ -11,6 +11,7 @@ import StaffDashboard from './pages/StaffDashboard';
 import StudentDashboard from './pages/StudentDashBoard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AIChatWidget from './components/common/AIChatWidget';
+import usePushNotifications from './hooks/usePushNotifications';
 
 const RootRedirect = () => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -33,6 +34,7 @@ const RootRedirect = () => {
 
 
 const App = () => {
+  usePushNotifications();
   return (
     <>
       <Routes>

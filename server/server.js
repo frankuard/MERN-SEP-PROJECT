@@ -27,6 +27,7 @@ const helpRoutes = require('./routes/help.routes');
 const resourceRoutes = require('./routes/resource.routes');
 const timetableRoutes = require('./routes/timetable.routes');
 const examRoutes = require('./routes/exam.routes');
+const pushRoutes = require('./routes/push.routes');
 
 const moduleRoutes = require('./routes/modules.routes');
 const groupRoutes = require('./routes/groups.routes');
@@ -109,6 +110,7 @@ app.use('/api/volunteer-opportunities', require('./routes/volunteerOpportunity.r
 app.use('/api/admin/users', adminUsersRoutes);
 
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/push', pushRoutes);
 app.use('/api/chat', require('./routes/chat.routes'));
 app.use('/api/friends', friendRoutes);
 app.use('/api/ai', aiChatRoutes);

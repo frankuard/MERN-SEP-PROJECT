@@ -1,6 +1,16 @@
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 
+// Web Push — lazy-loaded so the server starts fine even before
+// VAPID keys are configured.
+let sendPushToUser = null;
+try {
+  // eslint-disable-next-line global-require
+  sendPushToUser = require('../controllers/pushController').sendPushToUser;
+} catch (err) {
+  // pushController not wired yet — push notifications silently disabled
+}
+
 /*
   Optional real-time push: if server/socket/socketHandler.js exports a way to get
   the io instance (e.g. `module.exports.getIO = () => io`), we'll emit a
@@ -66,6 +76,8 @@ const createNotification = async (recipientId, { type, title, message, link = ''
       meta,
     });
     emitToUser(recipientId, notification);
+    // Web push — fires after DB write; non-blocking, never throws
+    if (sendPushToUser) sendPushToUser(recipientId, { title, message, link }).catch(() => {});
     return notification;
   } catch (err) {
     console.error(`Failed to create notification (type: ${type}) for user ${recipientId}:`, err.message);
@@ -85,6 +97,12 @@ const createNotificationForUsers = async (recipientIds = [], { type, title, mess
     const docs = ids.map((recipient) => ({ recipient, type, title, message, link, meta }));
     const created = await Notification.insertMany(docs);
     created.forEach((n) => emitToUser(n.recipient, n));
+    // Web push per recipient — non-blocking
+    if (sendPushToUser) {
+      created.forEach((n) =>
+        sendPushToUser(n.recipient, { title, message, link }).catch(() => {})
+      );
+    }
     return created;
   } catch (err) {
     console.error(`Failed to bulk-create notifications (type: ${type}):`, err.message);
