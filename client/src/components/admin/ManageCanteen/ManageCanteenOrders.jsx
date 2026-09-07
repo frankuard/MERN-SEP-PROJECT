@@ -234,16 +234,7 @@ export const OrdersTab = ({ t }) => {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.pastelBlue }}>
-            <ShoppingBag size={18} style={{ color: t.textPrimary }} />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>Orders</h3>
-            <p className="text-xs" style={{ color: t.textMuted }}>All student & teacher orders</p>
-          </div>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <div className="relative">
           <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
           <input
