@@ -180,15 +180,6 @@ const LostFoundSection = ({ t }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
-          Lost &amp; Found
-        </h2>
-        <p className="mt-1.5 text-base leading-relaxed" style={{ color: t.textMuted }}>
-          Find something you've lost or help someone find theirs.
-        </p>
-      </div>
-
       <div className="rounded-[28px] p-5 sm:p-6" style={{ backgroundColor: t.cardBg, boxShadow: t.shadowCard }}>
         <div className="relative">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
