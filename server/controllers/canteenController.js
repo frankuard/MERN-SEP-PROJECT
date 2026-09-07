@@ -1,5 +1,7 @@
 const CanteenMenu = require('../models/CanteenMenu');
 const CanteenCredit = require('../models/CanteenCredit');
+const CanteenOrder = require('../models/CanteenOrder');
+const CanteenCreditRequest = require('../models/CanteenCreditRequest');
 const User = require('../models/User');
 const { createNotificationForRole, createNotification } = require('../utils/createNotification');
 
@@ -360,6 +362,383 @@ const deleteCreditRecord = async (req, res) => {
   }
 };
 
+// =========================================================================
+// 3. CANTEEN ORDER CONTROLLER
+// =========================================================================
+
+/**
+ * @desc   Place a new canteen order
+ * @route  POST /api/canteen/orders
+ * @access Private (Student / Teacher)
+ */
+const placeOrder = async (req, res) => {
+  try {
+    const { items, tableNumber, paymentMethod } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Order must contain at least one item' });
+    }
+    if (!tableNumber || tableNumber < 1 || tableNumber > 9) {
+      return res.status(400).json({ message: 'Table number (1-9) is required' });
+    }
+    if (!paymentMethod || !['Credit Due', 'Pay at Counter'].includes(paymentMethod)) {
+      return res.status(400).json({ message: 'Valid payment method is required' });
+    }
+
+    // Validate all food items exist and are available
+    const menuItems = await CanteenMenu.find({
+      _id: { $in: items.map((i) => i.foodItem) },
+    });
+
+    if (menuItems.length !== items.length) {
+      return res.status(400).json({ message: 'One or more food items are no longer available' });
+    }
+
+    const unavailableItem = menuItems.find((m) => m.availability === false);
+    if (unavailableItem) {
+      return res.status(400).json({ message: `"${unavailableItem.name}" is currently unavailable` });
+    }
+
+    const menuItemMap = {};
+    menuItems.forEach((m) => { menuItemMap[m._id.toString()] = m; });
+
+    let totalAmount = 0;
+    const orderItems = items.map((item) => {
+      const menuItem = menuItemMap[item.foodItem];
+      const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+      totalAmount += menuItem.price * qty;
+      return {
+        foodItem: menuItem._id,
+        name: menuItem.name,
+        price: menuItem.price,
+        quantity: qty,
+      };
+    });
+
+    const creditRequestStatus = paymentMethod === 'Credit Due' ? 'Pending' : 'None';
+
+    const order = await CanteenOrder.create({
+      user: req.user._id,
+      userRole: req.user.role,
+      userName: req.user.username || '',
+      items: orderItems,
+      totalAmount,
+      tableNumber: Number(tableNumber),
+      paymentMethod,
+      paymentStatus: 'Pending',
+      orderStatus: 'Pending',
+      creditRequestStatus,
+    });
+
+    // If Credit Due, also create a credit request record
+    if (paymentMethod === 'Credit Due') {
+      await CanteenCreditRequest.create({
+        user: req.user._id,
+        userRole: req.user.role,
+        userName: req.user.username || '',
+        order: order._id,
+        amount: totalAmount,
+        status: 'Pending',
+      });
+
+      // Notify all admins
+      createNotificationForRole('admin', {
+        type: 'canteen_credit',
+        title: 'New Credit Due Request',
+        message: `${req.user.username} (${req.user.role}) requested NPR ${totalAmount} credit due for order #${order._id.toString().slice(-6).toUpperCase()}`,
+        link: 'manage-canteen',
+      });
+    }
+
+    // Notify user
+    createNotification(req.user._id, {
+      type: 'canteen_order',
+      title: 'Order Placed Successfully',
+      message: `Your order #${order._id.toString().slice(-6).toUpperCase()} has been placed. Total: NPR ${totalAmount}. Table: ${tableNumber}`,
+      link: 'canteen',
+    });
+
+    res.status(201).json({ message: 'Order placed successfully', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to place order', error: error.message });
+  }
+};
+
+/**
+ * @desc   Get current user's orders
+ * @route  GET /api/canteen/orders/my
+ * @access Private (Student / Teacher)
+ */
+const getMyOrders = async (req, res) => {
+  try {
+    const orders = await CanteenOrder.find({ user: req.user._id })
+      .sort({ createdAt: -1 });
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch orders', error: error.message });
+  }
+};
+
+/**
+ * @desc   Get all orders (admin only)
+ * @route  GET /api/canteen/orders
+ * @access Private (Admin / Staff)
+ */
+const getAllOrders = async (req, res) => {
+  try {
+    const { status, paymentMethod, role, search } = req.query;
+    const filter = {};
+
+    if (status) filter.orderStatus = status;
+    if (paymentMethod) filter.paymentMethod = paymentMethod;
+    if (role) filter.userRole = role;
+    if (search) {
+      filter.$or = [
+        { userName: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const orders = await CanteenOrder.find(filter)
+      .populate('user', 'username email role')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch orders', error: error.message });
+  }
+};
+
+/**
+ * @desc   Get single order by ID
+ * @route  GET /api/canteen/orders/:id
+ * @access Private (Owner or Admin)
+ */
+const getOrderById = async (req, res) => {
+  try {
+    const order = await CanteenOrder.findById(req.params.id)
+      .populate('user', 'username email role');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Only owner or admin can view
+    if (order.user._id.toString() !== req.user._id.toString() &&
+        !['admin', 'staff'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Not authorized to view this order' });
+    }
+
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch order', error: error.message });
+  }
+};
+
+/**
+ * @desc   Update order status (admin only)
+ * @route  PUT /api/canteen/orders/:id/status
+ * @access Private (Admin / Staff)
+ */
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { orderStatus, paymentStatus } = req.body;
+    const order = await CanteenOrder.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (orderStatus) {
+      const validStatuses = ['Pending', 'Preparing', 'Ready', 'Completed', 'Cancelled'];
+      if (!validStatuses.includes(orderStatus)) {
+        return res.status(400).json({ message: 'Invalid order status' });
+      }
+      order.orderStatus = orderStatus;
+    }
+
+    if (paymentStatus) {
+      const validPaymentStatuses = ['Pending', 'Approved', 'Rejected', 'Paid'];
+      if (!validPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({ message: 'Invalid payment status' });
+      }
+      order.paymentStatus = paymentStatus;
+    }
+
+    await order.save();
+
+    // Notify user of status change
+    createNotification(order.user, {
+      type: 'canteen_order',
+      title: 'Order Updated',
+      message: `Order #${order._id.toString().slice(-6).toUpperCase()} status: ${order.orderStatus}${order.paymentStatus !== 'Pending' ? `, Payment: ${order.paymentStatus}` : ''}`,
+      link: 'canteen',
+    });
+
+    res.status(200).json({ message: 'Order status updated', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update order status', error: error.message });
+  }
+};
+
+/**
+ * @desc   Confirm Pay at Counter payment (admin only)
+ * @route  POST /api/canteen/orders/:id/confirm-payment
+ * @access Private (Admin / Staff)
+ */
+const confirmCounterPayment = async (req, res) => {
+  try {
+    const order = await CanteenOrder.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.paymentMethod !== 'Pay at Counter') {
+      return res.status(400).json({ message: 'This order is not a Pay at Counter order' });
+    }
+
+    order.paymentStatus = 'Paid';
+    await order.save();
+
+    createNotification(order.user, {
+      type: 'canteen_credit',
+      title: 'Payment Confirmed',
+      message: `Payment for order #${order._id.toString().slice(-6).toUpperCase()} (NPR ${order.totalAmount}) has been confirmed at counter.`,
+      link: 'canteen',
+    });
+
+    res.status(200).json({ message: 'Payment confirmed', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to confirm payment', error: error.message });
+  }
+};
+
+// =========================================================================
+// 4. CANTEEN CREDIT REQUEST CONTROLLER
+// =========================================================================
+
+/**
+ * @desc   Get all credit requests (admin only)
+ * @route  GET /api/canteen/credit-requests
+ * @access Private (Admin / Staff)
+ */
+const getAllCreditRequests = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+
+    const requests = await CanteenCreditRequest.find(filter)
+      .populate('user', 'username email role')
+      .populate('order')
+      .populate('reviewedBy', 'username')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(requests);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch credit requests', error: error.message });
+  }
+};
+
+/**
+ * @desc   Get current user's credit requests
+ * @route  GET /api/canteen/credit-requests/my
+ * @access Private (Student / Teacher)
+ */
+const getMyCreditRequests = async (req, res) => {
+  try {
+    const requests = await CanteenCreditRequest.find({ user: req.user._id })
+      .populate('order')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(requests);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch credit requests', error: error.message });
+  }
+};
+
+/**
+ * @desc   Approve or reject a credit request (admin only)
+ * @route  PUT /api/canteen/credit-requests/:id
+ * @access Private (Admin / Staff)
+ */
+const reviewCreditRequest = async (req, res) => {
+  try {
+    const { status, adminNote } = req.body;
+
+    if (!status || !['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be Approved or Rejected' });
+    }
+
+    const creditRequest = await CanteenCreditRequest.findById(req.params.id)
+      .populate('order');
+
+    if (!creditRequest) {
+      return res.status(404).json({ message: 'Credit request not found' });
+    }
+
+    if (creditRequest.status !== 'Pending') {
+      return res.status(400).json({ message: 'This request has already been reviewed' });
+    }
+
+    creditRequest.status = status;
+    creditRequest.adminNote = adminNote || '';
+    creditRequest.reviewedBy = req.user._id;
+    creditRequest.reviewedAt = new Date();
+    await creditRequest.save();
+
+    // Update the order's credit request status
+    const order = await CanteenOrder.findById(creditRequest.order._id);
+    if (order) {
+      order.creditRequestStatus = status;
+      if (status === 'Approved') {
+        order.paymentStatus = 'Approved';
+      } else {
+        order.paymentStatus = 'Rejected';
+        order.orderStatus = 'Cancelled';
+      }
+      await order.save();
+    }
+
+    // If approved, add to user's CanteenCredit due balance
+    if (status === 'Approved') {
+      let credit = await CanteenCredit.findOne({ user: creditRequest.user });
+      const dueEntry = {
+        amount: creditRequest.amount,
+        date: new Date(),
+        note: `Credit due approved for order #${creditRequest.order._id.toString().slice(-6).toUpperCase()}`,
+        addedBy: req.user._id,
+      };
+
+      if (credit) {
+        credit.amountDue += creditRequest.amount;
+        credit.dueHistory.push(dueEntry);
+        await credit.save();
+      } else {
+        credit = await CanteenCredit.create({
+          user: creditRequest.user,
+          studentName: creditRequest.userName,
+          amountDue: creditRequest.amount,
+          amountPaid: 0,
+          dueHistory: [dueEntry],
+        });
+      }
+    }
+
+    // Notify user
+    createNotification(creditRequest.user, {
+      type: 'canteen_credit',
+      title: `Credit Request ${status}`,
+      message: `Your credit due request of NPR ${creditRequest.amount} has been ${status.toLowerCase()}${adminNote ? `. Note: ${adminNote}` : ''}`,
+      link: 'canteen',
+    });
+
+    res.status(200).json({ message: `Credit request ${status.toLowerCase()}`, creditRequest });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to review credit request', error: error.message });
+  }
+};
+
 module.exports = {
   // Menu
   getMenu,
@@ -374,4 +753,15 @@ module.exports = {
   createOrUpdateCredit,
   recordCreditPayment,
   deleteCreditRecord,
+  // Orders
+  placeOrder,
+  getMyOrders,
+  getAllOrders,
+  getOrderById,
+  updateOrderStatus,
+  confirmCounterPayment,
+  // Credit Requests
+  getAllCreditRequests,
+  getMyCreditRequests,
+  reviewCreditRequest,
 };

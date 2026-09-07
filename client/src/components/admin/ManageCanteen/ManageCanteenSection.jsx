@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { UtensilsCrossed, Wallet, Plus, Pencil, Trash2, X } from 'lucide-react';
+import { UtensilsCrossed, Wallet, Plus, Pencil, Trash2, X, ShoppingBag, BadgeCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import canteenApi from '../../../api/canteenApi';
 import ImageUploadField from '../../common/ImageUploadField';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
 
 import CreditDetailsModal from './CreditDetailsModal';
+import { OrdersTab, CreditRequestsTab } from './ManageCanteenOrders';
 
 const CATEGORIES = ['Meals', 'Snacks', 'Momo & Noodles', 'Beverages'];
 const FIELD_LABEL = 'mb-2 block text-xs font-bold uppercase tracking-wide sm:text-sm';
@@ -354,8 +355,13 @@ const ManageCanteenSection = ({ t }) => {
         <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Manage Canteen</h2>
       </div>
 
-      <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
-        {[{ id: 'menu', label: 'Menu', icon: UtensilsCrossed }, { id: 'credit', label: 'Credit Due', icon: Wallet }].map(({ id, label, icon: Icon }) => (
+      <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
+        {[
+          { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
+          { id: 'orders', label: 'Orders', icon: ShoppingBag },
+          { id: 'credit-requests', label: 'Credit Requests', icon: BadgeCheck },
+          { id: 'credit', label: 'Credit Due', icon: Wallet },
+        ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -368,7 +374,10 @@ className="flex cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-
         ))}
       </div>
 
-      {tab === 'menu' ? <MenuTab t={t} /> : <CreditTab t={t} />}
+      {tab === 'menu' && <MenuTab t={t} />}
+      {tab === 'orders' && <OrdersTab t={t} />}
+      {tab === 'credit-requests' && <CreditRequestsTab t={t} />}
+      {tab === 'credit' && <CreditTab t={t} />}
     </div>
   );
 };
