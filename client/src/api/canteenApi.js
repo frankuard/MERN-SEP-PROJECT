@@ -85,6 +85,12 @@ const canteenApi = {
     const res = await axiosInstance.put(`/canteen/credit-requests/${id}`, payload);
     return res.data;
   },
+
+  // Analytics
+  getSalesAnalytics: async (params = {}) => {
+    const res = await axiosInstance.get('/canteen/analytics/sales', { params });
+    return res.data;
+  },
 };
 
 export default canteenApi;

@@ -23,6 +23,7 @@ const {
   getAllCreditRequests,
   getMyCreditRequests,
   reviewCreditRequest,
+  getSalesAnalytics,
 } = require('../controllers/canteenController');
 
 const allRoles = roleMiddleware('student', 'teacher', 'staff', 'admin');
@@ -35,6 +36,9 @@ router.get('/menu/:id', authMiddleware, allRoles, getMenuItemById);
 router.post('/menu', authMiddleware, staffAndAdmin, createMenuItem);
 router.put('/menu/:id', authMiddleware, staffAndAdmin, updateMenuItem);
 router.delete('/menu/:id', authMiddleware, staffAndAdmin, deleteMenuItem);
+
+// Analytics
+router.get('/analytics/sales', authMiddleware, staffAndAdmin, getSalesAnalytics);
 
 // Credit
 router.get('/credit/my-balance', authMiddleware, allRoles, getMyCredit);

@@ -177,18 +177,62 @@ const getAllCredits = async (req, res) => {
   try {
     const { status, search } = req.query;
 
-    const filter = {};
+    let filter = {};
     if (status) {
       filter.paymentStatus = status;
     }
-    if (search) {
-      filter.studentName = { $regex: search, $options: 'i' };
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      const isNumeric = !isNaN(Number(q)) && q !== '';
+
+      const orConditions = [
+        { studentName: { $regex: q, $options: 'i' } },
+      ];
+
+      if (isNumeric) {
+        orConditions.push({ amountDue: Number(q) });
+        orConditions.push({ amountPaid: Number(q) });
+        orConditions.push({ remainingBalance: Number(q) });
+      }
+
+      if (q.match(/^[0-9a-fA-F]{24}$/)) {
+        orConditions.push({ user: q });
+        orConditions.push({ _id: q });
+      }
+
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: orConditions }];
+        delete filter.$or;
+      } else {
+        filter.$or = orConditions;
+      }
     }
 
-    const records = await CanteenCredit.find(filter)
+    let query = CanteenCredit.find(filter)
       .populate('user', 'username email role')
       .populate('paymentHistory.receivedBy', 'username')
       .sort({ updatedAt: -1 });
+
+    const records = await query;
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      const filtered = records.filter((r) => {
+        const nameMatch = (r.studentName || '').toLowerCase().includes(q);
+        const emailMatch = (r.user?.email || '').toLowerCase().includes(q);
+        const usernameMatch = (r.user?.username || '').toLowerCase().includes(q);
+        const idMatch = r._id.toString().includes(q);
+        const userIdMatch = r.user?._id?.toString().includes(q);
+        const amountMatch = !isNaN(Number(q)) && (
+          r.amountDue === Number(q) ||
+          r.amountPaid === Number(q) ||
+          r.remainingBalance === Number(q)
+        );
+        return nameMatch || emailMatch || usernameMatch || idMatch || userIdMatch || amountMatch;
+      });
+      return res.status(200).json(filtered);
+    }
 
     res.status(200).json(records);
   } catch (error) {
@@ -739,6 +783,120 @@ const reviewCreditRequest = async (req, res) => {
   }
 };
 
+// =========================================================================
+// 5. SALES & ANALYTICS CONTROLLER
+// =========================================================================
+
+/**
+ * @desc   Get canteen sales analytics (today's sales, last month revenue, top items, daily graph)
+ * @route  GET /api/canteen/analytics/sales
+ * @access Private (Admin / Staff)
+ */
+const getSalesAnalytics = async (req, res) => {
+  try {
+    const { year, month } = req.query;
+
+    const now = new Date();
+
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const targetMonth = month ? parseInt(month, 10) : now.getMonth();
+    const targetYear = year ? parseInt(year, 10) : now.getFullYear();
+    const monthStart = new Date(targetYear, targetMonth, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
+    const lastMonthDate = new Date(targetYear, targetMonth - 1, 1);
+    const lastMonthStart = new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth(), 1, 0, 0, 0, 0);
+    const lastMonthEnd = new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const paidOrCompletedMatch = {
+      createdAt: { $gte: monthStart, $lte: monthEnd },
+      orderStatus: { $ne: 'Cancelled' },
+      paymentStatus: { $in: ['Paid', 'Approved'] },
+    };
+
+    const lastMonthPaidOrCompletedMatch = {
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+      orderStatus: { $ne: 'Cancelled' },
+      paymentStatus: { $in: ['Paid', 'Approved'] },
+    };
+
+    const todayMatch = {
+      createdAt: { $gte: todayStart, $lte: todayEnd },
+      orderStatus: { $ne: 'Cancelled' },
+      paymentStatus: { $in: ['Paid', 'Approved', 'Pending'] },
+    };
+
+    const [todaySalesResult, lastMonthRevenueResult, topItemsResult, dailyGraphResult, totalOrdersResult, pendingOrdersResult] = await Promise.all([
+      CanteenOrder.aggregate([
+        { $match: todayMatch },
+        { $group: { _id: null, totalSales: { $sum: '$totalAmount' }, orderCount: { $sum: 1 } } },
+      ]),
+      CanteenOrder.aggregate([
+        { $match: lastMonthPaidOrCompletedMatch },
+        { $group: { _id: null, totalRevenue: { $sum: '$totalAmount' }, orderCount: { $sum: 1 } } },
+      ]),
+      CanteenOrder.aggregate([
+        { $match: paidOrCompletedMatch },
+        { $unwind: '$items' },
+        { $group: { _id: '$items.name', totalQuantity: { $sum: '$items.quantity' }, totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
+        { $sort: { totalQuantity: -1 } },
+        { $limit: 10 },
+      ]),
+      CanteenOrder.aggregate([
+        { $match: paidOrCompletedMatch },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            daySales: { $sum: '$totalAmount' },
+            orderCount: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+      CanteenOrder.countDocuments({ createdAt: { $gte: monthStart, $lte: monthEnd }, orderStatus: { $ne: 'Cancelled' } }),
+      CanteenOrder.countDocuments({ createdAt: { $gte: monthStart, $lte: monthEnd }, paymentStatus: 'Pending', orderStatus: { $ne: 'Cancelled' } }),
+    ]);
+
+    const totalDaysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const graphData = [];
+    for (let d = 1; d <= totalDaysInMonth; d++) {
+      const dateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const found = dailyGraphResult.find((g) => g._id === dateStr);
+      graphData.push({
+        date: dateStr,
+        day: d,
+        sales: found ? found.daySales : 0,
+        orders: found ? found.orderCount : 0,
+      });
+    }
+
+    res.status(200).json({
+      todaySales: todaySalesResult.length > 0 ? todaySalesResult[0].totalSales : 0,
+      todayOrderCount: todaySalesResult.length > 0 ? todaySalesResult[0].orderCount : 0,
+      lastMonthRevenue: lastMonthRevenueResult.length > 0 ? lastMonthRevenueResult[0].totalRevenue : 0,
+      lastMonthOrderCount: lastMonthRevenueResult.length > 0 ? lastMonthRevenueResult[0].orderCount : 0,
+      selectedMonthRevenue: paidOrCompletedMatch ? (await CanteenOrder.aggregate([
+        { $match: paidOrCompletedMatch },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+      ]))[0]?.total || 0 : 0,
+      topItems: topItemsResult,
+      graphData,
+      totalOrders: totalOrdersResult,
+      pendingOrders: pendingOrdersResult,
+      filters: {
+        selectedMonth: targetMonth,
+        selectedYear: targetYear,
+        lastMonth: lastMonthDate.getMonth(),
+        lastMonthYear: lastMonthDate.getFullYear(),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch sales analytics', error: error.message });
+  }
+};
+
 module.exports = {
   // Menu
   getMenu,
@@ -764,4 +922,6 @@ module.exports = {
   getAllCreditRequests,
   getMyCreditRequests,
   reviewCreditRequest,
+  // Analytics
+  getSalesAnalytics,
 };
