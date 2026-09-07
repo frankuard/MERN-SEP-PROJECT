@@ -196,9 +196,6 @@ const Signup = () => {
               <h1 className="text-3xl font-bold tracking-tight text-[#1a2b4c] sm:text-4xl">
                 Join your campus community
               </h1>
-              <p className="mt-2 text-sm text-[#6b7280] sm:text-base">
-                Create an account to access campus services, connect with peers, and stay updated.
-              </p>
             </div>
 
             <div className="mb-6">
