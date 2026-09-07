@@ -257,10 +257,13 @@ const buildContext = async (user) => {
 // ─────────────────────────────────────────────────────────
 const chat = async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, attachment } = req.body;
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'Message is required.' });
     }
+    const safeAttachment = attachment && typeof attachment === 'object' && typeof attachment.url === 'string' && attachment.url.trim()
+      ? { url: attachment.url.trim(), name: typeof attachment.name === 'string' ? attachment.name.trim() : '' }
+      : null;
 
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey || apiKey.includes('your_')) {
@@ -271,7 +274,10 @@ const chat = async (req, res) => {
     //    {reply, card} when an action is active or a new one is detected,
     //    null when this message is a normal campus Q&A.
     try {
-      const actionResult = await actionService.handleTurn(req.user, message);
+      const safeHistoryForAction = Array.isArray(req.body.history)
+        ? req.body.history.slice(-6).filter(h => h && ['user','assistant'].includes(h.role) && typeof h.parts === 'string' && h.parts.trim()).map(h => ({ role: h.role, content: h.parts }))
+        : [];
+      const actionResult = await actionService.handleTurn(req.user, message, safeHistoryForAction, safeAttachment);
       if (actionResult) return res.json(actionResult);
     } catch (err) {
       if (err?.status === 503) {

@@ -6,9 +6,11 @@ import axiosInstance from './axiosInstance';
  * (confirmations with rows, or claim match choices).
  * @param {string} message
  * @param {Array<{role: string, parts: string}>} history
+ * @param {{url: string, name?: string}|null} attachment — image already
+ *   uploaded via uploadApi.uploadDocument; only the URL/name is sent.
  */
-const sendAIMessage = async (message, history = []) => {
-  const response = await axiosInstance.post('/ai/chat', { message, history });
+const sendAIMessage = async (message, history = [], attachment = null) => {
+  const response = await axiosInstance.post('/ai/chat', { message, history, attachment });
   return response.data;
 };
 

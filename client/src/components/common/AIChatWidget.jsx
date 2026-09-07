@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, X, Mic, Square } from 'lucide-react';
+import { Send, X, Mic, Square, Paperclip } from 'lucide-react';
 import aiChatApi from '../../api/aiChatApi';
+import uploadApi from '../../api/uploadApi';
 import { useAIChat } from '../../context/AIChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -258,7 +259,12 @@ const Bubble = ({ msg, t, showAvatar, onSuggestionClick, onChoice, onConfirm, on
             )}
           </>
         ) : (
-          msg.content
+          <>
+            {msg.content}
+            {msg.attachmentName && (
+              <div style={{ marginTop: '4px', fontSize: '11px', opacity: 0.8 }}>📎 {msg.attachmentName}</div>
+            )}
+          </>
         )}
         {msg.suggestions && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
@@ -319,6 +325,7 @@ const AIChatWidget = () => {
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
+  const fileInputRef = useRef(null);
 
   // Auto-popup speech bubble beside the launcher: appears once shortly
   // after page load, stays for 3 seconds, then fades out over 400ms.
@@ -386,12 +393,12 @@ const AIChatWidget = () => {
   const handleCancel = useCallback(() => runAction(() => aiChatApi.cancelAction()), [runAction]);
   const handleChoice = useCallback((index) => runAction(() => aiChatApi.chooseMatch(index)), [runAction]);
 
-  const send = useCallback(async (overrideText) => {
-    const text = (overrideText ?? input).trim();
+  const send = useCallback(async (overrideText, attachment) => {
+    const text = (overrideText ?? input).trim() || (attachment ? '📷 Image attached' : '');
     if (!text || loading || busy) return;
     setInput('');
 
-    if (isHelpIntent(text)) {
+    if (!attachment && isHelpIntent(text)) {
       setMessages(prev => [
         ...prev,
         { id: `u${Date.now()}`, role: 'user', content: text },
@@ -407,12 +414,12 @@ const AIChatWidget = () => {
 
     setMessages(prev => [
       ...prev,
-      { id: `u${Date.now()}`, role: 'user', content: text },
+      { id: `u${Date.now()}`, role: 'user', content: text, attachmentName: attachment?.name || null },
       { id: 'loading', role: 'loading', content: '' },
     ]);
     setLoading(true);
     try {
-      const data = await aiChatApi.sendAIMessage(text, buildHistory(messages));
+      const data = await aiChatApi.sendAIMessage(text, buildHistory(messages), attachment || null);
       setMessages(prev => [
         ...prev.filter(m => m.id !== 'loading'),
         { id: `a${Date.now()}`, role: 'assistant', content: data.reply || '', card: data.card || null },
@@ -509,6 +516,28 @@ const AIChatWidget = () => {
       try { recorder.stop(); } catch { setRecording(false); }
     }
   }, []);
+
+  const handleAttachClick = useCallback(() => {
+    if (loading || busy) return;
+    fileInputRef.current?.click();
+  }, [loading, busy]);
+
+  const handleFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setBusy(true);
+    try {
+      const { url, name } = await uploadApi.uploadDocument(file);
+      await send(input, { url, name: name || file.name });
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Image upload failed. Please try again.';
+      setMessages(prev => [...prev, { id: `e${Date.now()}`, role: 'assistant', content: `⚠️ ${msg}` }]);
+    } finally {
+      setBusy(false);
+    }
+  }, [input, send]);
 
   const onKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -705,6 +734,23 @@ const AIChatWidget = () => {
             padding: '9px 10px 10px', borderTop: `1px solid ${t.border}`,
             background: t.cardBg, flexShrink: 0,
           }}>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+            <button
+              type="button"
+              onClick={handleAttachClick}
+              disabled={loading || busy}
+              aria-label="Attach image"
+              title="Attach image"
+              style={{
+                flexShrink: 0, width: '34px', height: '34px', borderRadius: '50%',
+                border: 'none', cursor: loading || busy ? 'default' : 'pointer',
+                background: t.border, color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: loading || busy ? 0.5 : 1,
+              }}
+            >
+              <Paperclip size={15} />
+            </button>
             <button
               type="button"
               onClick={recording ? stopRecording : startRecording}

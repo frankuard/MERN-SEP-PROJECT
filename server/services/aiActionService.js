@@ -42,16 +42,17 @@ const ACTIONS = {
   lost_found_report: {
     label: 'Lost & Found Report',
     cardTitle: 'Lost & Found Report',
-    fields: ['type', 'item', 'location', 'color', 'brand', 'when', 'details'],
-    required: ['type', 'item', 'location'],
+    fields: ['type', 'item', 'description', 'location', 'category', 'contactInfo'],
+    required: ['type', 'item', 'description', 'location', 'category'],
     questions: {
       type: "Did you lose this item or did you find it?",
       item: (d) => (d.type === 'found' ? 'What item did you find?' : 'What item did you lose?'),
+      description: "Could you describe it a bit — color, brand, or any identifying details?",
       location: (d) => (d.type === 'found' ? 'Where did you find it?' : 'Where did you last see it?'),
+      category: "What category does this fall under — Bags, Electronics, Keys, Books, or General?",
     },
-    optionalQuestion:
-      "Got it. Could you describe it a little more — color, brand, or approximately when this happened? (You can say skip.)",
-    optionalSatisfied: (d) => Boolean(d.color || d.brand || d.when || d.details),
+    optionalQuestion: "Would you like to add contact info for this report? (You can say skip.)",
+    optionalSatisfied: (d) => Boolean(d.contactInfo),
   },
   cctv_request: {
     label: 'CCTV Footage Request',
@@ -146,7 +147,7 @@ const ACTIONS = {
 };
 
 const ALLOWED_UPDATES = {
-  lost_found_report: ['type', 'item', 'location', 'color', 'brand', 'when', 'details'],
+  lost_found_report: ['type', 'item', 'description', 'location', 'category', 'contactInfo'],
   cctv_request: ['location', 'date', 'timeFrom', 'timeTo', 'reason', 'additionalDetails'],
   attendance_report: ['reason'],
   campus_help: ['problem', 'location', 'category', 'priority', 'details'],
@@ -173,11 +174,9 @@ const mapCategory = (item) => {
 
 const composeReport = (draft) => {
   const item = clean(draft.item) || 'item';
-  const title = [draft.color, draft.brand, item].filter(Boolean).join(' ') || item;
-  const parts = [title + '.'];
-  if (draft.when) parts.push(`Last seen/found: ${draft.when}.`);
-  if (draft.details) parts.push(draft.details);
-  return { title, description: parts.join(' '), category: mapCategory(item) };
+  const description = draft.description || '';
+  const category = draft.category || mapCategory(item);
+  return { title: item, description, category };
 };
 
 const claimKeywords = (message) => {
@@ -200,8 +199,9 @@ const SKIP_RE = /^(skip|skip it|don'?t\s*know|dont\s*know|not\s*sure|no\s*idea|i
 
 const baseDateHint = `TODAY (Nepal time, YYYY-MM-DD): ${todayNP()}`;
 
-const mergePrompt = ({ action, message }) => {
+const mergePrompt = ({ action, message, draft }) => {
   const def = ACTIONS[action];
+  const pendingField = def.required.find((f) => !clean(draft[f]));
   return `You are the action-understanding engine of Chauttari, a campus assistant for a college in Nepal.
 ${baseDateHint}
 
@@ -209,12 +209,14 @@ The student is completing a ${def.label}. Latest message:
 "${message}"
 
 Available fields: ${def.fields.join(', ')}.
+${pendingField ? `The field currently being asked for is "${pendingField}". If the message is a short or bare reply that doesn't clearly belong to a different field, treat it as the value for "${pendingField}".` : ''}
 
 Rules for parsing (STRICT):
 - "updates" must contain ONLY fields the message actually provides or corrects. Never invent values.
 - If the message changes or overrides a previously collected field, include the corrected value.
 - Normalize date fields to YYYY-MM-DD using TODAY (resolve today, yesterday, last Monday, "on the 3rd").
 - Normalize time fields to 12-hour form like "2:00 PM".
+- If a "type" field exists, normalize it to exactly "lost" or "found" (e.g. "find it", "i found it" → "found"; "lost it", "i lost it" → "lost"). Never output anything else for "type".
 - Keep other values in the student's own words with natural casing.
 - "control" is "cancel" if the student is cancelling/stopping, "restart" if starting over, otherwise "none".
 
@@ -272,16 +274,35 @@ const guessIntentFallback = (message) => {
   return null;
 };
 
+const CATEGORY_OPTIONS = ['Bags', 'Electronics', 'Keys', 'Books', 'General'];
+const normalizeCategory = (value) => {
+  const v = String(value || '').trim().toLowerCase();
+  return CATEGORY_OPTIONS.find((c) => c.toLowerCase() === v || v.includes(c.toLowerCase())) || null;
+};
+
+const normalizeType = (value) => {
+  const v = String(value || '').trim().toLowerCase();
+  if (/\b(found|finding|find)\b/.test(v)) return 'found';
+  if (/\b(lost|losing|lose)\b/.test(v)) return 'lost';
+  return null;
+};
+
 const sanitizeUpdates = (action, updates) => {
   const allowed = new Set(ALLOWED_UPDATES[action] || []);
   const out = {};
   for (const [key, value] of Object.entries(updates || {})) {
     if (!allowed.has(key)) continue;
-    let v = clean(value, key === 'details' || key === 'reason' ? 1000 : 200);
+    let v = clean(value, key === 'details' || key === 'reason' || key === 'description' ? 1000 : 200);
     if (!v) continue;
     if (key === 'type') {
-      if (!['lost', 'found'].includes(v.toLowerCase())) continue;
-      v = v.toLowerCase();
+      const normalized = normalizeType(v);
+      if (!normalized) continue;
+      v = normalized;
+    }
+    if (key === 'category') {
+      const normalized = normalizeCategory(v);
+      if (!normalized) continue;
+      v = normalized;
     }
     out[key] = v;
   }
@@ -1020,12 +1041,11 @@ const buildConfirmCard = (action, draft, user) => {
         rows: [
           { label: 'Type', value: draft.type === 'found' ? 'Found Item' : 'Lost Item' },
           { label: 'Item', value: title },
-          { label: 'Category', value: category },
-          { label: 'Color', value: draft.color || '—' },
-          { label: 'Brand', value: draft.brand || '—' },
+          { label: 'Description', value: description || '—' },
           { label: 'Location', value: draft.location },
-          { label: 'When', value: draft.when || '—' },
-          { label: 'Description', value: description },
+          { label: 'Category', value: category },
+          { label: 'Contact Info', value: draft.contactInfo || user.email || '—' },
+          { label: 'Photo', value: draft.image ? 'Attached ✓' : '—' },
         ],
       };
     }
@@ -1081,7 +1101,7 @@ const handleCollectTurn = async (user, message, session) => {
 
   let parsed;
   try {
-    parsed = await groqJson([{ role: 'user', content: mergePrompt({ action, message }) }], { maxTokens: 250 });
+    parsed = await groqJson([{ role: 'user', content: mergePrompt({ action, message, draft: session.draft }) }], { maxTokens: 250 });
   } catch (err) {
     if (err?.status === 503 || err?.status === 401) throw err;
     parsed = {};
@@ -1102,8 +1122,7 @@ const evaluateCollectDraft = async (user, session, lastMessage = '') => {
   const action = session.action;
   const def = ACTIONS[action];
 
-  const missing = def.required.filter((f) => !clean(session.draft[f]) && f !== 'type');
-  if (action === 'lost_found_report' && !session.draft.type) missing.push('type');
+  const missing = def.required.filter((f) => !clean(session.draft[f]));
 
   // Allow "skip" twice on a required field before auto-filling "Unknown"
   if (missing.length && SKIP_RE.test(lastMessage)) {
@@ -1132,6 +1151,13 @@ const evaluateCollectDraft = async (user, session, lastMessage = '') => {
     return { reply: def.optionalQuestion, card: null };
   }
 
+  // Photo prompt — lost_found_report only, skippable, satisfied by an attached image
+  if (action === 'lost_found_report' && !session.photoAsked && !session.draft.image) {
+    session.photoAsked = true;
+    setSession(user._id, session);
+    return { reply: 'Would you like to attach a photo? Tap the 📎 icon to upload one, or say skip.', card: null };
+  }
+
   const card = buildConfirmCard(action, session.draft, user);
   card.confirm = true;
   session.step = 'confirm';
@@ -1142,7 +1168,7 @@ const evaluateCollectDraft = async (user, session, lastMessage = '') => {
 // ─────────────────────────────────────────────────────────────
 //  Orchestrator
 // ─────────────────────────────────────────────────────────────
-const handleTurn = async (user, message, history = []) => {
+const handleTurn = async (user, message, history = [], attachment = null) => {
   const trimmed = clean(message, 2000);
   if (!trimmed) return null;
 
@@ -1169,6 +1195,7 @@ const handleTurn = async (user, message, history = []) => {
         ? 'search'
         : 'collect';
       session.optionalAsked = false;
+      session.photoAsked = false;
       session.matches = null;
       session.itemId = null;
       session.eventId = null;
@@ -1213,6 +1240,7 @@ const handleTurn = async (user, message, history = []) => {
       draft: {},
       step: (intent === 'lost_found_claim' || intent === 'volunteer_application' || intent === 'event_registration' || intent === 'book_borrow' || intent === 'sports_request') ? 'search' : 'collect',
       optionalAsked: false,
+      photoAsked: false,
       matches: null,
       itemId: null,
       eventId: null,
@@ -1226,6 +1254,11 @@ const handleTurn = async (user, message, history = []) => {
       volunteerCount: 1,
       createdAt: Date.now(),
     };
+    setSession(user._id, session);
+  }
+
+  if (attachment && attachment.url && session.action === 'lost_found_report') {
+    session.draft = { ...session.draft, image: attachment.url };
     setSession(user._id, session);
   }
 
@@ -1369,7 +1402,7 @@ const confirmAction = async (user) => {
             category,
             location: session.draft.location,
             image: session.draft.image || null,
-            contactInfo: user.email || '',
+            contactInfo: session.draft.contactInfo || user.email || '',
           }
         );
         if (result.statusCode >= 400) throw new Error(result.body?.message || 'The report was rejected.');
