@@ -101,7 +101,7 @@ const CanteenSection = ({ t }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header row with search + credit card */}
+      {/* Search + Credit due card (same place & size as before, right side) */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
@@ -127,8 +127,8 @@ const CanteenSection = ({ t }) => {
         <CreditDueCard t={t} amountDue={credit.amountDue} onViewHistory={() => setShowCreditHistory(true)} />
       </div>
 
-      {/* Menu / My Orders switcher + cart below the credit due card */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Menu / My Orders switcher + cart directly below the credit due card, right-aligned */}
+      <div className="flex items-center justify-end gap-2 mr-12">
         <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border, backgroundColor: t.cardBg }}>
           <button
             type="button"
