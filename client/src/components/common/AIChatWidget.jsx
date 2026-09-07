@@ -351,6 +351,8 @@ const AIChatWidget = () => {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 100);
   }, [isOpen]);
 
+
+
   const buildHistory = useCallback((msgs) =>
     msgs
       .filter(m => m.role === 'user' || m.role === 'assistant')

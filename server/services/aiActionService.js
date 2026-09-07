@@ -16,6 +16,11 @@ const lostFoundController = require('../controllers/lostFoundController');
 const helpController = require('../controllers/helpController');
 const attendanceController = require('../controllers/attendanceController');
 const eventController = require('../controllers/eventController');
+const resourceController = require('../controllers/resourceController');
+
+const Book = require('../models/Book');
+const BorrowRequest = require('../models/BorrowRequest');
+const SportsItem = require('../models/SportsItem');
 
 const runController = (handler, user, body, params = {}) =>
   new Promise((resolve, reject) => {
@@ -118,6 +123,26 @@ const ACTIONS = {
     optionalQuestion: null,
     optionalSatisfied: () => true,
   },
+
+  book_borrow: {
+    label: 'Book Borrow Request',
+    cardTitle: 'Book Borrow Request',
+    fields: [],
+    required: [],
+    questions: {},
+    optionalQuestion: null,
+    optionalSatisfied: () => true,
+  },
+
+  sports_request: {
+    label: 'Sports Item Request',
+    cardTitle: 'Sports Item Request',
+    fields: [],
+    required: [],
+    questions: {},
+    optionalQuestion: null,
+    optionalSatisfied: () => true,
+  },
 };
 
 const ALLOWED_UPDATES = {
@@ -209,15 +234,17 @@ Allowed actions:
 - "peer_help": student wants to post a request on the Campus Peer Help board — asking OTHER STUDENTS for help with a topic, subject, or task, OR simply says they want to ask for peer/campus help without giving a topic yet. e.g. "I need help with calculus", "can someone help me understand thermodynamics", "does anyone have notes for DBMS", "I'm stuck on this assignment, can someone help me", "I need peer help", "I want to ask for campus help", "I want to post a help request", "can someone help me". If the message mentions "peer help" or "campus help" by name, or is a vague help request with no facility/equipment keyword, classify it as peer_help — the next turn will ask what they need help with.
 - "volunteer_application": student wants to apply as a VOLUNTEER (helping run/staff an event). e.g. "I want to volunteer", "apply me for volunteering", "register me as a volunteer".
 - "event_registration": student wants to REGISTER/SIGN UP to ATTEND an event (not volunteer for it). e.g. "register me for the tech fest", "sign me up for the next event", "I want to attend the cultural night", "book me a spot for the hackathon", "register me for the upcoming event".
+- "book_borrow": student wants to BORROW a book from the library. e.g. "borrow Mindset by Carol Dweck", "I want to borrow that book", "can I check out this book", "borrow it for me" (when a specific book was already mentioned in the conversation).
+- "sports_request": student wants to REQUEST/CHECK OUT a sports item or equipment. e.g. "I want to request a football", "can I get a badminton racket", "request a volleyball for tomorrow", "borrow a cricket bat".
 - "none": everything else (questions about attendance percentages, canteen menu, timetable, events, greetings, chit-chat).
 
 Message: "${message}"
-Return {"action":"none|lost_found_report|lost_found_claim|attendance_report|cctv_request|campus_help|peer_help|volunteer_application|event_registration"}`;
+Return {"action":"none|lost_found_report|lost_found_claim|attendance_report|cctv_request|campus_help|peer_help|volunteer_application|event_registration|book_borrow|sports_request"}`;
 
 // ACTION_HINTS: fast regex pre-filter before calling the LLM for intent detection.
 // Must include keywords that could signal any of the 6 supported actions.
 const ACTION_HINTS =
-  /\b(lost|lose|losing|found|claim|claiming|reclaim|cctv|camera|footage|attendance report|report request|projector|wifi|wi-fi|internet|not working|isn't working|isn\'t working|broken|problem with|issue with|help with|need help|need help with|can someone help|can you help|anyone help|does anyone know|i'm stuck|im stuck|help me understand|help me with|can you request|need.*report|wallet|airpod|earbud|passport|id card|charger|backpack|volunteer|volunteering|apply.*volunteer|register.*volunteer|volunteer.*event|i want to volunteer|peer help|campus help|need.*help|want.*help|wanna.*help|ask.*help|get help|get some help|raise a help|post a help|help request|need assistance|want assistance|register.*event|register me|sign me up|sign up for|book.*spot|attend.*event|going to the event|count me in|reserve.*spot|join the event|register for)\b/i;
+  /\b(lost|lose|losing|found|claim|claiming|reclaim|cctv|camera|footage|attendance report|report request|projector|wifi|wi-fi|internet|not working|isn't working|isn\'t working|broken|problem with|issue with|help with|need help|need help with|can someone help|can you help|anyone help|does anyone know|i'm stuck|im stuck|help me understand|help me with|can you request|need.*report|wallet|airpod|earbud|passport|id card|charger|backpack|volunteer|volunteering|apply.*volunteer|register.*volunteer|volunteer.*event|i want to volunteer|peer help|campus help|need.*help|want.*help|wanna.*help|ask.*help|get help|get some help|raise a help|post a help|help request|need assistance|want assistance|register.*event|register me|sign me up|sign up for|book.*spot|attend.*event|going to the event|count me in|reserve.*spot|join the event|register for|borrow|borrowing|lend me|check out.*book|library book|sports item|sports equipment|football|basketball|volleyball|badminton|cricket bat|racket|racquet|request.*ball|need.*ball)\b/i;
 
 const detectIntent = async (message) => {
   const parsed = await groqJson([{ role: 'user', content: intentPrompt(message) }], { maxTokens: 100 });
@@ -233,11 +260,15 @@ const detectIntent = async (message) => {
 // never mis-fires on the more nuanced actions (lost & found, CCTV, etc.)
 const VOLUNTEER_FALLBACK_RE = /\bvolunteer(ing)?\b/i;
 const EVENT_REG_FALLBACK_RE = /\b(register|sign\s*up|signup|book|reserve)\b.*\b(event|fest|hackathon|workshop|seminar|program)\b|\b(register|sign\s*up|signup)\s*(me)?\s*for\b/i;
+const BOOK_BORROW_FALLBACK_RE = /\bborrow\b|\blend\b.*\bbook\b/i;
+const SPORTS_REQUEST_FALLBACK_RE = /\b(football|basketball|volleyball|badminton|cricket bat|racket|racquet)\b|\bsports (item|equipment)\b/i;
 
 const guessIntentFallback = (message) => {
   const m = message.toLowerCase();
   if (VOLUNTEER_FALLBACK_RE.test(m)) return 'volunteer_application';
   if (EVENT_REG_FALLBACK_RE.test(m)) return 'event_registration';
+  if (BOOK_BORROW_FALLBACK_RE.test(m)) return 'book_borrow';
+  if (SPORTS_REQUEST_FALLBACK_RE.test(m)) return 'sports_request';
   return null;
 };
 
@@ -506,6 +537,201 @@ const eventChooseTurn = async (user, message, session) => {
   return { reply: 'Here is the event you selected:', card: eventConfirmCard(ev) };
 };
 
+// ─────────────────────────────────────────────────────────────
+//  Book borrow — search + selection + return-date/ID collection
+//  + confirm, then call the real requestBorrow controller.
+// ─────────────────────────────────────────────────────────────
+const bookKeywords = (message) => {
+  let text = String(message || '')
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .replace(
+      /\b(i|want|to|borrow|it|for|me|please|can|you|would|like|the|a|an|get|book|library|request|reserve|this|that|from)\b/g,
+      ' '
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.split(' ').filter((w) => w.length > 1);
+};
+
+const bookLabel = (b) => `${b.name} by ${b.author} (Shelf ${b.shelf})`;
+
+const resolveBookFromHistory = async (history) => {
+  if (!Array.isArray(history) || !history.length) return null;
+  const recentText = history
+    .slice(-6)
+    .map((h) => h.content || h.message || h.text || '')
+    .join(' ')
+    .toLowerCase();
+  if (!recentText.trim()) return null;
+
+  const books = await Book.find({}).select('name author shelf').lean();
+  return books.find((b) => recentText.includes(b.name.toLowerCase())) || null;
+};
+
+const addDaysToDateStr = (dateStr, days) => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+const NUM_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+
+const parseReturnDate = (message) => {
+  const m = message.trim().toLowerCase();
+  const today = todayNP();
+
+  // Explicit ISO date, e.g. 2026-09-20
+  const iso = m.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso) return iso[1];
+
+  if (/\btomorrow\b/.test(m)) return addDaysToDateStr(today, 1);
+  if (/\bnext week\b/.test(m)) return addDaysToDateStr(today, 7);
+  if (/\bnext month\b/.test(m)) return addDaysToDateStr(today, 30);
+  if (/\ba\s+week\b/.test(m)) return addDaysToDateStr(today, 7);
+  if (/\ba\s+month\b/.test(m)) return addDaysToDateStr(today, 30);
+
+  // "N day(s)/week(s)/month(s)" — with digits or number words, e.g.
+  // "1 week from now", "in 5 days", "two weeks later"
+  const relMatch = m.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(day|days|week|weeks|month|months)\b/);
+  if (relMatch) {
+    const n = NUM_WORDS[relMatch[1]] !== undefined ? NUM_WORDS[relMatch[1]] : parseInt(relMatch[1], 10);
+    const unit = relMatch[2];
+    let days = n;
+    if (unit.startsWith('week')) days = n * 7;
+    if (unit.startsWith('month')) days = n * 30;
+    return addDaysToDateStr(today, days);
+  }
+
+  // Fallback: native parsing for things like "September 20" or "20 Sept 2026"
+  const parsed = new Date(message);
+  if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+
+  return null;
+};
+
+const selectBook = async (user, session, book) => {
+  const active = await BorrowRequest.findOne({ book: book._id, status: { $in: ['pending', 'approved'] } });
+  if (active) {
+    clearSession(user._id);
+    const who = active.requestedBy.toString() === user._id.toString() ? 'You already have' : 'Someone already has';
+    return {
+      reply: `${who} an active request for "${book.name}" — it's currently ${active.status === 'approved' ? 'borrowed' : 'pending approval'}, so it can't be requested again right now.`,
+      card: null,
+    };
+  }
+  session.bookId = book._id.toString();
+  session.bookTitle = book.name;
+  session.bookAuthor = book.author;
+  session.bookShelf = book.shelf;
+  session.step = 'ask_return';
+  setSession(user._id, session);
+  return {
+    reply: `Great — "${book.name}" by ${book.author} (Shelf ${book.shelf}). When would you like to return it? (give a date after today, e.g. 2026-09-20)`,
+    card: null,
+  };
+};
+
+const bookSearchTurn = async (user, message, session, history) => {
+  const keywords = bookKeywords(message);
+  let books = [];
+
+  if (keywords.length) {
+    const and = keywords.map((k) => {
+      const re = new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      return { $or: [{ name: re }, { author: re }, { category: re }] };
+    });
+    books = await Book.find({ $and: and }).limit(10).lean();
+  }
+
+  if (!books.length) {
+    const fromHistory = await resolveBookFromHistory(history);
+    if (fromHistory) books = [fromHistory];
+  }
+
+  if (!books.length) {
+    return { reply: 'Which book would you like to borrow? Tell me the title or author.', card: null };
+  }
+
+  if (books.length > 6) {
+    return { reply: `I found ${books.length} matching books. Could you narrow it down with the exact title?`, card: null };
+  }
+
+  if (books.length > 1) {
+    session.step = 'choose';
+    session.matches = books.map((b) => ({ id: b._id.toString(), label: bookLabel(b) }));
+    setSession(user._id, session);
+    return {
+      reply: `I found ${books.length} matching books. Please pick one:`,
+      card: {
+        title: 'Select the Book to Borrow',
+        action: 'book_borrow',
+        choices: session.matches.map((m, idx) => ({ index: idx, label: m.label })),
+      },
+    };
+  }
+
+  return selectBook(user, session, books[0]);
+};
+
+const bookChooseTurn = async (user, message, session) => {
+  const num = (message.match(/\b([1-9]|10)\b/) || [])[1];
+  const index = num ? Number(num) - 1 : -1;
+  if (!session.matches || session.matches[index] === undefined) {
+    return {
+      reply: 'Please reply with the number of the book you want to borrow (1, 2, 3...).',
+      card: {
+        title: 'Select the Book to Borrow',
+        action: 'book_borrow',
+        choices: session.matches.map((m, idx) => ({ index: idx, label: m.label })),
+      },
+    };
+  }
+  const book = await Book.findById(session.matches[index].id).lean();
+  if (!book) {
+    clearSession(user._id);
+    return { reply: 'That book no longer exists. Please try again.', card: null };
+  }
+  return selectBook(user, session, book);
+};
+
+const bookAskReturnTurn = async (user, message, session) => {
+  const returnBy = parseReturnDate(message.trim());
+  const today = todayNP();
+  if (!returnBy || returnBy <= today) {
+    return { reply: 'Please give a valid return date after today, in YYYY-MM-DD format (e.g. 2026-09-20).', card: null };
+  }
+  session.draft = { ...session.draft, returnBy };
+  session.step = 'ask_id';
+  setSession(user._id, session);
+  return { reply: "What's your student ID? (e.g. BIC-2026-0142)", card: null };
+};
+
+const bookAskIdTurn = async (user, message, session) => {
+  const studentIdNumber = clean(message, 50);
+  if (!studentIdNumber) {
+    return { reply: 'Please enter your student ID.', card: null };
+  }
+  session.draft = { ...session.draft, studentIdNumber };
+  session.step = 'confirm';
+  setSession(user._id, session);
+  return {
+    reply: 'Here is the summary — submit this borrow request?',
+    card: {
+      title: 'Book Borrow Request',
+      action: 'book_borrow',
+      confirm: true,
+      rows: [
+        { label: 'Book', value: session.bookTitle },
+        { label: 'Author', value: session.bookAuthor },
+        { label: 'Shelf', value: session.bookShelf },
+        { label: 'Return By', value: session.draft.returnBy },
+        { label: 'Student ID', value: studentIdNumber },
+      ],
+    },
+  };
+};
+
 const volunteerSearchTurn = async (user, message, session) => {
   const count = parseVolunteerCount(message);
   session.volunteerCount = count;
@@ -565,6 +791,212 @@ const volunteerSearchTurn = async (user, message, session) => {
         label: `#${i + 1} ${op.eventTitle}`,
         value: `${op.role || 'Volunteer'}${op.date ? ' · ' + op.date : ''}`,
       })),
+    },
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+//  Sports item request — search + selection + quantity/slot
+//  collection + confirm, then call the real requestSportsItem
+//  controller.
+// ─────────────────────────────────────────────────────────────
+const sportsKeywords = (message) => {
+  let text = String(message || '')
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .replace(
+      /\b(i|want|to|request|borrow|get|need|it|for|me|please|can|you|would|like|the|a|an|item|equipment|sports|reserve|this|that|from)\b/g,
+      ' '
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.split(' ').filter((w) => w.length > 1);
+};
+
+const sportsItemLabel = (item) => `${item.icon || '🏐'} ${item.name}`;
+
+const resolveSportsItemFromHistory = async (history) => {
+  if (!Array.isArray(history) || !history.length) return null;
+  const recentText = history
+    .slice(-6)
+    .map((h) => h.content || h.message || h.text || '')
+    .join(' ')
+    .toLowerCase();
+  if (!recentText.trim()) return null;
+
+  const items = await SportsItem.find({}).select('name icon').lean();
+  return items.find((i) => recentText.includes(i.name.toLowerCase())) || null;
+};
+
+const parseQuantity = (message) => {
+  const m = message.toLowerCase();
+  const numMatch = m.match(/\b(\d+)\b/);
+  if (numMatch) return Number(numMatch[1]);
+  if (NUM_WORDS[m.trim()] !== undefined) return NUM_WORDS[m.trim()];
+  for (const [word, val] of Object.entries(NUM_WORDS)) {
+    if (new RegExp(`\\b${word}\\b`).test(m)) return val;
+  }
+  if (/\bjust one\b|\ba single\b|\bone\b/.test(m)) return 1;
+  return null;
+};
+
+const selectSportsItem = async (user, session, item) => {
+  session.itemId = item._id.toString();
+  session.itemName = item.name;
+  session.itemIcon = item.icon || '🏐';
+  session.step = 'ask_quantity';
+  setSession(user._id, session);
+  return {
+    reply: `Great — ${sportsItemLabel(item)}. How many would you like?`,
+    card: null,
+  };
+};
+
+const ASK_OPTIONS_RE = /\b(what|which)\b.*\b(options|items|available|have|got)\b|\bshow\b.*\b(options|items|list)\b|\boptions\b|\bavailable\b|\bwhat.*have\b|\bwhat.*got\b/i;
+
+const sportsSearchTurn = async (user, message, session, history) => {
+  const keywords = sportsKeywords(message);
+  let items = [];
+
+  if (keywords.length) {
+    const and = keywords.map((k) => {
+      const re = new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      return { name: re };
+    });
+    items = await SportsItem.find({ $and: and }).limit(10).lean();
+  }
+
+  if (!items.length) {
+    const fromHistory = await resolveSportsItemFromHistory(history);
+    if (fromHistory) items = [fromHistory];
+  }
+
+  // No keyword match, or the student is explicitly asking what's available —
+  // show the full catalog instead of repeating the same question.
+  if (!items.length && (!keywords.length || ASK_OPTIONS_RE.test(message))) {
+    const all = await SportsItem.find({}).sort({ name: 1 }).limit(20).lean();
+    if (!all.length) {
+      clearSession(user._id);
+      return { reply: 'There are no sports items available to request right now.', card: null };
+    }
+    session.step = 'choose';
+    session.matches = all.map((i) => ({ id: i._id.toString(), label: sportsItemLabel(i) }));
+    setSession(user._id, session);
+    return {
+      reply: `Here's what's available:`,
+      card: {
+        title: 'Select the Sports Item',
+        action: 'sports_request',
+        choices: session.matches.map((m, idx) => ({ index: idx, label: m.label })),
+      },
+    };
+  }
+
+  if (!items.length) {
+    return { reply: 'Which sports item would you like to request?', card: null };
+  }
+
+  if (items.length > 6) {
+    return { reply: `I found ${items.length} matching items. Could you narrow it down with the exact name?`, card: null };
+  }
+
+  if (items.length > 1) {
+    session.step = 'choose';
+    session.matches = items.map((i) => ({ id: i._id.toString(), label: sportsItemLabel(i) }));
+    setSession(user._id, session);
+    return {
+      reply: `I found ${items.length} matching items. Please pick one:`,
+      card: {
+        title: 'Select the Sports Item',
+        action: 'sports_request',
+        choices: session.matches.map((m, idx) => ({ index: idx, label: m.label })),
+      },
+    };
+  }
+
+  return selectSportsItem(user, session, items[0]);
+};
+
+const normalizeLabel = (s) =>
+  String(s || '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+const findChoiceIndexByText = (matches, message) => {
+  const num = (message.match(/\b([1-9]|10)\b/) || [])[1];
+  if (num) {
+    const idx = Number(num) - 1;
+    if (matches[idx]) return idx;
+  }
+  const typed = normalizeLabel(message);
+  if (!typed) return -1;
+  return matches.findIndex((m) => {
+    const label = normalizeLabel(m.label);
+    return label.includes(typed) || typed.includes(label);
+  });
+};
+
+const sportsChooseTurn = async (user, message, session) => {
+  const index = findChoiceIndexByText(session.matches || [], message);
+  if (!session.matches || session.matches[index] === undefined) {
+    return {
+      reply: 'Please reply with the number or name of the item you want to request.',
+      card: {
+        title: 'Select the Sports Item',
+        action: 'sports_request',
+        choices: session.matches.map((m, idx) => ({ index: idx, label: m.label })),
+      },
+    };
+  }
+  const item = await SportsItem.findById(session.matches[index].id).lean();
+  if (!item) {
+    clearSession(user._id);
+    return { reply: 'That item no longer exists. Please try again.', card: null };
+  }
+  return selectSportsItem(user, session, item);
+};
+
+const sportsAskQuantityTurn = async (user, message, session) => {
+  const quantity = parseQuantity(message.trim());
+  if (!quantity || quantity < 1) {
+    return { reply: 'Please tell me how many you need — a number like 1, 2, or 3.', card: null };
+  }
+  session.draft = { ...session.draft, quantity };
+  session.step = 'ask_slot';
+  setSession(user._id, session);
+  return { reply: 'What time slot do you need it for? (e.g. "Today 3-4 PM", "Tomorrow morning")', card: null };
+};
+
+const sportsAskSlotTurn = async (user, message, session) => {
+  const slot = clean(message, 100);
+  if (!slot) {
+    return { reply: 'Please tell me the time slot you need it for.', card: null };
+  }
+  session.draft = { ...session.draft, slot };
+  session.step = 'ask_note';
+  setSession(user._id, session);
+  return { reply: 'Any additional note? (You can say skip.)', card: null };
+};
+
+const sportsAskNoteTurn = async (user, message, session) => {
+  const note = SKIP_RE.test(message.trim()) ? '' : clean(message, 300);
+  session.draft = { ...session.draft, note };
+  session.step = 'confirm';
+  setSession(user._id, session);
+  return {
+    reply: 'Here is the summary — submit this request?',
+    card: {
+      title: 'Sports Item Request',
+      action: 'sports_request',
+      confirm: true,
+      rows: [
+        { label: 'Item', value: session.itemName },
+        { label: 'Quantity', value: String(session.draft.quantity) },
+        { label: 'Slot', value: session.draft.slot },
+        { label: 'Note', value: session.draft.note || '—' },
+      ],
     },
   };
 };
@@ -733,13 +1165,14 @@ const handleTurn = async (user, message, history = []) => {
   if (RESTART_RE.test(trimmed)) {
     if (session) {
       session.draft = {};
-      session.step = (session.action === 'lost_found_claim' || session.action === 'volunteer_application' || session.action === 'event_registration')
+      session.step = (session.action === 'lost_found_claim' || session.action === 'volunteer_application' || session.action === 'event_registration' || session.action === 'book_borrow' || session.action === 'sports_request')
         ? 'search'
         : 'collect';
       session.optionalAsked = false;
       session.matches = null;
       session.itemId = null;
       session.eventId = null;
+      session.bookId = null;
       session.selectedOpportunities = null;
       setSession(user._id, session);
       if (session.action === 'lost_found_claim') {
@@ -750,6 +1183,12 @@ const handleTurn = async (user, message, history = []) => {
       }
       if (session.action === 'event_registration') {
         return { reply: "Okay, let's start again. Which event would you like to register for?", card: null };
+      }
+      if (session.action === 'book_borrow') {
+        return { reply: "Okay, let's start again. Which book would you like to borrow?", card: null };
+      }
+      if (session.action === 'sports_request') {
+        return { reply: "Okay, let's start again. Which sports item would you like to request?", card: null };
       }
       const first = ACTIONS[session.action].required[0];
       return { reply: questionFor(session.action, first, session.draft), card: null };
@@ -772,11 +1211,17 @@ const handleTurn = async (user, message, history = []) => {
     session = {
       action: intent,
       draft: {},
-      step: (intent === 'lost_found_claim' || intent === 'volunteer_application' || intent === 'event_registration') ? 'search' : 'collect',
+      step: (intent === 'lost_found_claim' || intent === 'volunteer_application' || intent === 'event_registration' || intent === 'book_borrow' || intent === 'sports_request') ? 'search' : 'collect',
       optionalAsked: false,
       matches: null,
       itemId: null,
       eventId: null,
+      bookId: null,
+      bookTitle: null,
+      bookAuthor: null,
+      bookShelf: null,
+      itemName: null,
+      itemIcon: null,
       selectedOpportunities: null,
       volunteerCount: 1,
       createdAt: Date.now(),
@@ -814,6 +1259,31 @@ const handleTurn = async (user, message, history = []) => {
     }
   }
 
+  // ── Book borrow flow ──────────────────────────────────
+  if (session.action === 'book_borrow') {
+    if (session.step === 'search') return bookSearchTurn(user, trimmed, session, history);
+    if (session.step === 'choose') return bookChooseTurn(user, trimmed, session);
+    if (session.step === 'ask_return') return bookAskReturnTurn(user, trimmed, session);
+    if (session.step === 'ask_id') return bookAskIdTurn(user, trimmed, session);
+    if (session.step === 'confirm') {
+      if (CONFIRM_RE.test(trimmed)) return confirmAction(user);
+      return { reply: 'Reply "yes" to submit the borrow request, or "cancel" to stop.', card: null };
+    }
+  }
+
+  // ── Sports item request flow ──────────────────────────
+  if (session.action === 'sports_request') {
+    if (session.step === 'search') return sportsSearchTurn(user, trimmed, session, history);
+    if (session.step === 'choose') return sportsChooseTurn(user, trimmed, session);
+    if (session.step === 'ask_quantity') return sportsAskQuantityTurn(user, trimmed, session);
+    if (session.step === 'ask_slot') return sportsAskSlotTurn(user, trimmed, session);
+    if (session.step === 'ask_note') return sportsAskNoteTurn(user, trimmed, session);
+    if (session.step === 'confirm') {
+      if (CONFIRM_RE.test(trimmed)) return confirmAction(user);
+      return { reply: 'Reply "yes" to submit the request, or "cancel" to stop.', card: null };
+    }
+  }
+
   return handleCollectTurn(user, trimmed, session);
 };
 
@@ -822,20 +1292,54 @@ const handleTurn = async (user, message, history = []) => {
 // ─────────────────────────────────────────────────────────────
 const chooseMatch = async (user, index) => {
   const session = getSession(user._id);
-  if (!session || session.action !== 'lost_found_claim' || session.step !== 'choose' || !session.matches) {
+  if (!session || session.step !== 'choose' || !session.matches) {
     return { reply: 'The item selection expired. Please search again.', card: null };
   }
   const choice = session.matches[Number(index)];
   if (!choice) {
     return { reply: 'That choice is invalid. Please pick one of the listed options.', card: null };
   }
-  session.itemId = choice.id;
-  session.step = 'details';
-  setSession(user._id, session);
-  return {
-    reply: 'To verify ownership, please provide an identifying detail — e.g. a colour, a mark, or something only the owner would know.',
-    card: null,
-  };
+
+  switch (session.action) {
+    case 'lost_found_claim': {
+      session.itemId = choice.id;
+      session.step = 'details';
+      setSession(user._id, session);
+      return {
+        reply: 'To verify ownership, please provide an identifying detail — e.g. a colour, a mark, or something only the owner would know.',
+        card: null,
+      };
+    }
+    case 'event_registration': {
+      const ev = await Event.findById(choice.id).lean();
+      if (!ev) {
+        clearSession(user._id);
+        return { reply: 'That event no longer exists. Please try again.', card: null };
+      }
+      session.eventId = choice.id;
+      session.step = 'confirm';
+      setSession(user._id, session);
+      return { reply: 'Here is the event you selected:', card: eventConfirmCard(ev) };
+    }
+    case 'book_borrow': {
+      const book = await Book.findById(choice.id).lean();
+      if (!book) {
+        clearSession(user._id);
+        return { reply: 'That book no longer exists. Please try again.', card: null };
+      }
+      return selectBook(user, session, book);
+    }
+    case 'sports_request': {
+      const item = await SportsItem.findById(choice.id).lean();
+      if (!item) {
+        clearSession(user._id);
+        return { reply: 'That item no longer exists. Please try again.', card: null };
+      }
+      return selectSportsItem(user, session, item);
+    }
+    default:
+      return { reply: 'The item selection expired. Please search again.', card: null };
+  }
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -1131,6 +1635,63 @@ const confirmAction = async (user) => {
           reply: alreadyRegistered
             ? `You're already registered for "${ev?.title || 'the event'}".`
             : `You're registered for "${ev?.title || 'the event'}"${ev?.date ? ' on ' + new Date(ev.date).toLocaleDateString() : ''}. See you there!`,
+          card: null,
+        };
+      }
+
+      // ── Book borrow ──────────────────────────────────
+      case 'book_borrow': {
+        if (!session.bookId) {
+          clearSession(user._id);
+          return { reply: 'No book was selected. Please try again.', card: null };
+        }
+
+        result = await runController(
+          resourceController.requestBorrow,
+          user,
+          { returnBy: session.draft.returnBy, studentIdNumber: session.draft.studentIdNumber },
+          { id: session.bookId }
+        );
+        if (result.statusCode >= 400) throw new Error(result.body?.message || 'The borrow request was rejected.');
+
+        createNotification(user._id, {
+          type: 'book_request',
+          title: 'Borrow Request Submitted',
+          message: `Your request to borrow "${session.bookTitle}" has been submitted and is pending approval.`,
+          link: 'resources',
+        });
+        createNotificationForRole(['admin'], {
+          type: 'book_request',
+          title: 'New Book Borrow Request',
+          message: `${user.username} requested to borrow "${session.bookTitle}" — return by ${session.draft.returnBy}.`,
+          link: 'resources',
+        }, user._id);
+
+        clearSession(user._id);
+        return {
+          reply: `Your request to borrow "${session.bookTitle}" (Shelf ${session.bookShelf}) has been submitted. You'll be notified once it's approved.`,
+          card: null,
+        };
+      }
+
+      // ── Sports item request ───────────────────────────
+      case 'sports_request': {
+        if (!session.itemId) {
+          clearSession(user._id);
+          return { reply: 'No sports item was selected. Please try again.', card: null };
+        }
+
+        result = await runController(
+          resourceController.requestSportsItem,
+          user,
+          { quantity: session.draft.quantity, slot: session.draft.slot, note: session.draft.note || '' },
+          { id: session.itemId }
+        );
+        if (result.statusCode >= 400) throw new Error(result.body?.message || 'The request was rejected.');
+
+        clearSession(user._id);
+        return {
+          reply: `Your request for ${session.draft.quantity} × "${session.itemName}" (${session.draft.slot}) has been submitted. You'll be notified once it's reviewed.`,
           card: null,
         };
       }
