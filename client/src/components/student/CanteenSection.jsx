@@ -101,7 +101,7 @@ const CanteenSection = ({ t }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header row with view switcher + search + credit card */}
+      {/* Header row with search + credit card */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
@@ -124,49 +124,51 @@ const CanteenSection = ({ t }) => {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border, backgroundColor: t.cardBg }}>
-            <button
-              type="button"
-              onClick={() => setView('menu')}
-              className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
-              style={{ backgroundColor: view === 'menu' ? t.accentPrimary : 'transparent', color: view === 'menu' ? t.pageBg : t.textPrimary }}
-            >
-              Menu
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('orders')}
-              className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
-              style={{ backgroundColor: view === 'orders' ? t.accentPrimary : 'transparent', color: view === 'orders' ? t.pageBg : t.textPrimary }}
-            >
-              My Orders
-            </button>
-          </div>
+        <CreditDueCard t={t} amountDue={credit.amountDue} onViewHistory={() => setShowCreditHistory(true)} />
+      </div>
+
+      {/* Menu / My Orders switcher + cart below the credit due card */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border, backgroundColor: t.cardBg }}>
           <button
             type="button"
-            onClick={() => setCartOpen(true)}
-            disabled={cartCount === 0}
-            className="relative flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-extrabold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-            style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textPrimary }}
+            onClick={() => setView('menu')}
+            className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
+            style={{ backgroundColor: view === 'menu' ? t.accentPrimary : 'transparent', color: view === 'menu' ? t.pageBg : t.textPrimary }}
           >
-            <ShoppingBag size={16} />
-            <span className="hidden sm:inline">Cart</span>
-            {cartCount > 0 && (
-              <>
-                <span className="hidden sm:inline text-xs font-bold" style={{ color: t.textMuted }}>·</span>
-                <span className="tabular-nums">{cartCount}</span>
-              </>
-            )}
-            <span
-              className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black"
-              style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}
-            >
-              {cartCount}
-            </span>
+            Menu
           </button>
-          <CreditDueCard t={t} amountDue={credit.amountDue} onViewHistory={() => setShowCreditHistory(true)} />
+          <button
+            type="button"
+            onClick={() => setView('orders')}
+            className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
+            style={{ backgroundColor: view === 'orders' ? t.accentPrimary : 'transparent', color: view === 'orders' ? t.pageBg : t.textPrimary }}
+          >
+            My Orders
+          </button>
         </div>
+        <button
+          type="button"
+          onClick={() => setCartOpen(true)}
+          disabled={cartCount === 0}
+          className="relative flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-extrabold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textPrimary }}
+        >
+          <ShoppingBag size={16} />
+          <span className="hidden sm:inline">Cart</span>
+          {cartCount > 0 && (
+            <>
+              <span className="hidden sm:inline text-xs font-bold" style={{ color: t.textMuted }}>·</span>
+              <span className="tabular-nums">{cartCount}</span>
+            </>
+          )}
+          <span
+            className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black"
+            style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}
+          >
+            {cartCount}
+          </span>
+        </button>
       </div>
 
       {view === 'orders' ? (
