@@ -62,12 +62,13 @@ const searchUsers = async (req, res) => {
     const myId = resolveUserId(req);
     const regex = new RegExp(q.trim(), 'i');
 
-    // Student-to-student only, for now — don't surface teachers/admins as
-    // chattable results even if their username/email matches the search.
+    // Students and teachers are all searchable — a teacher needs to find
+    // students (and other teachers) to chat with; admins stay out of the
+    // chat pool entirely.
     const users = await User.find({
       _id: { $ne: myId },
       status: 'approved',
-      role: 'student',
+      role: { $in: ['student', 'teacher'] },
       $or: [{ email: regex }, { username: regex }],
     })
       .select('username email role department profileImage')
@@ -103,9 +104,10 @@ const getMyConversations = async (req, res) => {
 };
 
 // POST /api/chat/conversations/dm   body: { userId }
-// Requires an accepted friendship — this is the gate the whole friend
-// request system exists to enforce. Finds an existing 1-on-1 conversation
-// with that user, or creates one.
+// Student↔student DMs require an accepted friendship (that's the gate the
+// whole friend request system exists to enforce). Teachers are allowed to
+// message any student or fellow teacher directly — no friendship needed.
+// Finds an existing 1-on-1 conversation with that user, or creates one.
 const getOrCreateDM = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -118,7 +120,8 @@ const getOrCreateDM = async (req, res) => {
     if (!otherUser) return res.status(404).json({ message: 'User not found' });
 
     const friends = await areFriends(myId, userId);
-    if (!friends) {
+    const isTeacherParty = req.user?.role === 'teacher' || otherUser.role === 'teacher';
+    if (!friends && !isTeacherParty) {
       return res.status(403).json({
         message: 'You need to be friends before you can message this person. Send a friend request first.',
       });
@@ -241,8 +244,8 @@ const updateGroupMembers = async (req, res) => {
 
       const invitedUser = await User.findById(addUserId).select('username email role status');
       if (!invitedUser) return res.status(404).json({ message: 'User not found' });
-      if (invitedUser.role !== 'student') {
-        return res.status(403).json({ message: 'Chat is currently available for students only' });
+      if (invitedUser.role === 'admin') {
+        return res.status(403).json({ message: 'Chat is currently available for students and teachers only' });
       }
 
       const invite = await GroupInvite.create({

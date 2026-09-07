@@ -294,6 +294,51 @@ const deleteScheduleChange = async (req, res) => {
   }
 };
 
+// ========================================================
+// TEACHER — Upcoming Classes
+// Returns periods where lecturer matches the logged-in
+// teacher's username, ordered by day then start time.
+// ========================================================
+
+const DAY_INDEX = Object.fromEntries(DAY_ORDER.map((d, i) => [d, i]));
+
+const getTeacherUpcomingClasses = async (req, res) => {
+  try {
+    const lecturerName = req.user?.username || '';
+    if (!lecturerName) {
+      return res.status(400).json({ message: 'Unable to resolve teacher identity' });
+    }
+
+    // Case-insensitive search so minor capitalisation differences don't break it
+    const periods = await Timetable.find({
+      lecturer: { $regex: new RegExp(lecturerName, 'i') },
+    }).sort({ order: 1 });
+
+    // Sort by the logical week order: Sun→Sat, then by startTime string
+    const sorted = periods.slice().sort((a, b) => {
+      const dayDiff = (DAY_INDEX[a.day] ?? 7) - (DAY_INDEX[b.day] ?? 7);
+      if (dayDiff !== 0) return dayDiff;
+      return a.startTime.localeCompare(b.startTime);
+    });
+
+    const result = sorted.map((p) => ({
+      id:         p._id,
+      day:        p.day,
+      startTime:  p.startTime,
+      endTime:    p.endTime,
+      classType:  p.classType,
+      moduleCode: p.moduleCode,
+      moduleName: p.moduleName,
+      group:      p.groupName,
+      room:       p.roomName,
+    }));
+
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getTimetable,
   getScheduleChanges,
@@ -305,4 +350,5 @@ module.exports = {
   createScheduleChange,
   updateScheduleChange,
   deleteScheduleChange,
+  getTeacherUpcomingClasses,
 };

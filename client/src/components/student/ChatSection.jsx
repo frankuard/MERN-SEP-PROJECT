@@ -1151,17 +1151,19 @@ const ChatsTab = ({ t, onOpenNewChat, onViewProfile }) => {
 
 // ─── Add Friends Tab ───────────────────────────────────────────────────────────
 
-const AddFriendsTab = ({ t, onViewProfile }) => {
+const AddFriendsTab = ({ t, onViewProfile, onStartChat }) => {
   const {
     friends,
     friendRequests,
     sendFriendRequest,
+    startDM,
   } = useChat();
 
   const [searchInput, setSearchInput] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [sentTo, setSentTo] = useState(new Set());
+  const [messagingTo, setMessagingTo] = useState(null);
 
   const outgoingRequestIds = new Set(
     friendRequests.outgoing.map((r) => r.recipient?._id || r.recipient || r.userId)
@@ -1195,6 +1197,19 @@ const AddFriendsTab = ({ t, onViewProfile }) => {
       toast.success(`Friend request sent to ${targetUser.username}!`);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not send request.');
+    }
+  };
+
+  const handleMessage = async (targetUser) => {
+    const targetId = targetUser._id || targetUser.id;
+    setMessagingTo(targetId);
+    try {
+      await startDM(targetId);
+      onStartChat?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not start conversation.');
+    } finally {
+      setMessagingTo(null);
     }
   };
 
@@ -1249,23 +1264,51 @@ const AddFriendsTab = ({ t, onViewProfile }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{person.username}</p>
-                  {person.email && (
-                    <p className="truncate text-xs" style={{ color: t.textMuted }}>{person.email}</p>
-                  )}
+                  <p className="mt-0.5 flex items-center gap-1.5">
+                    {person.email && (
+                      <span className="truncate text-xs" style={{ color: t.textMuted }}>{person.email}</span>
+                    )}
+                    {person.role && (
+                      <span
+                        className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide"
+                        style={{
+                          backgroundColor: person.role === 'teacher' ? '#ede9fe' : '#dbeafe',
+                          color: person.role === 'teacher' ? '#6d28d9' : '#1d4ed8',
+                        }}
+                      >
+                        {person.role}
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
-              <button
-                type="button"
-                disabled={already || sent}
-                onClick={() => handleAddFriend(person)}
-                className="shrink-0 rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors disabled:opacity-60"
-                style={{
-                  backgroundColor: already || sent ? t.border : '#111',
-                  color: already || sent ? t.textMuted : '#fff',
-                }}
-              >
-                {already ? 'Friends' : sent ? 'Requested' : 'Add Friend'}
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                {!already && !sent && (
+                  <button
+                    type="button"
+                    onClick={() => handleMessage(person)}
+                    disabled={messagingTo === id}
+                    className="flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-extrabold transition-opacity disabled:opacity-60"
+                    style={{ backgroundColor: t.pageBg, color: t.textPrimary, borderColor: t.border }}
+                    title="Start a conversation"
+                  >
+                    <MessageCircle size={13} />
+                    {messagingTo === id ? 'Starting…' : 'Message'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={already || sent}
+                  onClick={() => handleAddFriend(person)}
+                  className="shrink-0 rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors disabled:opacity-60"
+                  style={{
+                    backgroundColor: already || sent ? t.border : '#111',
+                    color: already || sent ? t.textMuted : '#fff',
+                  }}
+                >
+                  {already ? 'Friends' : sent ? 'Requested' : 'Add Friend'}
+                </button>
+              </div>
             </div>
           );
         })}
@@ -1793,7 +1836,7 @@ const ChatSection = ({ t, initialTab, onViewProfile }) => {
         {activeTab === 'chats' && (
           <ChatsTab t={t} onOpenNewChat={() => setShowNewChat(true)} onViewProfile={onViewProfile} />
         )}
-        {activeTab === 'add-friends' && <AddFriendsTab t={t} onViewProfile={onViewProfile} />}
+        {activeTab === 'add-friends' && <AddFriendsTab t={t} onViewProfile={onViewProfile} onStartChat={() => setActiveTab('chats')} />}
         {activeTab === 'requests' && <RequestsTab t={t} />}
         {activeTab === 'create-group' && <CreateGroupTab t={t} />}
       </div>

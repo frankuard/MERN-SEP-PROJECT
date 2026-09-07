@@ -63,8 +63,8 @@ const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 6. Determine status — backend decides this, client cannot override it
-    const status = finalRole === 'student' ? 'approved' : 'pending';
+    // All self-registered roles are auto-approved
+    const status = 'approved';
 
     // 7. Create user
     const user = await User.create({

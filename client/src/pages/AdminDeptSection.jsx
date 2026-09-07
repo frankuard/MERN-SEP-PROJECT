@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UtensilsCrossed, Wallet, Eye, EyeOff, Users, ClipboardList, MessageSquare, Calendar, BookOpen, School, History, ClipboardCheck, FileText, Phone, Search, Video } from 'lucide-react';
+import { UtensilsCrossed, Wallet, Eye, EyeOff, Users, ClipboardList, MessageSquare, Calendar, BookOpen, School, History, ClipboardCheck, FileText, Phone, Search, Video, ShoppingBag, BadgeCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { themes } from '../data/themes';
 import Sidebar from '../components/common/Sidebar';
 import { MenuTab, CreditTab } from '../components/admin/ManageCanteen/ManageCanteenSection';
+import { OrdersTab, CreditRequestsTab } from '../components/admin/ManageCanteen/ManageCanteenOrders';
 import ManageSSDSection, { ReportRequestsPanel, SSD_SUB_TABS } from '../components/admin/ManageSSD/ManageSSDSection';
 import ManageAttendanceSection from '../components/admin/ManageAttendance/ManageAttendanceSection';
 import ManageCampusHelpSection from '../components/admin/ManageCampusHelp/ManageCampusHelpSection';
@@ -17,6 +18,8 @@ import ManageLostFoundSection from '../components/admin/ManageLostFound/ManageLo
 
 const CANTEEN_NAV_ITEMS = [
   { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
+  { id: 'orders', label: 'Orders', icon: ShoppingBag },
+  { id: 'credit-requests', label: 'Credit Requests', icon: BadgeCheck },
   { id: 'credit', label: 'Credit Due', icon: Wallet },
 ];
 
@@ -58,8 +61,9 @@ const RESOURCES_NAV_ITEMS = [
 ];
 
 // Same Sidebar, same theme, same layout shell as the main admin panel —
-// just a 2-item nav instead of the full one, and MenuTab/CreditTab
-// reused directly (no copy, no UI change from what's already built).
+// just a 4-item nav instead of the full one, and the MenuTab/CreditTab and
+// OrdersTab/CreditRequestsTab components reused directly (no copy, no UI
+// change from what's already built).
 const CanteenDeptPanel = () => {
   const { theme } = useTheme();
   const t = themes[theme];
@@ -70,7 +74,10 @@ const CanteenDeptPanel = () => {
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} navItems={CANTEEN_NAV_ITEMS} />
       <main className="flex-1 overflow-y-auto px-6 py-8 sm:px-8">
         <div className="mx-auto max-w-5xl">
-          {activeTab === 'menu' ? <MenuTab t={t} /> : <CreditTab t={t} />}
+          {activeTab === 'menu' && <MenuTab t={t} />}
+          {activeTab === 'orders' && <OrdersTab t={t} />}
+          {activeTab === 'credit-requests' && <CreditRequestsTab t={t} />}
+          {activeTab === 'credit' && <CreditTab t={t} />}
         </div>
       </main>
     </div>

@@ -11,6 +11,7 @@ const NOTIFICATION_TYPES = [
   'department',           // new campus-help department added
   'canteen_menu',         // menu item added/edited
   'canteen_credit',       // your credit due changed / payment recorded
+  'canteen_order',        // your canteen order placed / status updated
   'book',                 // book added/edited in library catalog
   'book_request',         // your borrow request approved/pending/rejected
   'sports_item',          // sports item added/edited

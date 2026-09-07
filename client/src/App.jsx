@@ -62,7 +62,11 @@ const App = () => {
           />
 
           <Route
-            path="/teacher/dashboard"
+            path="/teacher"
+            element={<Navigate to="/teacher/dashboard" replace />}
+          />
+          <Route
+            path="/teacher/:tab"
             element={
               <RoleRoute allowedRoles={['teacher']}>
                 <TeacherDashboard />

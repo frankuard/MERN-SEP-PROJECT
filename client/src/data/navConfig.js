@@ -19,11 +19,14 @@ const navConfig = {
     { id: "resources", label: "Resources", icon: BookOpen },
   ],
   teacher: [
-    { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "announcements", label: "Announcements", icon: Megaphone },
-    { id: "events", label: "Events", icon: Calendar },
-    { id: "requests", label: "Student Requests", icon: Inbox },
-    { id: "resources", label: "Resources", icon: BookOpen },
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'events', label: 'Events', icon: Calendar },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'canteen', label: 'Canteen', icon: Coffee },
+    { id: 'lost-found', label: 'Lost & Found', icon: Search },
+    { id: 'campus-help', label: 'Help', icon: HelpCircle },
+    { id: 'rte', label: 'Routine & Timetable', icon: Clock },
+    { id: 'resources', label: 'Resources', icon: BookOpen },
   ],
 
     admin: [

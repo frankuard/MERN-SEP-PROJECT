@@ -20,6 +20,12 @@ const timetableApi = {
     }
   },
 
+  // -------- Teacher --------
+  getTeacherUpcomingClasses: async () => {
+    const res = await axiosInstance.get('/timetable/teacher/upcoming');
+    return res.data;
+  },
+
   // -------- Admin — Exams --------
   getExamsAdmin: async () => {
     const res = await axiosInstance.get('/timetable/exams/admin');

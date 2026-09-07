@@ -45,6 +45,46 @@ const canteenApi = {
     const res = await axiosInstance.get(`/canteen/credit/${id}`);
     return res.data;
   },
+
+  // Orders
+  placeOrder: async (payload) => {
+    const res = await axiosInstance.post('/canteen/orders', payload);
+    return res.data;
+  },
+  getMyOrders: async () => {
+    const res = await axiosInstance.get('/canteen/orders/my');
+    return res.data;
+  },
+  getAllOrders: async (params = {}) => {
+    const res = await axiosInstance.get('/canteen/orders', { params });
+    return res.data;
+  },
+  getOrderById: async (id) => {
+    const res = await axiosInstance.get(`/canteen/orders/${id}`);
+    return res.data;
+  },
+  updateOrderStatus: async (id, payload) => {
+    const res = await axiosInstance.put(`/canteen/orders/${id}/status`, payload);
+    return res.data;
+  },
+  confirmCounterPayment: async (id) => {
+    const res = await axiosInstance.post(`/canteen/orders/${id}/confirm-payment`);
+    return res.data;
+  },
+
+  // Credit Requests
+  getMyCreditRequests: async () => {
+    const res = await axiosInstance.get('/canteen/credit-requests/my');
+    return res.data;
+  },
+  getAllCreditRequests: async (params = {}) => {
+    const res = await axiosInstance.get('/canteen/credit-requests', { params });
+    return res.data;
+  },
+  reviewCreditRequest: async (id, payload) => {
+    const res = await axiosInstance.put(`/canteen/credit-requests/${id}`, payload);
+    return res.data;
+  },
 };
 
 export default canteenApi;

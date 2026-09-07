@@ -6,6 +6,7 @@ import ChatButton from '../../common/ChatButton';
 
 
 const PAGE_TITLES = {
+  // Student tabs
   dashboard: 'Dashboard',
   events: 'Campus Events',
   'lost-found': 'Lost & Found',
@@ -20,6 +21,9 @@ const PAGE_TITLES = {
   chat: 'Chat',
   profile: 'My Profile',
   rte: 'Routine & Timetable',
+  // Teacher tabs
+  announcements: 'Announcements',
+  requests: 'Student Requests',
 };
 
 const StudentNavbar = ({
@@ -66,7 +70,7 @@ const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
         <img
           src="/bic-logo-full.png"
           alt="Biratnagar International College"
-          className="hidden h-[83px] w-auto shrink-0 object-contain sm:block lg:h-[93px]"
+          className="hidden -ml-[90.4px] h-[74.7px] w-auto shrink-0 object-contain sm:block lg:h-[83.7px]"
           style={{ filter: 'brightness(0.94)' }}
         />
 
