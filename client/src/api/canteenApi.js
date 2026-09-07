@@ -71,6 +71,10 @@ const canteenApi = {
     const res = await axiosInstance.post(`/canteen/orders/${id}/confirm-payment`);
     return res.data;
   },
+  getOrderInvoice: async (id) => {
+    const res = await axiosInstance.get(`/canteen/orders/${id}/invoice`, { responseType: 'blob' });
+    return res.data;
+  },
 
   // Credit Requests
   getMyCreditRequests: async () => {

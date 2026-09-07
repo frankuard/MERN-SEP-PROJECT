@@ -4,6 +4,7 @@ const CanteenOrder = require('../models/CanteenOrder');
 const CanteenCreditRequest = require('../models/CanteenCreditRequest');
 const User = require('../models/User');
 const { createNotificationForRole, createNotification } = require('../utils/createNotification');
+const generateInvoicePdf = require('../utils/generateInvoicePdf');
 
 
 // =========================================================================
@@ -631,7 +632,7 @@ const updateOrderStatus = async (req, res) => {
  */
 const confirmCounterPayment = async (req, res) => {
   try {
-    const order = await CanteenOrder.findById(req.params.id);
+    const order = await CanteenOrder.findById(req.params.id).populate('user', 'username email role');
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
@@ -642,6 +643,9 @@ const confirmCounterPayment = async (req, res) => {
     }
 
     order.paymentStatus = 'Paid';
+    if (order.orderStatus !== 'Cancelled') {
+      order.orderStatus = 'Completed';
+    }
     await order.save();
 
     createNotification(order.user, {
@@ -654,6 +658,31 @@ const confirmCounterPayment = async (req, res) => {
     res.status(200).json({ message: 'Payment confirmed', order });
   } catch (error) {
     res.status(500).json({ message: 'Failed to confirm payment', error: error.message });
+  }
+};
+
+/**
+ * @desc   Generate and download PDF invoice for a paid order
+ * @route  GET /api/canteen/orders/:id/invoice
+ * @access Private (Admin / Staff)
+ */
+const getOrderInvoice = async (req, res) => {
+  try {
+    const order = await CanteenOrder.findById(req.params.id).populate('user', 'username email role');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const pdfBuffer = await generateInvoicePdf(order);
+
+    const fileName = `invoice-${order._id.toString().slice(-6).toUpperCase()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.end(pdfBuffer);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to generate invoice', error: error.message });
   }
 };
 
@@ -918,6 +947,7 @@ module.exports = {
   getOrderById,
   updateOrderStatus,
   confirmCounterPayment,
+  getOrderInvoice,
   // Credit Requests
   getAllCreditRequests,
   getMyCreditRequests,

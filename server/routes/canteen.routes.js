@@ -20,6 +20,7 @@ const {
   getOrderById,
   updateOrderStatus,
   confirmCounterPayment,
+  getOrderInvoice,
   getAllCreditRequests,
   getMyCreditRequests,
   reviewCreditRequest,
@@ -55,6 +56,7 @@ router.get('/orders', authMiddleware, staffAndAdmin, getAllOrders);
 router.get('/orders/:id', authMiddleware, allRoles, getOrderById);
 router.put('/orders/:id/status', authMiddleware, staffAndAdmin, updateOrderStatus);
 router.post('/orders/:id/confirm-payment', authMiddleware, staffAndAdmin, confirmCounterPayment);
+router.get('/orders/:id/invoice', authMiddleware, staffAndAdmin, getOrderInvoice);
 
 // Credit Requests
 router.get('/credit-requests/my', authMiddleware, studentAndTeacher, getMyCreditRequests);

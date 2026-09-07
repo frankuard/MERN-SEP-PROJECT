@@ -432,7 +432,7 @@ export const CreditTab = ({ t }) => {
 // ---------- MAIN ----------
 
 const ManageCanteenSection = ({ t }) => {
-  const [tab, setTab] = useState('menu');
+  const [tab, setTab] = useState('sales');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -445,11 +445,11 @@ const ManageCanteenSection = ({ t }) => {
 
       <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
         {[
-          { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
+          { id: 'sales', label: 'Sales & Analytics', icon: BarChart3 },
           { id: 'orders', label: 'Orders', icon: ShoppingBag },
           { id: 'credit-requests', label: 'Credit Requests', icon: BadgeCheck },
           { id: 'credit', label: 'Credit Due', icon: Wallet },
-          { id: 'sales', label: 'Sales & Analytics', icon: BarChart3 },
+          { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
