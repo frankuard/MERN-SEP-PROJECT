@@ -40,13 +40,13 @@ const timetableSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // Linked to the Group master list (e.g. "Section A + Section B").
-    group: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Group',
-      default: null,
+    // Linked to the Group master list — a period can span several groups
+    // at once (e.g. "L4CG1 + L4CG2 + L4CG4" running together as one lecture).
+    groups: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
+      default: [],
     },
-    groupName: { type: String, trim: true, default: '' }, // snapshot
+    groupNames: { type: [String], default: [] }, // snapshot
 
     // Linked to the Classroom master list.
     room: {

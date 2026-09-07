@@ -26,7 +26,7 @@ const ADMIN_TABS = [
 
 const emptyPeriodForm = {
   day: DAY_ORDER[0], startTime: '', endTime: '', classType: 'Lecture',
-  moduleId: '', lecturer: '', groupId: '', roomId: '', order: 0,
+  moduleId: '', lecturer: '', groupIds: [], roomId: '', order: 0,
 };
 
 const emptyClassroomForm = { name: '', capacity: '', facilities: '' };
@@ -98,7 +98,9 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
       mode: 'edit',
       form: {
         day: p.day, startTime: p.startTime, endTime: p.endTime, classType: p.classType,
-        moduleId: p.module, lecturer: p.lecturer, groupId: p.group || '', roomId: p.room, order: p.order || 0,
+        moduleId: p.module, lecturer: p.lecturer,
+        groupIds: (p.groups || []).map((g) => (typeof g === 'string' ? g : g._id)),
+        roomId: p.room, order: p.order || 0,
       },
       editingId: p._id,
     });
@@ -120,7 +122,7 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
       classType: f.classType,
       moduleId: f.moduleId,
       lecturer: f.lecturer.trim(),
-      groupId: f.groupId || null,
+      groupIds: f.groupIds || [],
       roomId: f.roomId,
       order: Number(f.order) || 0,
     };
@@ -564,7 +566,7 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                     </div>
                   </div>
                   <p className="mt-2 text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-                    {p.moduleCode}{p.groupName ? ` · ${p.groupName}` : ''}
+                    {p.moduleCode}{(p.groupNames || []).length > 0 ? ` · ${p.groupNames.join(' + ')}` : ''}
                   </p>
                   <p className="text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>{p.moduleName}</p>
                   <div className="mt-2 space-y-1 text-xs" style={{ color: t.textMuted }}>
@@ -666,16 +668,32 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Group (optional)</label>
-                    <select
-                      value={periodModal.form.groupId}
-                      onChange={(e) => setPeriodModal({ ...periodModal, form: { ...periodModal.form, groupId: e.target.value } })}
-                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-                      style={inputStyle}
-                    >
-                      <option value="">None</option>
-                      {groups.map((g) => <option key={g._id} value={g._id}>{g.name}</option>)}
-                    </select>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Groups (select all that apply)</label>
+                    <div className="mt-1 max-h-36 space-y-1.5 overflow-y-auto rounded-lg border p-2.5" style={inputStyle}>
+                      {groups.length === 0 && (
+                        <p className="text-[11px]" style={{ color: t.textMuted }}>
+                          No groups yet — add one in the "Modules &amp; Groups" tab first.
+                        </p>
+                      )}
+                      {groups.map((g) => {
+                        const checked = periodModal.form.groupIds.includes(g._id);
+                        return (
+                          <label key={g._id} className="flex items-center gap-2 text-sm" style={{ color: t.textPrimary }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...periodModal.form.groupIds, g._id]
+                                  : periodModal.form.groupIds.filter((id) => id !== g._id);
+                                setPeriodModal({ ...periodModal, form: { ...periodModal.form, groupIds: next } });
+                              }}
+                            />
+                            {g.name}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div>
@@ -879,7 +897,7 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                     <input
                       value={groupModal.form.name}
                       onChange={(e) => setGroupModal({ ...groupModal, form: { ...groupModal.form, name: e.target.value } })}
-                      placeholder="Section A + Section B"
+                      placeholder="L4CG1"
                       className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                       style={inputStyle}
                     />
@@ -1486,7 +1504,7 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                     <input
                       value={examModal.form.group}
                       onChange={(e) => setExamModal({ ...examModal, form: { ...examModal.form, group: e.target.value } })}
-                      placeholder="Section A + Section B"
+                      placeholder="L4CG1"
                       className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                       style={inputStyle}
                     />

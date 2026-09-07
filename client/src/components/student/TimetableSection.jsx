@@ -66,6 +66,33 @@ function parsePeriodTime(timeStr) {
   return { start, end };
 }
 
+/** Same as parseTimeToday, but anchored to any given date instead of always "today" */
+function parseTimeOnDate(timeStr, baseDate) {
+  if (!timeStr) return null;
+  const clean = timeStr.trim().toUpperCase();
+  const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (!match) return null;
+  let [, h, m, meridiem] = match;
+  h = parseInt(h, 10);
+  m = parseInt(m, 10);
+  if (meridiem === 'PM' && h !== 12) h += 12;
+  if (meridiem === 'AM' && h === 12) h = 0;
+  const d = new Date(baseDate);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+/** Split "8:00 AM – 10:00 AM" → { start, end } as Dates anchored to baseDate. */
+function parsePeriodTimeOnDate(timeStr, baseDate) {
+  if (!timeStr) return null;
+  const parts = timeStr.split('–').map((s) => s.trim());
+  if (parts.length !== 2) return null;
+  const start = parseTimeOnDate(parts[0], baseDate);
+  const end   = parseTimeOnDate(parts[1], baseDate);
+  if (!start || !end) return null;
+  return { start, end };
+}
+
 /** e.g. 3661 → "1h 1m 1s" */
 function formatCountdown(totalSeconds) {
   if (totalSeconds <= 0) return '0s';
@@ -86,6 +113,20 @@ function formatExamCountdown(totalSeconds) {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+/** General-purpose "time until" formatter used for both today's and future days' countdowns.
+ *  "2d 3h" / "5h 20m" / "12m 5s" / "0s" */
+function formatTimeUntil(totalSeconds) {
+  if (totalSeconds <= 0) return 'Now';
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -163,7 +204,6 @@ const TimetableSection = ({ t }) => {
     .filter((p) => p && p._end > now)
     .sort((a, b) => a._start - b._start);
 
-  // first future (not yet started) index — kept for reference but card uses upcomingToday[0]
   // vacant helpers
   const latestRequestFor = (classroomId) => {
     if (!myRequests) return null;
@@ -230,20 +270,23 @@ const TimetableSection = ({ t }) => {
             let isFutureDay  = false;
 
             if (!nextPeriod) {
-              // No classes left today — scan the rest of the week cyclically
+              // No classes left today — scan the rest of the week cyclically,
+              // computing real target Dates (today + offset days) so we can count down to them.
               for (let offset = 1; offset <= 6; offset++) {
                 const dayIdx  = (now.getDay() + offset) % 7;
                 const dayName = DAY_ORDER[dayIdx];
                 const dayData = source.find((d) => d.day === dayName);
                 if (dayData && !dayData.isOffDay && dayData.periods.length > 0) {
-                  // Parse periods for that future day (absolute times don't matter — we just
-                  // need a sorted list; use order-based sort if no parseable time)
-                  const sorted = [...dayData.periods].sort((a, b) => {
-                    const pa = parsePeriodTime(a.time);
-                    const pb = parsePeriodTime(b.time);
-                    if (pa && pb) return pa.start - pb.start;
-                    return 0;
-                  });
+                  const targetDate = new Date(now);
+                  targetDate.setDate(now.getDate() + offset);
+
+                  const sorted = [...dayData.periods]
+                    .map((p) => {
+                      const parsed = parsePeriodTimeOnDate(p.time, targetDate);
+                      return parsed ? { ...p, _start: parsed.start, _end: parsed.end } : { ...p, _start: null, _end: null };
+                    })
+                    .sort((a, b) => (a._start && b._start ? a._start - b._start : 0));
+
                   nextPeriod   = sorted[0];
                   nextDayLabel = dayName;
                   isFutureDay  = true;
@@ -254,9 +297,9 @@ const TimetableSection = ({ t }) => {
 
             const isOngoing = nextPeriod && !isFutureDay && nextPeriod._start && nextPeriod._start <= now && nextPeriod._end > now;
 
-            // Seconds until next period starts (or remaining if ongoing)
+            // Seconds until next period starts (or remaining if ongoing) — works for today AND future days now
             let secsLeft = 0;
-            if (nextPeriod && !isFutureDay) {
+            if (nextPeriod && nextPeriod._start) {
               secsLeft = isOngoing
                 ? Math.floor((nextPeriod._end   - now) / 1000)
                 : Math.floor((nextPeriod._start - now) / 1000);
@@ -271,11 +314,14 @@ const TimetableSection = ({ t }) => {
             const listPeriods = isFutureDay
               ? (() => {
                   const dayData = source.find((d) => d.day === nextDayLabel);
-                  return dayData ? [...dayData.periods].sort((a, b) => {
-                    const pa = parsePeriodTime(a.time);
-                    const pb = parsePeriodTime(b.time);
-                    return (pa && pb) ? pa.start - pb.start : 0;
-                  }) : [];
+                  if (!dayData) return [];
+                  const targetDate = new Date(nextPeriod._start);
+                  return [...dayData.periods]
+                    .map((p) => {
+                      const parsed = parsePeriodTimeOnDate(p.time, targetDate);
+                      return parsed ? { ...p, _start: parsed.start, _end: parsed.end } : { ...p, _start: null, _end: null };
+                    })
+                    .sort((a, b) => (a._start && b._start ? a._start - b._start : 0));
                 })()
               : upcomingToday;
 
@@ -305,22 +351,18 @@ const TimetableSection = ({ t }) => {
                       {isOngoing ? 'Ongoing now' : isFutureDay ? nextDayLabel : todayName}
                     </div>
 
-                    {/* big countdown — only show live timer for today's classes */}
-                    {!isFutureDay && (
-                      <>
-                        <div
-                          className="mt-1 font-extrabold leading-none tabular-nums"
-                          style={{ fontSize: '2.4rem', color: t.textPrimary }}
-                        >
-                          {isOngoing
-                            ? `${h > 0 ? `${h}h ` : ''}${m}m ${s}s`
-                            : h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`}
-                        </div>
-                        <p className="mt-0.5 text-xs font-semibold" style={{ color: t.textMuted }}>
-                          {isOngoing ? 'remaining' : 'until class starts'}
-                        </p>
-                      </>
-                    )}
+                    {/* big countdown — live for today, day-aware (d/h/m) for future days */}
+                    <div
+                      className="mt-1 font-extrabold leading-none tabular-nums"
+                      style={{ fontSize: '2.4rem', color: t.textPrimary }}
+                    >
+                      {isOngoing
+                        ? `${h > 0 ? `${h}h ` : ''}${m}m ${s}s`
+                        : formatTimeUntil(secsLeft)}
+                    </div>
+                    <p className="mt-0.5 text-xs font-semibold" style={{ color: t.textMuted }}>
+                      {isOngoing ? 'remaining' : 'until class starts'}
+                    </p>
                     {isFutureDay && (
                       <p className="mt-2 text-xs font-semibold" style={{ color: t.textMuted }}>
                         Next classes on {nextDayLabel}
@@ -360,15 +402,7 @@ const TimetableSection = ({ t }) => {
                           {isFutureDay ? `All classes — ${nextDayLabel}` : 'Later today'}
                         </p>
                         {listPeriods.slice(isFutureDay ? 1 : 0).map((p, idx) => {
-                          // For today's list we have _start/_end; skip the first (already shown above)
-                          const parsed = !isFutureDay ? null : parsePeriodTime(p.time);
-                          // For today: compute secs; for future day just show time string
-                          const bSecs = (!isFutureDay && p._start)
-                            ? Math.floor((p._start - now) / 1000)
-                            : null;
-                          const bh = bSecs !== null ? Math.floor(bSecs / 3600) : 0;
-                          const bm = bSecs !== null ? Math.floor((bSecs % 3600) / 60) : 0;
-                          const bs = bSecs !== null ? bSecs % 60 : 0;
+                          const bSecs = p._start ? Math.floor((p._start - now) / 1000) : null;
                           const b2 = getTypeBadge(p.classType);
                           return (
                             <div key={p.id || idx} className="flex items-start justify-between gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: t.pageBg }}>
@@ -382,7 +416,7 @@ const TimetableSection = ({ t }) => {
                                 </span>
                                 {bSecs !== null && bSecs > 0 && (
                                   <p className="mt-0.5 text-[10px] font-bold tabular-nums" style={{ color: t.textMuted }}>
-                                    {bh > 0 ? `${bh}h ${bm}m` : bm > 0 ? `${bm}m` : `${bs}s`}
+                                    {formatTimeUntil(bSecs)}
                                   </p>
                                 )}
                               </div>

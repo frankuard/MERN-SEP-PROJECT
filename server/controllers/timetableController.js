@@ -14,18 +14,27 @@ const getTimetable = async (req, res) => {
   try {
     const periods = await Timetable.find({}).sort({ day: 1, order: 1, startTime: 1 });
 
+    // Only show periods that include the logged-in student's own group.
+    // Staff/admin/teacher accounts have no group set, so they see everything.
+   const studentGroup = req.user?.group || '';
+
+const visiblePeriods = studentGroup
+  ? periods.filter((p) => (p.groupNames || []).includes(studentGroup))
+  : periods;
+
     const grouped = DAY_ORDER.map((day) => {
-      const dayPeriods = periods
+      const dayPeriods = visiblePeriods
         .filter((p) => p.day === day)
         .map((p) => ({
           id: p._id,
           startTime: p.startTime,
           endTime: p.endTime,
+          time: `${p.startTime} – ${p.endTime}`,
           classType: p.classType,
           moduleCode: p.moduleCode,
           moduleName: p.moduleName,
           lecturer: p.lecturer,
-          group: p.groupName,
+          group: (p.groupNames || []).join(' + '),
           room: p.roomName,
         }));
 
@@ -66,7 +75,7 @@ const getTimetableAdmin = async (req, res) => {
 
 const createPeriod = async (req, res) => {
   try {
-    const { day, startTime, endTime, classType, moduleId, lecturer, groupId, roomId, order } = req.body;
+    const { day, startTime, endTime, classType, moduleId, lecturer, groupIds, roomId, order } = req.body;
 
     if (!day || !startTime || !endTime || !classType || !moduleId || !lecturer || !roomId) {
       return res.status(400).json({
@@ -80,10 +89,13 @@ const createPeriod = async (req, res) => {
     const roomDoc = await Classroom.findById(roomId);
     if (!roomDoc) return res.status(404).json({ message: 'Classroom not found' });
 
-    let groupDoc = null;
-    if (groupId) {
-      groupDoc = await Group.findById(groupId);
-      if (!groupDoc) return res.status(404).json({ message: 'Group not found' });
+    const groupIdList = Array.isArray(groupIds) ? groupIds.filter(Boolean) : [];
+    let groupDocs = [];
+    if (groupIdList.length > 0) {
+      groupDocs = await Group.find({ _id: { $in: groupIdList } });
+      if (groupDocs.length !== groupIdList.length) {
+        return res.status(404).json({ message: 'One or more groups not found' });
+      }
     }
 
     const period = await Timetable.create({
@@ -95,8 +107,8 @@ const createPeriod = async (req, res) => {
       moduleCode: moduleDoc.code,
       moduleName: moduleDoc.name,
       lecturer: lecturer.trim(),
-      group: groupDoc?._id || null,
-      groupName: groupDoc?.name || '',
+      groups: groupDocs.map((g) => g._id),
+      groupNames: groupDocs.map((g) => g.name),
       room: roomDoc._id,
       roomName: roomDoc.name,
       order: order != null ? Number(order) : 0,
@@ -121,7 +133,7 @@ const updatePeriod = async (req, res) => {
     const period = await Timetable.findById(req.params.id);
     if (!period) return res.status(404).json({ message: 'Period not found' });
 
-    const { day, startTime, endTime, classType, moduleId, lecturer, groupId, roomId, order } = req.body;
+    const { day, startTime, endTime, classType, moduleId, lecturer, groupIds, roomId, order } = req.body;
 
     if (day !== undefined) period.day = day;
     if (startTime !== undefined) period.startTime = startTime.trim();
@@ -145,15 +157,18 @@ const updatePeriod = async (req, res) => {
       period.roomName = roomDoc.name;
     }
 
-    if (groupId !== undefined) {
-      if (groupId === null || groupId === '') {
-        period.group = null;
-        period.groupName = '';
+    if (groupIds !== undefined) {
+      const groupIdList = Array.isArray(groupIds) ? groupIds.filter(Boolean) : [];
+      if (groupIdList.length === 0) {
+        period.groups = [];
+        period.groupNames = [];
       } else {
-        const groupDoc = await Group.findById(groupId);
-        if (!groupDoc) return res.status(404).json({ message: 'Group not found' });
-        period.group = groupDoc._id;
-        period.groupName = groupDoc.name;
+        const groupDocs = await Group.find({ _id: { $in: groupIdList } });
+        if (groupDocs.length !== groupIdList.length) {
+          return res.status(404).json({ message: 'One or more groups not found' });
+        }
+        period.groups = groupDocs.map((g) => g._id);
+        period.groupNames = groupDocs.map((g) => g.name);
       }
     }
 
@@ -329,7 +344,7 @@ const getTeacherUpcomingClasses = async (req, res) => {
       classType:  p.classType,
       moduleCode: p.moduleCode,
       moduleName: p.moduleName,
-      group:      p.groupName,
+      group:      (p.groupNames || []).join(' + '),
       room:       p.roomName,
     }));
 

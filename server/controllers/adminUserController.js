@@ -44,12 +44,13 @@ const updateUser = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const previous = {
-      username: user.username,
-      department: user.department,
-      semester: user.semester,
-    };
+  username: user.username,
+  department: user.department,
+  semester: user.semester,
+  group: user.group,
+};
 
-    const { username, department, semester } = req.body;
+const { username, department, semester, group } = req.body;
 
     if (username !== undefined) {
       const trimmed = username.trim();
@@ -61,7 +62,8 @@ const updateUser = async (req, res) => {
       user.username = trimmed;
     }
     if (department !== undefined) user.department = department.trim();
-    if (semester !== undefined) user.semester = semester.trim();
+if (semester !== undefined) user.semester = semester.trim();
+if (group !== undefined) user.group = group.trim();
 
     const updated = await user.save();
 
@@ -69,6 +71,7 @@ const updateUser = async (req, res) => {
     if (previous.username !== updated.username) changes.push(`username to "${updated.username}"`);
     if (previous.department !== updated.department) changes.push(`department to "${updated.department}"`);
     if (previous.semester !== updated.semester) changes.push(`semester to "${updated.semester}"`);
+if (previous.group !== updated.group) changes.push(`group to "${updated.group}"`);
 
     if (changes.length > 0) {
       createNotification(updated._id, {
