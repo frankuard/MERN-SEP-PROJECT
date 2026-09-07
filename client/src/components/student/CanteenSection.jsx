@@ -127,6 +127,27 @@ const CanteenSection = ({ t }) => {
         <CreditDueCard t={t} amountDue={credit.amountDue} onViewHistory={() => setShowCreditHistory(true)} />
       </div>
 
+      {/* Category tabs directly below the search bar */}
+      {view === 'menu' && (
+        <div className="flex items-center gap-2 overflow-x-auto py-1">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setSelectedCategory(cat)}
+              className="shrink-0 rounded-2xl px-4 py-2 text-xs font-bold transition-all"
+              style={{
+                backgroundColor: selectedCategory === cat ? t.accentPrimary : t.cardBg,
+                color: selectedCategory === cat ? t.pageBg : t.textPrimary,
+                border: selectedCategory === cat ? 'none' : `1px solid ${t.border}`,
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Menu / My Orders switcher + cart directly below the credit due card, right-aligned */}
       <div className="flex items-center justify-end gap-2 mr-12">
         <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border, backgroundColor: t.cardBg }}>
@@ -175,24 +196,6 @@ const CanteenSection = ({ t }) => {
         <MyOrdersPanel t={t} onStartOrdering={() => setView('menu')} />
       ) : (
         <>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className="shrink-0 rounded-2xl px-4 py-2 text-xs font-bold transition-all"
-                style={{
-                  backgroundColor: selectedCategory === cat ? t.accentPrimary : t.cardBg,
-                  color: selectedCategory === cat ? t.pageBg : t.textPrimary,
-                  border: selectedCategory === cat ? 'none' : `1px solid ${t.border}`,
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
           {menuItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-16 text-center" style={{ borderColor: t.border }}>
               <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: t.pageBg }}>
