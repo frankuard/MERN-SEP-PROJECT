@@ -17,6 +17,7 @@ const VolunteerOpportunity = require('../models/VolunteerOpportunity');
 const VolunteerApplication = require('../models/VolunteerApplication');
 const LostFoundItem = require('../models/LostFoundItem');
 const HelpRequest = require('../models/HelpRequest');
+const DepartmentContact = require('../models/DepartmentContact'); 
 const ClassroomRequest = require('../models/ClassroomRequest');
 const CctvRequest = require('../models/CctvRequest');
 const BorrowRequest = require('../models/BorrowRequest');
@@ -161,6 +162,21 @@ const buildContext = async (user) => {
       p.push(`  [${d}] "${h.request.slice(0,70)}" | Responses: ${h.responses?.length || 0}`);
     });
   } catch (err) { p.push('  SSD error: ' + err.message); }
+
+  // ── 8b. Department Contacts (Campus Help) ─────────────
+  p.push(`\nDEPARTMENT CONTACTS:`);
+  try {
+    const departments = await DepartmentContact.find({}).sort({ order: 1 }).lean();
+    if (!departments.length) {
+      p.push('  No department contacts on file.');
+    } else {
+      departments.forEach(d =>
+        p.push(`  ${d.title} (key: ${d.key}) | Phone: ${d.phone} | Email: ${d.email}`)
+      );
+    }
+  } catch (err) {
+    p.push('  Department contacts error: ' + err.message);
+  }
 
   // ── 9. Volunteering ───────────────────────────────────
   p.push(`\nVOLUNTEERING:`);

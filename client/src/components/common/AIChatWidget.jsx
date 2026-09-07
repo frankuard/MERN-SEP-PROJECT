@@ -12,11 +12,16 @@ import DashboardMascotFace from '../student/Dashboard/DashboardMascotFace';
 // hits the API, so this reply costs zero tokens ────────────
 const HELP_PATTERNS = [
   'what can you do', 'what are your features', 'what do you do',
-  'how can you help', 'what can you help with', 'features', 'help',
+  'how can you help', 'what can you help with',
+  'what can you do for me', 'what do you do here',
 ];
 const isHelpIntent = (text) => {
-  const t = text.trim().toLowerCase();
-  return HELP_PATTERNS.some((p) => t === p || t.includes(p));
+  const t = text.trim().toLowerCase().replace(/[?.!]+$/, '');
+  // Exact match only — no substring/includes matching, so any real
+  // request that happens to contain the word "help" (peer help,
+  // campus help, CCTV help, etc.) reaches the backend instead of
+  // being swallowed by this capability-list shortcut.
+  return HELP_PATTERNS.includes(t);
 };
 const HELP_SUGGESTIONS = [
   'Show my attendance',

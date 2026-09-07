@@ -9,9 +9,13 @@ const { createNotification, createNotificationForRole } = require('../utils/crea
 
 
 
+const Event = require('../models/Event');
+const EventRegistration = require('../models/EventRegistration');
+
 const lostFoundController = require('../controllers/lostFoundController');
 const helpController = require('../controllers/helpController');
 const attendanceController = require('../controllers/attendanceController');
+const eventController = require('../controllers/eventController');
 
 const runController = (handler, user, body, params = {}) =>
   new Promise((resolve, reject) => {
@@ -82,10 +86,32 @@ const ACTIONS = {
     optionalQuestion: 'Is this a technical issue (equipment, Wi-Fi, projector) or something else? (You can say skip.)',
     optionalSatisfied: (d) => Boolean(d.category),
   },
- 
+
+  peer_help: {
+    label: 'Peer Help Request',
+    cardTitle: 'Peer Help Request',
+    fields: ['request', 'details'],
+    required: ['request'],
+    questions: {
+      request: 'What do you need help with? Describe it in a sentence or two.',
+    },
+    optionalQuestion: 'Want to add any extra detail so other students can help better? (You can say skip.)',
+    optionalSatisfied: (d) => Boolean(d.details),
+  },
+
   volunteer_application: {
     label: 'Volunteer Application',
     cardTitle: 'Volunteer Application',
+    fields: [],
+    required: [],
+    questions: {},
+    optionalQuestion: null,
+    optionalSatisfied: () => true,
+  },
+
+  event_registration: {
+    label: 'Event Registration',
+    cardTitle: 'Event Registration',
     fields: [],
     required: [],
     questions: {},
@@ -99,6 +125,7 @@ const ALLOWED_UPDATES = {
   cctv_request: ['location', 'date', 'timeFrom', 'timeTo', 'reason', 'additionalDetails'],
   attendance_report: ['reason'],
   campus_help: ['problem', 'location', 'category', 'priority', 'details'],
+  peer_help: ['request', 'details'],
 };
 
 
@@ -178,17 +205,19 @@ Allowed actions:
 - "lost_found_claim": student wants to CLAIM an item already in lost & found. e.g. "I want to claim the black wallet", "that backpack is mine", "I found my lost phone in lost and found".
 - "attendance_report": student is REQUESTING an attendance report document. e.g. "I need my attendance report", "request my attendance report", "send me my attendance report".
 - "cctv_request": student is REQUESTING CCTV/camera footage. e.g. "I need cctv footage from LT01", "can you request cctv footage near the canteen".
-- "campus_help": student reports a campus facility problem needing admin action. e.g. "the projector in LT01 isn't working", "there is no wifi in lab 2", "the AC is broken in SR01".
-- "volunteer_application": student wants to apply as a volunteer. e.g. "I want to volunteer", "apply me for volunteering", "I want to volunteer for the next event", "register me as a volunteer", "apply for the next two events".
+- "campus_help": student reports a campus FACILITY/EQUIPMENT problem needing admin action. e.g. "the projector in LT01 isn't working", "there is no wifi in lab 2", "the AC is broken in SR01". Only classify as this if a facility/equipment word is present (wifi, projector, AC, broken, etc.) or it is clearly about a physical room/equipment.
+- "peer_help": student wants to post a request on the Campus Peer Help board — asking OTHER STUDENTS for help with a topic, subject, or task, OR simply says they want to ask for peer/campus help without giving a topic yet. e.g. "I need help with calculus", "can someone help me understand thermodynamics", "does anyone have notes for DBMS", "I'm stuck on this assignment, can someone help me", "I need peer help", "I want to ask for campus help", "I want to post a help request", "can someone help me". If the message mentions "peer help" or "campus help" by name, or is a vague help request with no facility/equipment keyword, classify it as peer_help — the next turn will ask what they need help with.
+- "volunteer_application": student wants to apply as a VOLUNTEER (helping run/staff an event). e.g. "I want to volunteer", "apply me for volunteering", "register me as a volunteer".
+- "event_registration": student wants to REGISTER/SIGN UP to ATTEND an event (not volunteer for it). e.g. "register me for the tech fest", "sign me up for the next event", "I want to attend the cultural night", "book me a spot for the hackathon", "register me for the upcoming event".
 - "none": everything else (questions about attendance percentages, canteen menu, timetable, events, greetings, chit-chat).
 
 Message: "${message}"
-Return {"action":"none|lost_found_report|lost_found_claim|attendance_report|cctv_request|campus_help|volunteer_application"}`;
+Return {"action":"none|lost_found_report|lost_found_claim|attendance_report|cctv_request|campus_help|peer_help|volunteer_application|event_registration"}`;
 
 // ACTION_HINTS: fast regex pre-filter before calling the LLM for intent detection.
 // Must include keywords that could signal any of the 6 supported actions.
 const ACTION_HINTS =
-  /\b(lost|lose|losing|found|claim|claiming|reclaim|cctv|camera|footage|attendance report|report request|projector|wifi|wi-fi|internet|not working|isn't working|isn\'t working|broken|problem with|issue with|help with|can you request|need.*report|wallet|airpod|earbud|passport|id card|charger|backpack|volunteer|volunteering|apply.*volunteer|register.*volunteer|volunteer.*event|i want to volunteer)\b/i;
+  /\b(lost|lose|losing|found|claim|claiming|reclaim|cctv|camera|footage|attendance report|report request|projector|wifi|wi-fi|internet|not working|isn't working|isn\'t working|broken|problem with|issue with|help with|need help|need help with|can someone help|can you help|anyone help|does anyone know|i'm stuck|im stuck|help me understand|help me with|can you request|need.*report|wallet|airpod|earbud|passport|id card|charger|backpack|volunteer|volunteering|apply.*volunteer|register.*volunteer|volunteer.*event|i want to volunteer|peer help|campus help|need.*help|want.*help|wanna.*help|ask.*help|get help|get some help|raise a help|post a help|help request|need assistance|want assistance|register.*event|register me|sign me up|sign up for|book.*spot|attend.*event|going to the event|count me in|reserve.*spot|join the event|register for)\b/i;
 
 const detectIntent = async (message) => {
   const parsed = await groqJson([{ role: 'user', content: intentPrompt(message) }], { maxTokens: 100 });
@@ -196,6 +225,20 @@ const detectIntent = async (message) => {
   // volunteer_application is valid even though its ACTIONS entry has no fields
   if (action === 'volunteer_application') return 'volunteer_application';
   return ACTIONS[action] ? action : null;
+};
+
+// Deterministic safety net — used only when the LLM classifier fails
+// to return usable JSON (rare, but silent when it happens). Deliberately
+// narrow: only covers actions with unambiguous keyword signals, so it
+// never mis-fires on the more nuanced actions (lost & found, CCTV, etc.)
+const VOLUNTEER_FALLBACK_RE = /\bvolunteer(ing)?\b/i;
+const EVENT_REG_FALLBACK_RE = /\b(register|sign\s*up|signup|book|reserve)\b.*\b(event|fest|hackathon|workshop|seminar|program)\b|\b(register|sign\s*up|signup)\s*(me)?\s*for\b/i;
+
+const guessIntentFallback = (message) => {
+  const m = message.toLowerCase();
+  if (VOLUNTEER_FALLBACK_RE.test(m)) return 'volunteer_application';
+  if (EVENT_REG_FALLBACK_RE.test(m)) return 'event_registration';
+  return null;
 };
 
 const sanitizeUpdates = (action, updates) => {
@@ -352,6 +395,117 @@ const parseVolunteerCount = (message) => {
 const opportunityLabel = (op) =>
   `${op.eventTitle}${op.role ? ` — ${op.role}` : ''}${op.date ? ` (${op.date})` : ''}`;
 
+// ─────────────────────────────────────────────────────────────
+//  Event registration — search + selection + confirm, then call
+//  the real registerForEvent controller for durable registration.
+// ─────────────────────────────────────────────────────────────
+const eventKeywords = (message) => {
+  let text = String(message || '')
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .replace(
+      /\b(register|registration|sign|signup|up|for|me|to|the|a|an|next|upcoming|event|events|please|can|you|i|want|would|like|apply|book|reserve|attend|attending|going|go|spot|count|in|join)\b/g,
+      ' '
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.split(' ').filter((w) => w.length > 1);
+};
+
+const eventLabel = (ev) =>
+  `${ev.title}${ev.date ? ' (' + new Date(ev.date).toLocaleDateString() : ''}${ev.date ? ')' : ''}${ev.venue ? ' @ ' + ev.venue : ''}`;
+
+const eventConfirmCard = (ev) => ({
+  title: 'Event Registration',
+  action: 'event_registration',
+  confirm: true,
+  rows: [
+    { label: 'Event', value: ev.title },
+    { label: 'Date', value: ev.date ? new Date(ev.date).toLocaleDateString() : 'TBD' },
+    { label: 'Venue', value: ev.venue || '—' },
+  ],
+});
+
+const eventSearchTurn = async (user, message, session) => {
+  const keywords = eventKeywords(message);
+  const filter = { isPublished: true, date: { $gte: new Date() } };
+
+  let events;
+  if (keywords.length) {
+    const and = keywords.map((k) => {
+      const re = new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      return { $or: [{ title: re }, { venue: re }, { category: re }] };
+    });
+    events = await Event.find({ ...filter, $and: and }).sort({ date: 1 }).limit(10).lean();
+  } else {
+    events = await Event.find(filter).sort({ date: 1 }).limit(10).lean();
+  }
+
+  // Exclude events the student is already registered for
+  const myRegs = await EventRegistration.find({ user: user._id, status: 'registered' }).select('event').lean();
+  const registeredIds = new Set(myRegs.map((r) => r.event.toString()));
+  events = events.filter((e) => !registeredIds.has(e._id.toString()));
+
+  if (!events.length) {
+    clearSession(user._id);
+    return {
+      reply: keywords.length
+        ? "I couldn't find an upcoming event matching that. Check the Events section for the full list."
+        : "There are no upcoming events open for registration right now, or you're already registered for all of them.",
+      card: null,
+    };
+  }
+
+  // No specific name given, or only one match — auto-pick the nearest one
+  if (events.length === 1 || !keywords.length) {
+    const ev = events[0];
+    session.eventId = ev._id.toString();
+    session.step = 'confirm';
+    setSession(user._id, session);
+    return { reply: 'Here is the event I found:', card: eventConfirmCard(ev) };
+  }
+
+  if (events.length > 6) {
+    return { reply: `I found ${events.length} matching events. Could you narrow it down with the event name?`, card: null };
+  }
+
+  session.step = 'choose';
+  session.matches = events.map((e) => ({ id: e._id.toString(), label: eventLabel(e) }));
+  setSession(user._id, session);
+  return {
+    reply: `I found ${events.length} matching events. Please pick one:`,
+    card: {
+      title: 'Select the Event to Register For',
+      action: 'event_registration',
+      choices: session.matches.map((m, idx) => ({ index: idx, label: m.label })),
+    },
+  };
+};
+
+const eventChooseTurn = async (user, message, session) => {
+  const num = (message.match(/\b([1-9]|10)\b/) || [])[1];
+  const index = num ? Number(num) - 1 : -1;
+  if (!session.matches || session.matches[index] === undefined) {
+    return {
+      reply: 'Please reply with the number of the event you want to register for (1, 2, 3...).',
+      card: {
+        title: 'Select the Event to Register For',
+        action: 'event_registration',
+        choices: session.matches.map((m, idx) => ({ index: idx, label: m.label })),
+      },
+    };
+  }
+  session.eventId = session.matches[index].id;
+  session.step = 'confirm';
+  setSession(user._id, session);
+  const ev = await Event.findById(session.eventId).lean();
+  if (!ev) {
+    clearSession(user._id);
+    return { reply: 'That event no longer exists. Please try again.', card: null };
+  }
+  return { reply: 'Here is the event you selected:', card: eventConfirmCard(ev) };
+};
+
 const volunteerSearchTurn = async (user, message, session) => {
   const count = parseVolunteerCount(message);
   session.volunteerCount = count;
@@ -476,6 +630,15 @@ const buildConfirmCard = (action, draft, user) => {
           { label: 'Priority', value: draft.priority || 'Normal' },
         ],
       };
+    case 'peer_help':
+      return {
+        title: ACTIONS.peer_help.cardTitle,
+        action,
+        rows: [
+          { label: 'Request', value: draft.request },
+          { label: 'Extra Details', value: draft.details || '—' },
+        ],
+      };
     default:
       return null;
   }
@@ -570,12 +733,13 @@ const handleTurn = async (user, message, history = []) => {
   if (RESTART_RE.test(trimmed)) {
     if (session) {
       session.draft = {};
-      session.step = (session.action === 'lost_found_claim' || session.action === 'volunteer_application')
+      session.step = (session.action === 'lost_found_claim' || session.action === 'volunteer_application' || session.action === 'event_registration')
         ? 'search'
         : 'collect';
       session.optionalAsked = false;
       session.matches = null;
       session.itemId = null;
+      session.eventId = null;
       session.selectedOpportunities = null;
       setSession(user._id, session);
       if (session.action === 'lost_found_claim') {
@@ -583,6 +747,9 @@ const handleTurn = async (user, message, history = []) => {
       }
       if (session.action === 'volunteer_application') {
         return { reply: "Okay, let's start again. How many events would you like to volunteer for?", card: null };
+      }
+      if (session.action === 'event_registration') {
+        return { reply: "Okay, let's start again. Which event would you like to register for?", card: null };
       }
       const first = ACTIONS[session.action].required[0];
       return { reply: questionFor(session.action, first, session.draft), card: null };
@@ -599,15 +766,17 @@ const handleTurn = async (user, message, history = []) => {
       if (err?.status === 503 || err?.status === 401) throw err;
       intent = null;
     }
+    if (!intent) intent = guessIntentFallback(trimmed);
     if (!intent) return null;
 
     session = {
       action: intent,
       draft: {},
-      step: (intent === 'lost_found_claim' || intent === 'volunteer_application') ? 'search' : 'collect',
+      step: (intent === 'lost_found_claim' || intent === 'volunteer_application' || intent === 'event_registration') ? 'search' : 'collect',
       optionalAsked: false,
       matches: null,
       itemId: null,
+      eventId: null,
       selectedOpportunities: null,
       volunteerCount: 1,
       createdAt: Date.now(),
@@ -632,6 +801,16 @@ const handleTurn = async (user, message, history = []) => {
     if (session.step === 'confirm') {
       if (CONFIRM_RE.test(trimmed)) return confirmAction(user);
       return { reply: 'Reply "yes" to submit the volunteer application, or "cancel" to stop.', card: null };
+    }
+  }
+
+  // ── Event registration flow ───────────────────────────
+  if (session.action === 'event_registration') {
+    if (session.step === 'search') return eventSearchTurn(user, trimmed, session);
+    if (session.step === 'choose') return eventChooseTurn(user, trimmed, session);
+    if (session.step === 'confirm') {
+      if (CONFIRM_RE.test(trimmed)) return confirmAction(user);
+      return { reply: 'Reply "yes" to confirm registration, "cancel" to stop, or ask me anything else.', card: null };
     }
   }
 
@@ -792,6 +971,22 @@ const confirmAction = async (user) => {
         };
       }
 
+      // ── Peer help request ─────────────────────────────
+      case 'peer_help': {
+        const requestText = session.draft.details
+          ? `${session.draft.request} — ${session.draft.details}`
+          : session.draft.request;
+
+        result = await runController(helpController.createHelpRequest, user, { request: requestText, attachments: [] });
+        if (result.statusCode >= 400) throw new Error(result.body?.message || 'The request was rejected.');
+        // helpController.createHelpRequest already notifies staff/admin — no extra notification needed.
+        clearSession(user._id);
+        return {
+          reply: 'Your peer help request has been posted. Other students and staff can now see it and respond.',
+          card: null,
+        };
+      }
+
       // ── Campus help ──────────────────────────────────
       case 'campus_help': {
         const parts = [session.draft.problem];
@@ -907,6 +1102,37 @@ const confirmAction = async (user) => {
         }
 
         return { reply, card: null };
+      }
+
+      // ── Event registration ───────────────────────────
+      case 'event_registration': {
+        if (!session.eventId) {
+          clearSession(user._id);
+          return { reply: 'No event was selected. Please try again.', card: null };
+        }
+
+        result = await runController(eventController.registerForEvent, user, {}, { id: session.eventId });
+        if (result.statusCode >= 400) throw new Error(result.body?.message || 'Registration failed.');
+
+        const ev = await Event.findById(session.eventId).lean();
+        const alreadyRegistered = /already registered/i.test(result.body?.message || '');
+
+        if (!alreadyRegistered) {
+          createNotification(user._id, {
+            type: 'event',
+            title: 'Registered for Event',
+            message: `You have successfully registered for "${ev?.title || 'the event'}".`,
+            link: 'events',
+          });
+        }
+
+        clearSession(user._id);
+        return {
+          reply: alreadyRegistered
+            ? `You're already registered for "${ev?.title || 'the event'}".`
+            : `You're registered for "${ev?.title || 'the event'}"${ev?.date ? ' on ' + new Date(ev.date).toLocaleDateString() : ''}. See you there!`,
+          card: null,
+        };
       }
 
       default:
