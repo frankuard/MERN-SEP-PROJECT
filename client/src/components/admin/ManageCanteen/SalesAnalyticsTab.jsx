@@ -56,16 +56,6 @@ const SalesAnalyticsTab = ({ t }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.pastelCyan }}>
-          <BarChart3 size={18} style={{ color: t.textPrimary }} />
-        </div>
-        <div>
-          <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>Sales & Analytics</h3>
-          <p className="text-xs" style={{ color: t.textMuted }}>Real-time canteen sales data</p>
-        </div>
-      </div>
-
       {/* Month/Year Filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
