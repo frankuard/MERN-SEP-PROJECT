@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { UtensilsCrossed, Wallet, Plus, Pencil, Trash2, X, ShoppingBag, BadgeCheck } from 'lucide-react';
+import { UtensilsCrossed, Wallet, Plus, Pencil, Trash2, X, ShoppingBag, BadgeCheck, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import canteenApi from '../../../api/canteenApi';
 import ImageUploadField from '../../common/ImageUploadField';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
 
 import CreditDetailsModal from './CreditDetailsModal';
+import SalesAnalyticsTab from './SalesAnalyticsTab';
 import { OrdersTab, CreditRequestsTab } from './ManageCanteenOrders';
 
 const CATEGORIES = ['Meals', 'Snacks', 'Momo & Noodles', 'Beverages'];
@@ -283,58 +284,145 @@ export const CreditTab = ({ t }) => {
   const [loading, setLoading] = useState(true);
   const [adjustTarget, setAdjustTarget] = useState(null);
   const [adjustMode, setAdjustMode] = useState('increase');
-    const [detailsId, setDetailsId] = useState(null);
+  const [detailsId, setDetailsId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const inputStyle = { backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary };
+
   const load = () => {
     setLoading(true);
-    canteenApi.getAllCredits()
+    const params = {};
+    if (search.trim()) params.search = search.trim();
+    if (statusFilter !== 'All') params.status = statusFilter;
+    canteenApi.getAllCredits(params)
       .then((data) => { if (Array.isArray(data)) setCredits(data); })
       .catch(() => toast.error('Failed to load credit records'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [search, statusFilter]);
+
+  const totalDue = credits.reduce((s, c) => s + (c.remainingBalance > 0 ? c.remainingBalance : 0), 0);
+  const totalPaid = credits.reduce((s, c) => s + (c.amountPaid || 0), 0);
+  const totalCredit = credits.reduce((s, c) => s + (c.remainingBalance < 0 ? Math.abs(c.remainingBalance) : 0), 0);
+
+  const filterBtnStyle = (active) => ({
+    backgroundColor: active ? t.accentPrimary : t.cardBg,
+    color: active ? t.pageBg : t.textPrimary,
+    borderColor: active ? t.accentPrimary : t.border,
+  });
 
   return (
     <div className="space-y-5">
-      <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>Credit Due (Khata)</h3>
-
-      {loading && <p className="text-sm" style={{ color: t.textMuted }}>Loading credit records...</p>}
-      {!loading && credits.length === 0 && <p className="text-sm" style={{ color: t.textMuted }}>No credit records yet.</p>}
-
-      <div className="space-y-3">
-        {credits.map((c) => (
-          <div key={c._id} className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between" style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowSoft }}>
-            <div>
-              <p className="text-sm font-bold" style={{ color: t.textPrimary }}>{c.user?.username || c.studentName}</p>
-              <p className="text-xs" style={{ color: t.textMuted }}>{c.user?.email}</p>
-              {c.remainingBalance > 0 ? (
-                <p className="mt-1 text-sm font-extrabold" style={{ color: t.textPrimary }}>NPR {c.remainingBalance} due</p>
-              ) : c.remainingBalance < 0 ? (
-                <p className="mt-1 text-sm font-extrabold" style={{ color: t.accentEmerald }}>+NPR {Math.abs(c.remainingBalance)} credit</p>
-              ) : (
-                <p className="mt-1 text-sm font-extrabold" style={{ color: t.textMuted }}>Cleared</p>
-              )}            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setDetailsId(c._id)} className="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-style={{ borderColor: t.border, color: t.textPrimary }}>
-                View Details
-              </button>
-              <button type="button" onClick={() => { setAdjustMode('increase'); setAdjustTarget(c); }} className="rounded-lg border px-3 py-2 text-xs font-bold" style={{ borderColor: t.border, color: t.textPrimary }}>
-                + Increase Due
-              </button>
-              <button type="button" onClick={() => { setAdjustMode('pay'); setAdjustTarget(c); }} className="rounded-lg border px-3 py-2 text-xs font-bold" style={{ borderColor: t.border, color: t.textPrimary }}>
-                − Record Payment
-              </button>
-            </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.pastelYellow }}>
+            <Wallet size={18} style={{ color: t.textPrimary }} />
           </div>
+          <div>
+            <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>Credit Due (Khata)</h3>
+            <p className="text-xs" style={{ color: t.textMuted }}>Search by name, email, ID, or amount</p>
+          </div>
+        </div>
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: t.textMuted }}>
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email, ID, amount..."
+            className="w-full rounded-xl border bg-transparent py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-1 focus:ring-black sm:w-72"
+            style={inputStyle}
+          />
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border p-3.5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+          <p className="text-[10px] font-bold uppercase" style={{ color: t.textMuted }}>Total Outstanding Due</p>
+          <p className="text-lg font-black tabular-nums" style={{ color: t.textPrimary }}>NPR {totalDue.toLocaleString()}</p>
+        </div>
+        <div className="rounded-xl border p-3.5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+          <p className="text-[10px] font-bold uppercase" style={{ color: t.textMuted }}>Total Collected</p>
+          <p className="text-lg font-black tabular-nums" style={{ color: t.accentEmerald }}>NPR {totalPaid.toLocaleString()}</p>
+        </div>
+        <div className="rounded-xl border p-3.5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+          <p className="text-[10px] font-bold uppercase" style={{ color: t.textMuted }}>Total Credit Balance</p>
+          <p className="text-lg font-black tabular-nums" style={{ color: t.accentAmber }}>NPR {totalCredit.toLocaleString()}</p>
+        </div>
+      </div>
+
+      {/* Status Filter */}
+      <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
+        {['All', 'Pending', 'Partially Paid', 'Cleared'].map((s) => (
+          <button key={s} type="button" onClick={() => setStatusFilter(s)} className="cursor-pointer rounded-full px-3 py-1.5 text-xs font-bold" style={filterBtnStyle(statusFilter === s)}>
+            {s}
+          </button>
         ))}
       </div>
+
+      {loading && (
+        <div className="flex items-center gap-2 rounded-2xl border py-10" style={{ borderColor: t.border }}>
+          <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: t.textMuted }}>
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          <span className="text-sm" style={{ color: t.textMuted }}>Loading credit records...</span>
+        </div>
+      )}
+
+      {!loading && credits.length === 0 && (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed py-14 text-center" style={{ borderColor: t.border }}>
+          <Wallet size={22} style={{ color: t.textMuted }} />
+          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>
+            {search ? 'No matching credit records' : 'No credit records yet.'}
+          </p>
+          <p className="text-xs" style={{ color: t.textMuted }}>
+            {search ? 'Try a different search term' : 'Credit records will appear here.'}
+          </p>
+        </div>
+      )}
+
+      {!loading && credits.length > 0 && (
+        <div className="space-y-3">
+          {credits.map((c) => (
+            <div key={c._id} className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between" style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowSoft }}>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold" style={{ color: t.textPrimary }}>{c.user?.username || c.studentName}</p>
+                <p className="text-xs" style={{ color: t.textMuted }}>{c.user?.email}</p>
+                <p className="mt-0.5 text-[10px] font-mono" style={{ color: t.textMuted }}>ID: {c._id}</p>
+                {c.remainingBalance > 0 ? (
+                  <p className="mt-1 text-sm font-extrabold" style={{ color: '#dc2626' }}>NPR {c.remainingBalance} due</p>
+                ) : c.remainingBalance < 0 ? (
+                  <p className="mt-1 text-sm font-extrabold" style={{ color: t.accentEmerald }}>+NPR {Math.abs(c.remainingBalance)} credit</p>
+                ) : (
+                  <p className="mt-1 text-sm font-extrabold" style={{ color: t.textMuted }}>Cleared</p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setDetailsId(c._id)} className="cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold transition-colors hover:bg-black/5 dark:hover:bg-white/5" style={{ borderColor: t.border, color: t.textPrimary }}>
+                  View Details
+                </button>
+                <button type="button" onClick={() => { setAdjustMode('increase'); setAdjustTarget(c); }} className="rounded-lg border px-3 py-2 text-xs font-bold" style={{ borderColor: t.border, color: t.textPrimary }}>
+                  + Increase Due
+                </button>
+                <button type="button" onClick={() => { setAdjustMode('pay'); setAdjustTarget(c); }} className="rounded-lg border px-3 py-2 text-xs font-bold" style={{ borderColor: t.border, color: t.textPrimary }}>
+                  − Record Payment
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {adjustTarget && (
         <AdjustModal target={adjustTarget} mode={adjustMode} onClose={() => setAdjustTarget(null)} onSaved={load} t={t} />
       )}
 
-            {detailsId && (
+      {detailsId && (
         <CreditDetailsModal creditId={detailsId} onClose={() => setDetailsId(null)} t={t} />
       )}
     </div>
@@ -344,7 +432,7 @@ style={{ borderColor: t.border, color: t.textPrimary }}>
 // ---------- MAIN ----------
 
 const ManageCanteenSection = ({ t }) => {
-  const [tab, setTab] = useState('menu');
+  const [tab, setTab] = useState('sales');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -357,10 +445,11 @@ const ManageCanteenSection = ({ t }) => {
 
       <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>
         {[
-          { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
+          { id: 'sales', label: 'Sales & Analytics', icon: BarChart3 },
           { id: 'orders', label: 'Orders', icon: ShoppingBag },
           { id: 'credit-requests', label: 'Credit Requests', icon: BadgeCheck },
           { id: 'credit', label: 'Credit Due', icon: Wallet },
+          { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -378,6 +467,7 @@ className="flex cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-
       {tab === 'orders' && <OrdersTab t={t} />}
       {tab === 'credit-requests' && <CreditRequestsTab t={t} />}
       {tab === 'credit' && <CreditTab t={t} />}
+      {tab === 'sales' && <SalesAnalyticsTab t={t} />}
     </div>
   );
 };

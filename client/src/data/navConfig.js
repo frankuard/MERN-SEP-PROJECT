@@ -13,10 +13,10 @@ const navConfig = {
     { id: "chat", label: "Chat", icon: MessageSquare },
     { id: "canteen", label: "Canteen", icon: Coffee },
     { id: "lost-found", label: "Lost & Found", icon: Search },
-    { id: "campus-help", label: "Help", icon: HelpCircle },
     { id: "ssd-help", label: "SSD Help", icon: GraduationCap },
     { id: "rte", label: "Routine & Timetable", icon: Clock },
     { id: "resources", label: "Resources", icon: BookOpen },
+    { id: "campus-help", label: "Help", icon: HelpCircle },
   ],
   teacher: [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
@@ -24,9 +24,9 @@ const navConfig = {
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'canteen', label: 'Canteen', icon: Coffee },
     { id: 'lost-found', label: 'Lost & Found', icon: Search },
-    { id: 'campus-help', label: 'Help', icon: HelpCircle },
     { id: 'rte', label: 'Routine & Timetable', icon: Clock },
     { id: 'resources', label: 'Resources', icon: BookOpen },
+    { id: 'campus-help', label: 'Help', icon: HelpCircle },
   ],
 
     admin: [

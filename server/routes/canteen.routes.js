@@ -20,9 +20,11 @@ const {
   getOrderById,
   updateOrderStatus,
   confirmCounterPayment,
+  getOrderInvoice,
   getAllCreditRequests,
   getMyCreditRequests,
   reviewCreditRequest,
+  getSalesAnalytics,
 } = require('../controllers/canteenController');
 
 const allRoles = roleMiddleware('student', 'teacher', 'staff', 'admin');
@@ -35,6 +37,9 @@ router.get('/menu/:id', authMiddleware, allRoles, getMenuItemById);
 router.post('/menu', authMiddleware, staffAndAdmin, createMenuItem);
 router.put('/menu/:id', authMiddleware, staffAndAdmin, updateMenuItem);
 router.delete('/menu/:id', authMiddleware, staffAndAdmin, deleteMenuItem);
+
+// Analytics
+router.get('/analytics/sales', authMiddleware, staffAndAdmin, getSalesAnalytics);
 
 // Credit
 router.get('/credit/my-balance', authMiddleware, allRoles, getMyCredit);
@@ -51,6 +56,7 @@ router.get('/orders', authMiddleware, staffAndAdmin, getAllOrders);
 router.get('/orders/:id', authMiddleware, allRoles, getOrderById);
 router.put('/orders/:id/status', authMiddleware, staffAndAdmin, updateOrderStatus);
 router.post('/orders/:id/confirm-payment', authMiddleware, staffAndAdmin, confirmCounterPayment);
+router.get('/orders/:id/invoice', authMiddleware, staffAndAdmin, getOrderInvoice);
 
 // Credit Requests
 router.get('/credit-requests/my', authMiddleware, studentAndTeacher, getMyCreditRequests);

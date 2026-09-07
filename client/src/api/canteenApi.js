@@ -71,6 +71,10 @@ const canteenApi = {
     const res = await axiosInstance.post(`/canteen/orders/${id}/confirm-payment`);
     return res.data;
   },
+  getOrderInvoice: async (id) => {
+    const res = await axiosInstance.get(`/canteen/orders/${id}/invoice`, { responseType: 'blob' });
+    return res.data;
+  },
 
   // Credit Requests
   getMyCreditRequests: async () => {
@@ -83,6 +87,12 @@ const canteenApi = {
   },
   reviewCreditRequest: async (id, payload) => {
     const res = await axiosInstance.put(`/canteen/credit-requests/${id}`, payload);
+    return res.data;
+  },
+
+  // Analytics
+  getSalesAnalytics: async (params = {}) => {
+    const res = await axiosInstance.get('/canteen/analytics/sales', { params });
     return res.data;
   },
 };

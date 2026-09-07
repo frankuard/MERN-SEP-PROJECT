@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   ShoppingBag, X, ChevronDown, Loader2, BadgeCheck, XCircle, CheckCircle2,
   Banknote, GraduationCap, UserCircle, Clock3, Search as SearchIcon,
+  FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import canteenApi from '../../../api/canteenApi';
+import InvoiceModal from './InvoiceModal';
 
 const ORDER_STATUS_COLORS = {
   Pending: { bg: '#fef3c7', color: '#b45309' },
@@ -37,6 +39,7 @@ const formatDate = (dateStr) => {
 const OrderDetailsModal = ({ t, order, onUpdate }) => {
   const [status, setStatus] = useState(order?.orderStatus || 'Pending');
   const [saving, setSaving] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   const handleStatusChange = async (next) => {
     setSaving(true);
@@ -57,7 +60,7 @@ const OrderDetailsModal = ({ t, order, onUpdate }) => {
     try {
       await canteenApi.confirmCounterPayment(order._id);
       toast.success('Counter payment confirmed');
-      onUpdate();
+      setShowInvoice(true);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to confirm payment');
     } finally {
@@ -162,17 +165,34 @@ const OrderDetailsModal = ({ t, order, onUpdate }) => {
           </div>
         </div>
 
-        {order.paymentMethod === 'Pay at Counter' && order.paymentStatus !== 'Paid' && (
-          <button
-            type="button"
-            onClick={handleConfirmPayment}
-            disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-black py-3 text-sm font-bold text-white disabled:opacity-50"
-          >
-            <Banknote size={15} /> Confirm Counter Payment
-          </button>
-        )}
+        <div className="mt-4 grid gap-2">
+          {order.paymentMethod === 'Pay at Counter' && order.paymentStatus !== 'Paid' && (
+            <button
+              type="button"
+              onClick={handleConfirmPayment}
+              disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-3 text-sm font-bold text-white disabled:opacity-50"
+            >
+              <Banknote size={15} /> Confirm Counter Payment
+            </button>
+          )}
+
+          {(order.paymentMethod === 'Pay at Counter' && order.paymentStatus === 'Paid') && (
+            <button
+              type="button"
+              onClick={() => setShowInvoice(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold"
+              style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}
+            >
+              <FileText size={15} /> View / Print Invoice
+            </button>
+          )}
+        </div>
       </div>
+
+      {showInvoice && (
+        <InvoiceModal order={order} onClose={() => { setShowInvoice(false); onUpdate(); }} t={t} />
+      )}
     </div>
   );
 };
@@ -184,6 +204,7 @@ export const OrdersTab = ({ t }) => {
   const [roleFilter, setRoleFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [detailsOrder, setDetailsOrder] = useState(null);
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -213,16 +234,7 @@ export const OrdersTab = ({ t }) => {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: t.pastelBlue }}>
-            <ShoppingBag size={18} style={{ color: t.textPrimary }} />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold" style={{ color: t.textPrimary }}>Orders</h3>
-            <p className="text-xs" style={{ color: t.textMuted }}>All student & teacher orders</p>
-          </div>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <div className="relative">
           <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: t.textMuted }} />
           <input
@@ -300,6 +312,16 @@ export const OrdersTab = ({ t }) => {
                     <span className="rounded-full px-2.5 py-1 text-[10px] font-extrabold" style={{ backgroundColor: ps.bg, color: ps.color }}>{order.paymentStatus}</span>
                     <span className="text-sm font-black tabular-nums" style={{ color: t.textPrimary }}>NPR {order.totalAmount}</span>
                     <span className="text-xs font-bold" style={{ color: t.textMuted }}>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+                    {order.paymentStatus === 'Paid' && (
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceOrder(order)}
+                        className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-bold"
+                        style={{ borderColor: t.border, color: t.textPrimary }}
+                      >
+                        <FileText size={13} /> Invoice
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setDetailsOrder(order)}
@@ -322,6 +344,10 @@ export const OrdersTab = ({ t }) => {
           order={detailsOrder}
           onUpdate={() => { setDetailsOrder(null); load(); }}
         />
+      )}
+
+      {invoiceOrder && (
+        <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} t={t} />
       )}
     </div>
   );

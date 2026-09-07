@@ -167,7 +167,16 @@ const Signup = () => {
     'w-full rounded-xl border border-[#e5e7eb] bg-white px-4 py-3 text-sm text-[#1a2b4c] outline-none transition-colors focus:border-[#1a2b4c] focus:ring-2 focus:ring-[#1a2b4c]/10';
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden bg-[#eef2f7] px-4 py-8 sm:px-6">
+    <div
+      className="flex min-h-screen w-full items-center justify-center overflow-x-hidden bg-[#eef2f7] px-4 py-8 sm:px-6"
+      style={{
+        backgroundImage:
+          'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.22)), url(/auth-building.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <div className="flex w-full max-w-245 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgba(26,43,76,0.12)] md:min-h-155 md:flex-row">
         {/* Branding panel — mobile top */}
         <section className="relative flex h-48 w-full shrink-0 items-center justify-center bg-[#f8fafc] p-6 sm:h-56 sm:p-8 md:hidden">
@@ -187,9 +196,6 @@ const Signup = () => {
               <h1 className="text-3xl font-bold tracking-tight text-[#1a2b4c] sm:text-4xl">
                 Join your campus community
               </h1>
-              <p className="mt-2 text-sm text-[#6b7280] sm:text-base">
-                Create an account to access campus services, connect with peers, and stay updated.
-              </p>
             </div>
 
             <div className="mb-6">
