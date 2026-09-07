@@ -100,7 +100,7 @@ const CanteenSection = ({ t }) => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-3 animate-in fade-in duration-200">
       {/* Search + Credit due card (same place & size as before, right side) */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -127,43 +127,43 @@ const CanteenSection = ({ t }) => {
         <CreditDueCard t={t} amountDue={credit.amountDue} onViewHistory={() => setShowCreditHistory(true)} />
       </div>
 
-      {/* Category tabs directly below the search bar */}
-      {view === 'menu' && (
-        <div className="flex items-center gap-2 overflow-x-auto py-1">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className="shrink-0 rounded-2xl px-4 py-2 text-xs font-bold transition-all"
-              style={{
-                backgroundColor: selectedCategory === cat ? t.accentPrimary : t.cardBg,
-                color: selectedCategory === cat ? t.pageBg : t.textPrimary,
-                border: selectedCategory === cat ? 'none' : `1px solid ${t.border}`,
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Category tabs (left) + Menu / My Orders / Cart (right, below the credit due card) */}
+      <div className="mt-[17px] flex flex-wrap items-center gap-3">
+        {view === 'menu' && (
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className="shrink-0 rounded-2xl px-4 py-2 text-xs font-bold transition-all"
+                style={{
+                  backgroundColor: selectedCategory === cat ? t.accentPrimary : t.cardBg,
+                  color: selectedCategory === cat ? t.pageBg : t.textPrimary,
+                  border: selectedCategory === cat ? 'none' : `1px solid ${t.border}`,
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {/* Menu / My Orders switcher + cart directly below the credit due card, right-aligned */}
-      <div className="flex items-center justify-end gap-2 mr-12">
-        <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border, backgroundColor: t.cardBg }}>
-          <button
-            type="button"
-            onClick={() => setView('menu')}
-            className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
-            style={{ backgroundColor: view === 'menu' ? t.accentPrimary : 'transparent', color: view === 'menu' ? t.pageBg : t.textPrimary }}
-          >
-            Menu
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('orders')}
-            className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
-            style={{ backgroundColor: view === 'orders' ? t.accentPrimary : 'transparent', color: view === 'orders' ? t.pageBg : t.textPrimary }}
+        <div className="ml-auto flex items-center justify-end gap-2 mr-12">
+          <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border, backgroundColor: t.cardBg }}>
+            <button
+              type="button"
+              onClick={() => setView('menu')}
+              className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
+              style={{ backgroundColor: view === 'menu' ? t.accentPrimary : 'transparent', color: view === 'menu' ? t.pageBg : t.textPrimary }}
+            >
+              Menu
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('orders')}
+              className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
+              style={{ backgroundColor: view === 'orders' ? t.accentPrimary : 'transparent', color: view === 'orders' ? t.pageBg : t.textPrimary }}
           >
             My Orders
           </button>
@@ -190,6 +190,7 @@ const CanteenSection = ({ t }) => {
             {cartCount}
           </span>
         </button>
+        </div>
       </div>
 
       {view === 'orders' ? (
