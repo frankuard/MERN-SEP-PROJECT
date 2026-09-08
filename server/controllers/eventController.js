@@ -3,6 +3,12 @@ const EventRegistration = require('../models/EventRegistration');
 const { createNotification, createNotificationForRole } = require('../utils/createNotification');
 const { emitToAll } = require('../utils/socketEmitter');
 
+// True for the DevCorps portal admin (User.portal === 'devcorpsCommunity' and
+// portalRole === 'admin' — the devcorps BIC account). DevCorps manages ONLY
+// Community events, never college/campus events.
+const isDevCorpsAdmin = (user) =>
+  user?.portal === 'devcorpsCommunity' && user?.portalRole === 'admin';
+
 
 /**
  * GET EVENTS
@@ -141,10 +147,15 @@ const createEvent = async (req, res) => {
       });
     }
 
+    // DevCorps can only create Community events — any college/campus type in
+    // the payload is forced back to 'community' (the frontend hides the type
+    // selector for DevCorps, this is the backend guard).
+    const effectiveType = isDevCorpsAdmin(req.user) ? 'community' : type;
+
     const event = await Event.create({
       title,
       description,
-      type,
+      type: effectiveType,
       category,
       date,
       startTime,
@@ -210,6 +221,20 @@ const updateEvent = async (req, res) => {
       return res.status(404).json({
         message: 'Event not found',
       });
+    }
+
+    // DevCorps may only edit/publish/update Community events — college
+    // events are off-limits and can never be touched from the DevCorps
+    // Manage Events panel.
+    if (isDevCorpsAdmin(req.user) && event.type !== 'community') {
+      return res.status(403).json({
+        message: 'DevCorps can only manage Community events',
+      });
+    }
+
+    if (isDevCorpsAdmin(req.user) && req.body.type !== undefined) {
+      // Never let DevCorps flip a Community event into a college event.
+      delete req.body.type;
     }
 
     // Snapshot the fields that drive specific notifications BEFORE the update
@@ -338,13 +363,22 @@ const updateEvent = async (req, res) => {
  */
 const deleteEvent = async (req, res) => {
   try {
-    const event = await Event.findByIdAndDelete(req.params.id);
+    const event = await Event.findById(req.params.id);
 
     if (!event) {
       return res.status(404).json({
         message: 'Event not found',
       });
     }
+
+    // DevCorps may only delete events owned by the communities.
+    if (isDevCorpsAdmin(req.user) && event.type !== 'community') {
+      return res.status(403).json({
+        message: 'DevCorps can only manage Community events',
+      });
+    }
+
+    await event.deleteOne();
 
     await EventRegistration.deleteMany({
       event: event._id,
@@ -560,7 +594,12 @@ const cancelRegistration = async (req, res) => {
  */
 const getAllEventsAdmin = async (req, res) => {
   try {
-    const events = await Event.find({})
+    // DevCorps Manage Events is scoped to Community events only — college/
+    // campus events never appear in its list or become manageable. Regular
+    // campus admins/teachers keep the full list exactly as before.
+    const filter = isDevCorpsAdmin(req.user) ? { type: 'community' } : {};
+
+    const events = await Event.find(filter)
       .populate('createdBy', 'username email role')
       .sort({ date: 1 });
 

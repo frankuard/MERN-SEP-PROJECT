@@ -304,7 +304,7 @@ const EventRequestsView = ({ t }) => {
     );
 };
 
-const ManageEventsSection = ({ t }) => {
+const ManageEventsSection = ({ t, devcorpsMode }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -315,6 +315,11 @@ const ManageEventsSection = ({ t }) => {
 
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
+
+    // DevCorps Manage Events is scoped to Community events only — college/
+    // campus events are filtered out of the list and can never be created,
+    // updated, or published here (the backend enforces the same rule).
+    const isDevCorpsScoped = !!devcorpsMode;
 
     // Every unique organizer (name + logo) seen across all existing events,
     // merged with the fixed defaults above. Whenever someone creates an event
@@ -338,7 +343,12 @@ const ManageEventsSection = ({ t }) => {
     const loadEvents = () => {
         setLoading(true);
         eventsApi.getAllEventsAdmin()
-            .then((data) => { if (Array.isArray(data)) setEvents(data); })
+            .then((data) => {
+                if (Array.isArray(data)) {
+                    // Defense in depth: DevCorps never sees college events here.
+                    setEvents(isDevCorpsScoped ? data.filter((ev) => ev.type === 'community') : data);
+                }
+            })
             .catch(() => toast.error('Failed to load events'))
             .finally(() => setLoading(false));
     };
@@ -346,7 +356,8 @@ const ManageEventsSection = ({ t }) => {
     useEffect(() => { loadEvents(); }, []);
 
     const openCreate = () => {
-        setForm(emptyForm);
+        // DevCorps can only create Community events — the type is preset.
+        setForm(isDevCorpsScoped ? { ...emptyForm, type: 'community' } : emptyForm);
         setEditingId(null);
         setView('form');
     };
@@ -399,7 +410,9 @@ const ManageEventsSection = ({ t }) => {
         }
 
         setSaving(true);
-        const payload = toPayload(form);
+        const payload = isDevCorpsScoped
+            ? { ...toPayload(form), type: 'community' }
+            : toPayload(form);
 
         try {
             if (editingId) {
@@ -439,11 +452,12 @@ const ManageEventsSection = ({ t }) => {
         }
     };
 
-    const filteredEvents = events.filter((ev) =>
-        ev.title.toLowerCase().includes(search.toLowerCase()) ||
-        ev.category.toLowerCase().includes(search.toLowerCase()) ||
-        ev.venue.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredEvents = (isDevCorpsScoped ? events.filter((ev) => ev.type === 'community') : events)
+        .filter((ev) =>
+            ev.title.toLowerCase().includes(search.toLowerCase()) ||
+            ev.category.toLowerCase().includes(search.toLowerCase()) ||
+            ev.venue.toLowerCase().includes(search.toLowerCase())
+        );
 
     const inputStyle = {
         backgroundColor: t.pageBg,
@@ -534,15 +548,30 @@ const ManageEventsSection = ({ t }) => {
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <div>
                             <label className={FIELD_LABEL} style={{ color: t.textMuted }}>Type</label>
-                            <select
-                                value={form.type}
-                                onChange={(e) => handleChange('type', e.target.value)}
-                                className={FIELD_INPUT}
-                                style={inputStyle}
-                            >
-                                <option value="college">College Event</option>
-                                <option value="community">Community</option>
-                            </select>
+                            {isDevCorpsScoped ? (
+                                <div
+                                    className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm sm:py-3.5 sm:text-base"
+                                    style={inputStyle}
+                                >
+                                    <span className="font-bold" style={{ color: t.textPrimary }}>Community</span>
+                                    <span
+                                        className="rounded-full px-2.5 py-1 text-xs font-bold"
+                                        style={{ backgroundColor: TYPE_BADGE.community.bg, color: TYPE_BADGE.community.text }}
+                                    >
+                                        Community Event
+                                    </span>
+                                </div>
+                            ) : (
+                                <select
+                                    value={form.type}
+                                    onChange={(e) => handleChange('type', e.target.value)}
+                                    className={FIELD_INPUT}
+                                    style={inputStyle}
+                                >
+                                    <option value="college">College Event</option>
+                                    <option value="community">Community</option>
+                                </select>
+                            )}
                         </div>
                         <div>
                             <label className={FIELD_LABEL} style={{ color: t.textMuted }}>Status</label>
@@ -755,7 +784,9 @@ const ManageEventsSection = ({ t }) => {
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white">
                         <Calendar size={20} />
                     </div>
-                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Manage Events</h2>
+                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                        {isDevCorpsScoped ? 'Manage Community Events' : 'Manage Events'}
+                    </h2>
                 </div>
                 {/* Section switcher — Events CRUD vs Event Requests approval */}
                 <div

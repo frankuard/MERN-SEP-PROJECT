@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -74,6 +74,23 @@ const Sidebar = ({
   // (the role caption below already says "Student Portal" etc.).
   const subLabel = role === 'admin' ? (ADMIN_SECTION_LABELS[user?.adminSection] || 'Admin') : '';
 
+  // Tracks which nav items with `children` are expanded (e.g. DevCorps
+  // "Communities" reveals the five member communities when open). Starts
+  // with the group that owns the active child if there is one (landing
+  // directly on /devcorps/community-ai-horizon keeps the menu open).
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    const initial = new Set();
+    allItems.forEach((item) => {
+      if (
+        Array.isArray(item.children) &&
+        item.children.some((c) => c.id === activeId)
+      ) {
+        initial.add(item.id);
+      }
+    });
+    return initial;
+  });
+
   useEffect(() => {
     const el = navRef.current;
     if (!el) return;
@@ -112,6 +129,19 @@ const Sidebar = ({
 
   const handleItemClick = (id) => {
     if (controlledActiveTab === undefined) setInternalActiveId(id);
+    // Keep the expandable group open when one of its children is activated
+    // (e.g. a DevCorps community under the "Communities" item).
+    const owningGroup = allItems.find(
+      (item) => Array.isArray(item.children) && item.children.some((c) => c.id === id)
+    );
+    if (owningGroup) {
+      setExpandedGroups((prev) => {
+        if (prev.has(owningGroup.id)) return prev;
+        const next = new Set(prev);
+        next.add(owningGroup.id);
+        return next;
+      });
+    }
     onTabChange?.(id);
     setMobileOpen(false); // always close the drawer on nav; no-op on desktop
   };
@@ -232,6 +262,97 @@ const Sidebar = ({
             <nav className="flex flex-col gap-1" aria-label="Sidebar Navigation">
               {items.map((item) => {
                 const Icon = item.icon;
+                const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+
+                // Expandable group (e.g. DevCorps "Communities" -> the five
+                // member communities as their own nav items).
+                if (hasChildren) {
+                  const isExpanded = expandedGroups.has(item.id);
+                  const isActive =
+                    activeId === item.id ||
+                    item.children.some((c) => c.id === activeId);
+                  return (
+                    <Fragment key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // In the collapsed mini-rail, first widen the sidebar
+                          // so the child items actually have room to render.
+                          if (collapsed) setCollapsed(false);
+                          setExpandedGroups((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) next.delete(item.id);
+                            else next.add(item.id);
+                            return next;
+                          });
+                        }}
+                        title={collapsed ? item.label : undefined}
+                        className={`flex items-center gap-3 rounded-full px-4 py-2.5 text-left text-[13px] font-bold transition-all duration-200 ${
+                          collapsed ? 'lg:justify-center lg:rounded-xl lg:px-2 lg:gap-0' : ''
+                        }`}
+                        style={{
+                          backgroundColor: isActive ? t.sidebarActiveBg : 'transparent',
+                          color: isActive ? t.sidebarActiveText : t.sidebarText,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = t.sidebarHover;
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <Icon
+                          size={18}
+                          className="shrink-0"
+                          style={{ color: isActive ? t.sidebarActiveText : t.sidebarMuted }}
+                        />
+                        <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
+                        <ChevronDown
+                          size={14}
+                          className={`ml-auto shrink-0 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                          } ${collapsed ? 'lg:hidden' : ''}`}
+                          style={{ color: isActive ? t.sidebarActiveText : t.sidebarMuted }}
+                        />
+                      </button>
+
+                      {isExpanded && !collapsed && (
+                        <div className="flex flex-col gap-1 pl-4">
+                          {item.children.map((child) => {
+                            const isChildActive = activeId === child.id;
+                            return (
+                              <button
+                                key={child.id}
+                                type="button"
+                                onClick={() => handleItemClick(child.id)}
+                                className="flex items-center gap-3 rounded-full py-2 pl-5 pr-4 text-left text-[12.5px] font-bold transition-all duration-200"
+                                style={{
+                                  backgroundColor: isChildActive ? t.sidebarActiveBg : 'transparent',
+                                  color: isChildActive ? t.sidebarActiveText : t.sidebarMuted,
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isChildActive) e.currentTarget.style.backgroundColor = t.sidebarHover;
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isChildActive) e.currentTarget.style.backgroundColor = 'transparent';
+                                }}
+                              >
+                                <span
+                                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                  style={{
+                                    backgroundColor: isChildActive ? t.sidebarActiveText : t.sidebarMuted,
+                                  }}
+                                />
+                                <span className="truncate">{child.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Fragment>
+                  );
+                }
+
                 const isActive = activeId === item.id;
                 return (
                   <button
