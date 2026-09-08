@@ -2,6 +2,8 @@ const express = require('express');
 
 const authMiddleware = require('../middleware/authMiddleware');
 const devcorpsMiddleware = require('../middleware/devcorpsMiddleware');
+const { uploadDocument } = require('../middleware/upload');
+const devcorpsDocumentationController = require('../controllers/devcorpsDocumentationController');
 
 const router = express.Router();
 
@@ -73,5 +75,57 @@ router.get('/portal', authMiddleware, devcorpsMiddleware, (req, res) => {
     documentation: DEV_CORPS_DOCUMENTATION,
   });
 });
+
+// ── Community Documentation boards + per-community file storage ────────────
+// Reads are open to every DevCorps portal account (admin + the five member
+// communities). Management — toggling tasks, awarding points, renaming
+// events, uploading/removing files — is restricted to the DevCorps admin.
+
+// Checklist board
+router.get(
+  '/documentation/:communityId',
+  authMiddleware,
+  devcorpsMiddleware,
+  devcorpsDocumentationController.getBoard
+);
+router.patch(
+  '/documentation/:communityId/events/:order',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.renameEvent
+);
+router.patch(
+  '/documentation/:communityId/events/:order/tasks/:key',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.updateTask
+);
+
+// File storage (per-community, only reachable through this portal)
+router.get(
+  '/documentation/:communityId/files',
+  authMiddleware,
+  devcorpsMiddleware,
+  devcorpsDocumentationController.listFiles
+);
+router.post(
+  '/documentation/:communityId/files',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  uploadDocument.single('file'),
+  devcorpsDocumentationController.uploadFile
+);
+router.patch(
+  '/documentation/files/:fileId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.updateFilePoints
+);
+router.delete(
+  '/documentation/files/:fileId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.deleteFile
+);
 
 module.exports = router;
