@@ -77,15 +77,17 @@ router.get('/portal', authMiddleware, devcorpsMiddleware, (req, res) => {
 });
 
 // ── Community Documentation boards + per-community file storage ────────────
-// Reads are open to every DevCorps portal account (admin + the five member
-// communities). Management — toggling tasks, awarding points, renaming
-// events, uploading/removing files — is restricted to the DevCorps admin.
+// The DevCorps admin can read every community's records. A community member
+// (the five member communities) is scoped to their OWN community only —
+// matched by the account's specific community name. Management — toggling
+// tasks, awarding points, renaming events, uploading/removing files — is
+// restricted to the DevCorps admin.
 
 // Checklist board
 router.get(
   '/documentation/:communityId',
   authMiddleware,
-  devcorpsMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
   devcorpsDocumentationController.getBoard
 );
 router.patch(
@@ -105,7 +107,7 @@ router.patch(
 router.get(
   '/documentation/:communityId/files',
   authMiddleware,
-  devcorpsMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
   devcorpsDocumentationController.listFiles
 );
 router.post(

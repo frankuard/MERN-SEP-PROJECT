@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   Check,
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import devcorpsApi from '../../api/devcorpsApi';
-import { DEV_CORPS_COMMUNITIES } from '../../data/devcorpsConfig';
+import { communityByAccount, DEV_CORPS_COMMUNITIES } from '../../data/devcorpsConfig';
 
 const ACCENT = '#9333ea';
 
@@ -197,9 +197,21 @@ const EventColumn = ({ event, canEdit, editing, onStartRename, onCancelRename, o
 
 const DevCorpsDocumentation = ({ t }) => {
   const { user } = useAuth();
-  const canEdit = user?.portalRole === 'admin';
+  const isAdmin = user?.portalRole === 'admin';
+  const myCommunity = communityByAccount(user);
 
-  const [activeId, setActiveId] = useState(DEV_CORPS_COMMUNITIES[0].id);
+  // DevCorps admin sees every community; each member community is scoped to
+  // its own board/files only — matched by the account's specific community name.
+  const visibleCommunities = isAdmin
+    ? DEV_CORPS_COMMUNITIES
+    : (myCommunity ? [myCommunity] : []);
+
+  const [activeIdState, setActiveIdState] = useState(DEV_CORPS_COMMUNITIES[0].id);
+  const activeId = visibleCommunities.some((c) => c.id === activeIdState)
+    ? activeIdState
+    : (visibleCommunities[0]?.id || DEV_CORPS_COMMUNITIES[0].id);
+  const canEdit = isAdmin;
+
   const [board, setBoard] = useState(null);
   const [boardStatus, setBoardStatus] = useState('loading');
   const [files, setFiles] = useState([]);
@@ -207,57 +219,74 @@ const DevCorpsDocumentation = ({ t }) => {
   const [editingEvent, setEditingEvent] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
 
-  const activeCommunity = DEV_CORPS_COMMUNITIES.find((c) => c.id === activeId) || DEV_CORPS_COMMUNITIES[0];
-
-  const loadBoard = useCallback(async () => {
-    setBoardStatus('loading');
-    try {
-      const data = await devcorpsApi.getDocumentation(activeId);
-      setBoard(data);
-      setBoardStatus('success');
-    } catch {
-      setBoardStatus('error');
-    }
-  }, [activeId]);
-
-  const loadFiles = useCallback(async () => {
-    setFilesStatus('loading');
-    try {
-      const data = await devcorpsApi.getCommunityFiles(activeId);
-      setFiles(Array.isArray(data) ? data : []);
-      setFilesStatus('success');
-    } catch {
-      setFilesStatus('error');
-    }
-  }, [activeId]);
+  const activeCommunity = visibleCommunities.find((c) => c.id === activeId) || visibleCommunities[0];
+  const communityId = activeCommunity?.id;
 
   useEffect(() => {
-    loadBoard();
-    loadFiles();
-  }, [loadBoard, loadFiles]);
+    let cancelled = false;
+    if (!communityId) {
+      setBoard(null);
+      setFiles([]);
+      setBoardStatus('success');
+      setFilesStatus('success');
+      return undefined;
+    }
+
+    setBoardStatus('loading');
+    setFilesStatus('loading');
+
+    devcorpsApi.getDocumentation(communityId)
+      .then((data) => {
+        if (!cancelled) {
+          setBoard(data);
+          setBoardStatus('success');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBoardStatus('error');
+      });
+
+    devcorpsApi.getCommunityFiles(communityId)
+      .then((data) => {
+        if (!cancelled) {
+          setFiles(Array.isArray(data) ? data : []);
+          setFilesStatus('success');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFilesStatus('error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [communityId, reloadToken]);
+
+  const reload = () => setReloadToken((n) => n + 1);
 
   const handleSwitch = (communityId) => {
-    setActiveId(communityId);
+    setActiveIdState(communityId);
     setEditingEvent(null);
     setUploadError('');
   };
 
   const handleToggle = async (eventOrder, task) => {
     try {
-      const updated = await devcorpsApi.updateTask(activeId, eventOrder, task.key, { completed: !task.completed });
+      const updated = await devcorpsApi.updateTask(communityId, eventOrder, task.key, { completed: !task.completed });
       setBoard(updated);
     } catch {
-      loadBoard();
+      reload();
     }
   };
 
   const handlePoints = async (eventOrder, task, points) => {
     try {
-      const updated = await devcorpsApi.updateTask(activeId, eventOrder, task.key, { points });
+      const updated = await devcorpsApi.updateTask(communityId, eventOrder, task.key, { points });
       setBoard(updated);
     } catch {
-      loadBoard();
+      reload();
     }
   };
 
@@ -270,10 +299,10 @@ const DevCorpsDocumentation = ({ t }) => {
     setEditingEvent(null);
     if (!title) return;
     try {
-      const updated = await devcorpsApi.renameEvent(activeId, draft.order, title);
+      const updated = await devcorpsApi.renameEvent(communityId, draft.order, title);
       setBoard(updated);
     } catch {
-      loadBoard();
+      reload();
     }
   };
 
@@ -283,7 +312,7 @@ const DevCorpsDocumentation = ({ t }) => {
     setUploading(true);
     setUploadError('');
     try {
-      const created = await devcorpsApi.uploadCommunityFile(activeId, file);
+      const created = await devcorpsApi.uploadCommunityFile(communityId, file);
       setFiles((prev) => [created, ...prev]);
     } catch (err) {
       setUploadError(
@@ -339,13 +368,15 @@ const DevCorpsDocumentation = ({ t }) => {
           Documentation
         </h2>
         <p className="mt-1.5 text-base leading-relaxed" style={{ color: t.textMuted }}>
-          Community progress boards, event checklists, and per-community file storage.
+          {isAdmin
+            ? 'Community progress boards, event checklists, and per-community file storage.'
+            : `${activeCommunity?.name || 'Your community'}'s progress board and file storage.`}
           {!canEdit && ' You are viewing this documentation in read-only mode.'}
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {DEV_CORPS_COMMUNITIES.map((community) => {
+        {visibleCommunities.map((community) => {
           const active = community.id === activeId;
           return (
             <button
@@ -374,6 +405,17 @@ const DevCorpsDocumentation = ({ t }) => {
         })}
       </div>
 
+      {!isAdmin && !myCommunity && (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-12 text-center" style={{ borderColor: t.border }}>
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: t.pageBg }}>
+            <AlertCircle size={20} style={{ color: t.textMuted }} />
+          </div>
+          <p className="text-sm font-medium" style={{ color: t.textMuted }}>
+            Your account is not linked to a specific member community.
+          </p>
+        </div>
+      )}
+
       {boardStatus === 'loading' && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[...Array(4)].map((_, i) => (
@@ -397,7 +439,7 @@ const DevCorpsDocumentation = ({ t }) => {
           <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Unable to load the community board</p>
           <button
             type="button"
-            onClick={loadBoard}
+            onClick={reload}
             className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
           >
             <RefreshCw size={14} />
@@ -482,7 +524,7 @@ const DevCorpsDocumentation = ({ t }) => {
               <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Unable to load files</p>
               <button
                 type="button"
-                onClick={loadFiles}
+                onClick={reload}
                 className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
               >
                 <RefreshCw size={14} />
