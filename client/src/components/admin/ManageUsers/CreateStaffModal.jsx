@@ -3,6 +3,7 @@ import { X, UserPlus, ShieldCheck, Copy, Check } from 'lucide-react';
 
 import adminUserApi from '../../../api/adminUserApi';
 import { DEPARTMENTS } from '../../../data/departmentSemesters';
+import { DEV_CORPS_PORTAL_ID, DEV_CORPS_PORTAL_NAME } from '../../../data/devcorpsConfig';
 
 const ADMIN_SECTIONS = [
   { value: 'super', label: 'Super Admin' },
@@ -30,6 +31,7 @@ const CreateStaffModal = ({ t, onClose, onCreated }) => {
     password: '',
     department: '',
     adminSection: '',
+    devcorps: false,
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -74,6 +76,8 @@ const CreateStaffModal = ({ t, onClose, onCreated }) => {
         payload.department = form.department;
       } else if (role === 'admin') {
         payload.adminSection = form.adminSection;
+      } else if (role === COMMUNITY_ROLE && form.devcorps) {
+        payload.portal = DEV_CORPS_PORTAL_ID;
       }
 
       await adminUserApi.createStaff(payload);
@@ -273,6 +277,26 @@ const CreateStaffModal = ({ t, onClose, onCreated }) => {
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {role === COMMUNITY_ROLE && (
+            <div>
+              <label
+                className="flex cursor-pointer items-center gap-2 text-xs font-bold"
+                style={{ color: t.textPrimary }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.devcorps}
+                  onChange={(e) => updateField('devcorps', e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                {DEV_CORPS_PORTAL_NAME}
+              </label>
+              <p className="mt-1 text-xs" style={{ color: t.textMuted }}>
+                Route this member to the dedicated DevCorps portal (Dashboard / Events / Chat / Documentation).
+              </p>
             </div>
           )}
 

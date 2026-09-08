@@ -5,6 +5,7 @@ const { createNotification } = require('../utils/createNotification');
 const { isKnownTeacherName } = require('../utils/normalizeName');
 
 const ADMIN_SECTIONS = ['super', 'canteen', 'ssd', 'rte', 'resources'];
+const VALID_PORTALS = ['devcorpsCommunity'];
 
 // GET /api/admin/users
 const getAllUsers = async (req, res) => {
@@ -126,7 +127,7 @@ const deleteUser = async (req, res) => {
 // accounts use the 'staff' role value and require no department.
 const createStaffAccount = async (req, res) => {
   try {
-    const { username, email, password, role, department, adminSection } = req.body;
+    const { username, email, password, role, department, adminSection, portal } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'username, email and password are required' });
@@ -134,6 +135,14 @@ const createStaffAccount = async (req, res) => {
 
     if (!['teacher', 'staff', 'admin'].includes(role)) {
       return res.status(400).json({ message: "role must be 'teacher', 'staff', or 'admin'" });
+    }
+
+    const requestedPortal = portal || null;
+    if (requestedPortal && !VALID_PORTALS.includes(requestedPortal)) {
+      return res.status(400).json({ message: `portal must be one of: ${VALID_PORTALS.join(', ')}, or omitted/null` });
+    }
+    if (requestedPortal && role !== 'staff') {
+      return res.status(400).json({ message: 'Portal assignment is only allowed for community (staff) accounts' });
     }
 
     if (role === 'admin' && !ADMIN_SECTIONS.includes(adminSection)) {
@@ -179,6 +188,7 @@ const createStaffAccount = async (req, res) => {
       userData.adminSection = adminSection;
     }
     // role value 'staff' (Community): no department, no adminSection required.
+    if (requestedPortal) userData.portal = requestedPortal;
 
     const user = await User.create(userData);
 
@@ -220,8 +230,6 @@ const resetStaffPassword = async (req, res) => {
 // Assigns or clears a portal identifier on a user account. Setting
 // portal: null removes the user from the dedicated portal (reverting
 // them to their normal role-based dashboard).
-const VALID_PORTALS = ['devcorpsCommunity'];
-
 const setPortal = async (req, res) => {
   try {
     const { portal } = req.body;
