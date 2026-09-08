@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import canteenApi from '../../../api/canteenApi';
+import { getSocket } from '../../../socket/socket';
+import { useAuth } from '../../../context/AuthContext';
 
 const formatDate = (isoString) => {
   if (!isoString) return '';
@@ -10,6 +12,9 @@ const formatDate = (isoString) => {
 };
 
 const CreditHistoryModal = ({ isOpen, onClose, t }) => {
+  const { user } = useAuth();
+  const myUserId = user?.id || user?._id;
+
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,6 +28,21 @@ const CreditHistoryModal = ({ isOpen, onClose, t }) => {
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, [isOpen]);
+
+  // ── Real-time: admin adjusting my credit reflects here live ──────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    const socket = getSocket();
+
+    const onCreditUpdated = ({ userId, credit }) => {
+      if (!userId || !myUserId) return;
+      if (userId.toString() !== myUserId.toString()) return;
+      setRecord(credit);
+    };
+
+    socket.on('canteen:credit:updated', onCreditUpdated);
+    return () => socket.off('canteen:credit:updated', onCreditUpdated);
+  }, [isOpen, myUserId]);
 
   if (!isOpen) return null;
 

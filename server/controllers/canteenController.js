@@ -335,6 +335,9 @@ const createOrUpdateCredit = async (req, res) => {
       });
     }
 
+    // Broadcast so the student's dashboard/credit card updates live
+    emitToAll('canteen:credit:updated', { userId, credit });
+
     createNotification(userId, {
       type: 'canteen_credit',
       title: 'Canteen Due Updated',
@@ -378,6 +381,9 @@ const recordCreditPayment = async (req, res) => {
     });
 
     await credit.save();
+
+    // Broadcast so the student's dashboard/credit card updates live
+    emitToAll('canteen:credit:updated', { userId: credit.user, credit });
 
     createNotification(credit.user, {
       type: 'canteen_credit',
@@ -803,6 +809,9 @@ const reviewCreditRequest = async (req, res) => {
           dueHistory: [dueEntry],
         });
       }
+
+      // Broadcast so the student's dashboard/credit card updates live
+      emitToAll('canteen:credit:updated', { userId: creditRequest.user, credit });
     }
 
     // Notify user

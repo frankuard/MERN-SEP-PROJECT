@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, UtensilsCrossed, ImageIcon, Sparkles, Flame, ShoppingBag, Plus, Check, ReceiptText } from 'lucide-react';
 import canteenApi from '../../api/canteenApi';
 import { getSocket } from '../../socket/socket';
+import { useAuth } from '../../context/AuthContext';
 import CreditDueCard from './Dashboard/CreditDueCard';
 import CreditHistoryModal from './modals/CreditHistoryModal';
 import CanteenCartDrawer from './canteen/CanteenCartDrawer';
@@ -33,6 +34,9 @@ const FoodImage = ({ src, alt, tint }) => {
 };
 
 const CanteenSection = ({ t }) => {
+  const { user } = useAuth();
+  const myUserId = user?.id || user?._id;
+
   const [view, setView] = useState('menu'); // 'menu' | 'orders'
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchInput, setSearchInput] = useState('');
@@ -101,6 +105,20 @@ const CanteenSection = ({ t }) => {
     return () => { mounted = false; };
   }, []);
 
+  // ── Real-time: admin adjusting my credit reflects here live ──────────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCreditUpdated = ({ userId, credit: updatedCredit }) => {
+      if (!userId || !myUserId) return;
+      if (userId.toString() !== myUserId.toString()) return;
+      setCredit({ amountDue: updatedCredit?.remainingBalance ?? 0 });
+    };
+
+    socket.on('canteen:credit:updated', onCreditUpdated);
+    return () => socket.off('canteen:credit:updated', onCreditUpdated);
+  }, [myUserId]);
+
   const addToCart = (item) => {
     setCart((prev) => {
       const existing = prev.find((i) => i._id === item._id);
@@ -152,10 +170,10 @@ const CanteenSection = ({ t }) => {
         <CreditDueCard t={t} amountDue={credit.amountDue} onViewHistory={() => setShowCreditHistory(true)} />
       </div>
 
-      {/* Category tabs (left) + Menu / My Orders / Cart (right, below the credit due card) */}
-      <div className="mt-[17px] flex flex-wrap items-center gap-3">
+      {/* Category tabs + Menu / My Orders / Cart — stacked on mobile, inline from sm+ */}
+      <div className="mt-[17px] flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {view === 'menu' && (
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto sm:flex-1">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
@@ -174,7 +192,7 @@ const CanteenSection = ({ t }) => {
           </div>
         )}
 
-        <div className="ml-auto flex items-center justify-end gap-2 mr-12">
+        <div className="flex items-center justify-between gap-2 sm:ml-auto sm:mr-12 sm:justify-end">
           <div className="inline-flex items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border, backgroundColor: t.cardBg }}>
             <button
               type="button"
@@ -189,32 +207,32 @@ const CanteenSection = ({ t }) => {
               onClick={() => setView('orders')}
               className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-all"
               style={{ backgroundColor: view === 'orders' ? t.accentPrimary : 'transparent', color: view === 'orders' ? t.pageBg : t.textPrimary }}
+            >
+              My Orders
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCartOpen(true)}
+            disabled={cartCount === 0}
+            className="relative flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-extrabold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textPrimary }}
           >
-            My Orders
+            <ShoppingBag size={16} />
+            <span className="hidden sm:inline">Cart</span>
+            {cartCount > 0 && (
+              <>
+                <span className="hidden sm:inline text-xs font-bold" style={{ color: t.textMuted }}>·</span>
+                <span className="tabular-nums">{cartCount}</span>
+              </>
+            )}
+            <span
+              className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black"
+              style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}
+            >
+              {cartCount}
+            </span>
           </button>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCartOpen(true)}
-          disabled={cartCount === 0}
-          className="relative flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-extrabold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textPrimary }}
-        >
-          <ShoppingBag size={16} />
-          <span className="hidden sm:inline">Cart</span>
-          {cartCount > 0 && (
-            <>
-              <span className="hidden sm:inline text-xs font-bold" style={{ color: t.textMuted }}>·</span>
-              <span className="tabular-nums">{cartCount}</span>
-            </>
-          )}
-          <span
-            className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black"
-            style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}
-          >
-            {cartCount}
-          </span>
-        </button>
         </div>
       </div>
 
