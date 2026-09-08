@@ -33,7 +33,7 @@ const Login = () => {
   }
 
   if (isAuthenticated && user) {
-    return <Navigate to={getDashboardPath(user.role)} replace />;
+    return <Navigate to={getDashboardPath(user)} replace />;
   }
 
   const validate = () => {
@@ -84,7 +84,7 @@ const Login = () => {
       toast.success(data.message || 'Login successful');
 
       const redirectTo =
-        location.state?.from || getDashboardPath(data.user.role);
+        location.state?.from || getDashboardPath(data.user);
 
       navigate(redirectTo, { replace: true });
     } catch (error) {

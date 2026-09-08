@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute';
 import RoleRoute from './auth/RoleRoute';
+import DevCorpsRoute from './auth/DevCorpsRoute';
 import { getDashboardPath, useAuth } from './context/AuthContext';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminDepartmentPicker from './pages/AdminDepartmentPicker';
 import AdminDeptSection from './pages/AdminDeptSection';
+import DevCorpsDashboard from './pages/DevCorpsDashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import StaffDashboard from './pages/StaffDashboard';
@@ -25,7 +27,7 @@ const RootRedirect = () => {
   }
 
   if (isAuthenticated && user) {
-    return <Navigate to={getDashboardPath(user.role)} replace />;
+    return <Navigate to={getDashboardPath(user)} replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -79,6 +81,20 @@ const App = () => {
               <RoleRoute allowedRoles={['staff']}>
                 <StaffDashboard />
               </RoleRoute>
+            }
+          />
+
+          {/* DevCorps Community Portal — dedicated portal account only */}
+          <Route
+            path="/devcorps"
+            element={<Navigate to="/devcorps/dashboard" replace />}
+          />
+          <Route
+            path="/devcorps/:tab"
+            element={
+              <DevCorpsRoute>
+                <DevCorpsDashboard />
+              </DevCorpsRoute>
             }
           />
 

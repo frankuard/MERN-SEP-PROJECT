@@ -5,6 +5,7 @@ const { createNotification } = require('../utils/createNotification');
 const { isKnownTeacherName } = require('../utils/normalizeName');
 
 const ADMIN_SECTIONS = ['super', 'canteen', 'ssd', 'rte', 'resources'];
+const VALID_PORTALS = ['devcorpsCommunity'];
 
 // GET /api/admin/users
 const getAllUsers = async (req, res) => {
@@ -121,12 +122,12 @@ const deleteUser = async (req, res) => {
 };
 
 // POST /api/admin/users/staff  (super admin only)
-// Creates a teacher, admin, or community (staff) account. Admin accounts
+// Creates a teacher, admin, or community account. Admin accounts
 // require adminSection; teacher accounts use department. Community
-// accounts use the 'staff' role and require no department.
+// accounts use the 'staff' role value and require no department.
 const createStaffAccount = async (req, res) => {
   try {
-    const { username, email, password, role, department, adminSection } = req.body;
+    const { username, email, password, role, department, adminSection, portal } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'username, email and password are required' });
@@ -134,6 +135,14 @@ const createStaffAccount = async (req, res) => {
 
     if (!['teacher', 'staff', 'admin'].includes(role)) {
       return res.status(400).json({ message: "role must be 'teacher', 'staff', or 'admin'" });
+    }
+
+    const requestedPortal = portal || null;
+    if (requestedPortal && !VALID_PORTALS.includes(requestedPortal)) {
+      return res.status(400).json({ message: `portal must be one of: ${VALID_PORTALS.join(', ')}, or omitted/null` });
+    }
+    if (requestedPortal && role !== 'staff') {
+      return res.status(400).json({ message: 'Portal assignment is only allowed for community (staff) accounts' });
     }
 
     if (role === 'admin' && !ADMIN_SECTIONS.includes(adminSection)) {
@@ -178,7 +187,8 @@ const createStaffAccount = async (req, res) => {
       userData.department = 'Administration';
       userData.adminSection = adminSection;
     }
-    // role === 'staff' (Community): no department, no adminSection required.
+    // role value 'staff' (Community): no department, no adminSection required.
+    if (requestedPortal) userData.portal = requestedPortal;
 
     const user = await User.create(userData);
 
@@ -216,6 +226,32 @@ const resetStaffPassword = async (req, res) => {
   }
 };
 
+// PATCH /api/admin/users/:id/portal  (super admin only)
+// Assigns or clears a portal identifier on a user account. Setting
+// portal: null removes the user from the dedicated portal (reverting
+// them to their normal role-based dashboard).
+const setPortal = async (req, res) => {
+  try {
+    const { portal } = req.body;
+
+    if (portal !== null && portal !== '' && !VALID_PORTALS.includes(portal)) {
+      return res.status(400).json({ message: `portal must be one of: ${VALID_PORTALS.join(', ')}, or null to clear` });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.portal = portal || null;
+    await user.save();
+
+    const { password: _pw, ...safeUser } = user.toObject();
+    res.status(200).json({ message: `Portal ${portal ? `set to "${portal}"` : 'cleared'}`, user: safeUser });
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid user ID' });
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -223,4 +259,5 @@ module.exports = {
   deleteUser,
   createStaffAccount,
   resetStaffPassword,
+  setPortal,
 };

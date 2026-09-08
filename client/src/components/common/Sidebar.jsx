@@ -6,12 +6,14 @@ import { useTheme } from '../../context/ThemeContext';
 import navConfig from '../../data/navConfig';
 import { themes } from '../../data/themes';
 import { disconnectSocket } from '../../socket/socket';
+import { DEV_CORPS_PORTAL_ID } from '../../data/devcorpsConfig';
 
 const roleLabels = {
   student: 'Student Portal',
   teacher: 'Teacher Portal',
   staff: 'Staff Portal',
   admin: 'Admin Portal',
+  devcorpsCommunity: 'DevCorps Community Portal',
 };
 
 // Shown in place of the old "@handle" line, admin accounts only —
@@ -56,11 +58,16 @@ const Sidebar = ({
 
   const activeId = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveId;
 
-  const role = user?.role || 'student';
+  const role = user?.portal === DEV_CORPS_PORTAL_ID ? 'devcorpsCommunity' : (user?.role || 'student');
   // Optional override so a scoped panel (e.g. a department admin's own
   // mini nav) can pass its own short item list — falls back to the
   // untouched role-based lookup everywhere else, unchanged.
-  const items = navItems || navConfig[role] || navConfig.student;
+  // Items flagged `devcorpsAdminOnly` (e.g. DevCorps Manage Events) are
+  // hidden unless the signed-in user is a portal admin.
+  const allItems = navItems || navConfig[role] || navConfig.student;
+  const items = allItems.filter(
+    (item) => !item.devcorpsAdminOnly || user?.portalRole === 'admin'
+  );
   const username = user?.username || '';
   // Second line under the name: admin accounts show their department
   // ("Resource Admin", "SSD Admin"...), everyone else shows nothing here

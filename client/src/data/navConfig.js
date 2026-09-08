@@ -29,6 +29,16 @@ const navConfig = {
     { id: 'campus-help', label: 'Help', icon: HelpCircle },
   ],
 
+  devcorpsCommunity: [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'events', label: 'Events', icon: Calendar },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'documentation', label: 'Documentation', icon: FileText },
+    // Exclusive to the DevCorps portal admin (user.portalRole === 'admin').
+    // Sidebar hides this item for regular community members.
+    { id: 'manage-events', label: 'Manage Events', icon: Calendar, devcorpsAdminOnly: true },
+  ],
+
     admin: [
   { id: "dashboard", label: "Dashboard", icon: Home },
   { id: "manage-announcements", label: "Manage Announcements", icon: Megaphone },

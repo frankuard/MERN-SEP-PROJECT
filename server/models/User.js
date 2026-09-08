@@ -50,6 +50,24 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Secure backend identifier for dedicated community portals. Only
+    // accounts that explicitly have this set are routed to a specialized
+    // portal (e.g. portal: 'devcorpsCommunity' → DevCorps Community Portal).
+    // All other accounts keep their normal role-based dashboard untouched.
+    portal: {
+      type: String,
+      default: null,
+    },
+
+    // Role inside a dedicated community portal. 'admin' grants moderation
+    // powers (e.g. DevCorps' exclusive Manage Events); 'member'/null are
+    // regular portal members with no moderation authority.
+    portalRole: {
+      type: String,
+      enum: ['admin', 'member'],
+      default: null,
+    },
+
     semester: {
       type: String,
       default: '',
