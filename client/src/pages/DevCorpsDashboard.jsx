@@ -225,12 +225,14 @@ const DevCorpsDashboard = () => {
                 community={activeCommunity}
                 onNavigateCommunity={(community) => setActiveTab(communityNavId(community))}
                 onBack={() => setActiveTab('communities')}
+                onOpenChat={() => setActiveTab('chat')}
               />
             ) : activeTab === 'communities' && (
               <CommunitiesSection
                 t={t}
                 onNavigateCommunity={(community) => setActiveTab(communityNavId(community))}
                 onBack={() => setActiveTab('dashboard')}
+                onOpenChat={() => setActiveTab('chat')}
               />
             )}
 
