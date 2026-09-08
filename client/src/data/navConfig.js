@@ -34,6 +34,20 @@ const navConfig = {
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'documentation', label: 'Documentation', icon: FileText },
+    // Communities — DevCorps-only expandable item. Clicking it reveals the
+    // five member communities as their own navigation items.
+    {
+      id: 'communities',
+      label: 'Communities',
+      icon: Users,
+      children: [
+        { id: 'community-ai-horizon', label: 'AI Horizon' },
+        { id: 'community-devsphere', label: 'DevSphere' },
+        { id: 'community-bic-converge', label: 'BIC Converge' },
+        { id: 'community-lenspire', label: 'Lenspire' },
+        { id: 'community-incognitous', label: 'Incognitous' },
+      ],
+    },
     // Exclusive to the DevCorps portal admin (user.portalRole === 'admin').
     // Sidebar hides this item for regular community members.
     { id: 'manage-events', label: 'Manage Events', icon: Calendar, devcorpsAdminOnly: true },

@@ -20,6 +20,9 @@ import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSe
 import DevCorpsDashboardHome from '../components/devcorps/DevCorpsDashboardHome';
 import DevCorpsDocumentation from '../components/devcorps/DevCorpsDocumentation';
 import EventRequestSection from '../components/devcorps/EventRequestSection';
+import CommunitiesSection from '../components/devcorps/CommunitiesSection';
+
+import { communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data/devcorpsConfig';
 
 // Every valid URL segment for /devcorps/:tab. Anything else in the URL
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'.
@@ -27,7 +30,12 @@ import EventRequestSection from '../components/devcorps/EventRequestSection';
 // shared Chat/Profile sections keep their "view profile" round-trip.
 // 'manage-events' is exclusive to the DevCorps portal admin (portalRole
 // 'admin') — members are redirected to the Events tab below.
-const VALID_DEV_CORPS_TABS = ['dashboard', 'events', 'chat', 'documentation', 'profile', 'manage-events'];
+const VALID_DEV_CORPS_TABS = [
+  'dashboard', 'events', 'chat', 'documentation', 'profile', 'manage-events',
+  // 'communities' overview + one tab per member community
+  'communities',
+  ...DEV_CORPS_COMMUNITIES.map(communityNavId),
+];
 
 const DevCorpsDashboard = () => {
   const { user, logout } = useAuth();
@@ -49,6 +57,10 @@ const DevCorpsDashboard = () => {
   const requestedTab = VALID_DEV_CORPS_TABS.includes(tab) ? tab : 'dashboard';
   const activeTab = requestedTab === 'manage-events' && !isDevCorpsAdmin ? 'events' : requestedTab;
   const setActiveTab = (nextTab) => navigate(`/devcorps/${nextTab}`);
+
+  // A sidebar community nav id (e.g. 'community-ai-horizon') resolves to the
+  // actual community, so the Communities view can filter its events.
+  const activeCommunity = communityByNavId(activeTab);
 
   const handleSidebarTabChange = (tabId) => setActiveTab(tabId);
 
@@ -198,11 +210,28 @@ const DevCorpsDashboard = () => {
               <EventRequestSection t={t} />
             ))}
 
-            {/* Manage Events — exclusive to the DevCorps portal admin; full
-                authority over all events (create/edit/delete, approve/reject
-                via status, publish/unpublish via the Published toggle). */}
+            {/* Manage Events — exclusive to the DevCorps portal admin. Scoped
+                to Community events only (college/campus events never appear
+                or become manageable here). */}
             {activeTab === 'manage-events' && isDevCorpsAdmin && (
-              <ManageEventsSection t={t} />
+              <ManageEventsSection t={t} devcorpsMode />
+            )}
+
+            {/* Communities — overview of all five, or a single community's
+                events when one of the sidebar's community nav items is active. */}
+            {activeCommunity ? (
+              <CommunitiesSection
+                t={t}
+                community={activeCommunity}
+                onNavigateCommunity={(community) => setActiveTab(communityNavId(community))}
+                onBack={() => setActiveTab('communities')}
+              />
+            ) : activeTab === 'communities' && (
+              <CommunitiesSection
+                t={t}
+                onNavigateCommunity={(community) => setActiveTab(communityNavId(community))}
+                onBack={() => setActiveTab('dashboard')}
+              />
             )}
 
             {/* Documentation — DevCorps-specific, backend-gated */}
