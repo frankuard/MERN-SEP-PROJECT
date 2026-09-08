@@ -367,6 +367,8 @@ const DevCorpsDocumentation = ({ t }) => {
   const [editingEvent, setEditingEvent] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [addingEvent, setAddingEvent] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('New Event');
   const [uploadError, setUploadError] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -472,8 +474,11 @@ const DevCorpsDocumentation = ({ t }) => {
   };
 
   const handleAddEvent = async () => {
+    const title = (newEventTitle || '').trim() || 'New Event';
+    setAddingEvent(false);
+    setNewEventTitle('New Event');
     try {
-      const updated = await devcorpsApi.addEvent(communityId);
+      const updated = await devcorpsApi.addEvent(communityId, title);
       setBoard(updated);
     } catch {
       reload();
@@ -707,7 +712,7 @@ const DevCorpsDocumentation = ({ t }) => {
             {canManage && (
               <button
                 type="button"
-                onClick={handleAddEvent}
+                onClick={() => setAddingEvent(true)}
                 className="flex w-56 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-4 transition-colors hover:border-solid"
                 style={{ borderColor: `${ACCENT}55`, backgroundColor: `${ACCENT}08`, color: ACCENT }}
               >
@@ -716,6 +721,56 @@ const DevCorpsDocumentation = ({ t }) => {
               </button>
             )}
           </div>
+
+          {addingEvent && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+              onClick={() => setAddingEvent(false)}
+            >
+              <div
+                className="w-full max-w-sm rounded-2xl border p-5 shadow-2xl"
+                style={{ backgroundColor: t.cardBg, borderColor: t.border, boxShadow: t.shadowCard }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>Add a card</h3>
+                <p className="mt-0.5 text-sm" style={{ color: t.textMuted }}>
+                  New card for {activeCommunity.name}.
+                </p>
+                <input
+                  type="text"
+                  autoFocus
+                  value={newEventTitle}
+                  onChange={(e) => setNewEventTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddEvent();
+                    if (e.key === 'Escape') setAddingEvent(false);
+                  }}
+                  className="mt-4 w-full rounded-xl border px-3 py-2.5 text-sm font-bold outline-none"
+                  style={{ borderColor: ACCENT, color: '#111827', backgroundColor: '#ffffff' }}
+                  placeholder="Event name"
+                  aria-label="New card name"
+                />
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddingEvent(false)}
+                    className="rounded-xl px-4 py-2 text-sm font-bold"
+                    style={{ color: t.textMuted }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddEvent}
+                    className="rounded-xl px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    Add card
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
