@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowRight, ImageIcon, Sparkles, UtensilsCrossed } from 'lucide-react';
 import canteenApi from '../../../api/canteenApi';
+import { getSocket } from '../../../socket/socket';
 
 // Color is now tied to what the item actually is, not its position in
 // the list: Popular = pink, everything else here = no tint at all.
@@ -35,12 +36,12 @@ const FoodImage = ({ src, alt, tint }) => {
 const CanteenSpecial = ({ t, onNavigateTab }) => {
   const [featured, setFeatured] = useState(null);
   const [others, setOthers] = useState([]);
+  const mountedRef = useRef(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadMenu = useCallback(() => {
     canteenApi.getMenu()
       .then((data) => {
-        if (!mounted || !Array.isArray(data) || data.length === 0) return;
+        if (!mountedRef.current || !Array.isArray(data) || data.length === 0) return;
         const special = data.find((it) => it.isSpecialOfTheDay) || data[0];
         // Prioritize Popular items into the "others" slot instead of just
         // taking whatever happens to be first in the API's response order —
@@ -56,8 +57,22 @@ const CanteenSpecial = ({ t, onNavigateTab }) => {
         setOthers(rest);
       })
       .catch(() => {});
-    return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    loadMenu();
+
+    // Realtime: when an admin changes the menu, refresh the featured picks.
+    const socket = getSocket();
+    const onMenuUpdated = () => loadMenu();
+    socket.on('canteen:menu:updated', onMenuUpdated);
+
+    return () => {
+      mountedRef.current = false;
+      socket.off('canteen:menu:updated', onMenuUpdated);
+    };
+  }, [loadMenu]);
 
   if (!featured) return null;
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getSocket } from '../../socket/socket';
 import {
   Calendar, Timer, MapPin, User, BookOpen, School, CheckCircle2,
   Clock, X, Users, Lock, GraduationCap, CalendarX, FileText, Bell, Zap,
@@ -165,6 +166,28 @@ const TimetableSection = ({ t }) => {
       .then((data) => { if (mounted) setRoutine(Array.isArray(data) && data.length > 0 ? data : TIMETABLE_ROUTINE); })
       .catch(() => { if (mounted) setRoutine(TIMETABLE_ROUTINE); });
     return () => { mounted = false; };
+  }, []);
+
+  // ── Real-time WebSocket listeners for timetable ────────────────────────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    // Periods affect multiple day groups — easiest to refetch the structured data
+    const refetchRoutine = () => {
+      timetableApi.getTimetable()
+        .then((data) => { if (Array.isArray(data) && data.length > 0) setRoutine(data); })
+        .catch(() => {});
+    };
+
+    socket.on('timetable:period:created', refetchRoutine);
+    socket.on('timetable:period:updated', refetchRoutine);
+    socket.on('timetable:period:deleted', refetchRoutine);
+
+    return () => {
+      socket.off('timetable:period:created', refetchRoutine);
+      socket.off('timetable:period:updated', refetchRoutine);
+      socket.off('timetable:period:deleted', refetchRoutine);
+    };
   }, []);
 
   // load exams (lazy)

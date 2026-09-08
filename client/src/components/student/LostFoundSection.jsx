@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Video } from 'lucide-react';
 import toast from 'react-hot-toast';
 import lostFoundApi from '../../api/lostFoundApi';
+import { getSocket } from '../../socket/socket';
 import { useAuth } from '../../context/AuthContext';
 import LostFoundList from './LostFound/LostFoundList';
 import ReportLostItemModal from './modals/ReportLostItemModal';
@@ -136,6 +137,39 @@ const LostFoundSection = ({ t }) => {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
+
+  // ── Real-time WebSocket listeners ──────────────────────────────────────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCreated = ({ item }) => {
+      if (!item) return;
+      setItems((prev) => {
+        if (prev.some((x) => x._id === item._id)) return prev;
+        return [item, ...prev];
+      });
+    };
+
+    const onUpdated = ({ item }) => {
+      if (!item) return;
+      setItems((prev) => prev.map((x) => (x._id === item._id ? item : x)));
+    };
+
+    const onDeleted = ({ _id }) => {
+      if (!_id) return;
+      setItems((prev) => prev.filter((x) => x._id !== _id));
+    };
+
+    socket.on('lostfound:created', onCreated);
+    socket.on('lostfound:updated', onUpdated);
+    socket.on('lostfound:deleted', onDeleted);
+
+    return () => {
+      socket.off('lostfound:created', onCreated);
+      socket.off('lostfound:updated', onUpdated);
+      socket.off('lostfound:deleted', onDeleted);
+    };
+  }, []);
 
   const handleClaim = async (itemId) => {
     setClaimingId(itemId);
