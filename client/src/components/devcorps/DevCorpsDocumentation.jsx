@@ -578,12 +578,6 @@ const DevCorpsDocumentation = ({ t }) => {
 
   return (
     <div className="animate-in fade-in space-y-6 duration-200">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
-          Documentation
-        </h2>
-      </div>
-
       {isAdmin && summary.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {summary.map((s) => {

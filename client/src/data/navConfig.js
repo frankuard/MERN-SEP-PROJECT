@@ -1,5 +1,5 @@
 import {
-  Home, Search, HelpCircle, Package, FileText, Coffee, MapPin,
+  Home, Search, HelpCircle, Package, Coffee, MapPin,
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
   AlertTriangle, ClipboardList, Settings, LogOut,
    PlusCircle, TrendingUp, Bell,
@@ -33,7 +33,6 @@ const navConfig = {
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'chat', label: 'Chat', icon: MessageSquare },
-    { id: 'documentation', label: 'Documentation', icon: FileText },
     // Communities — DevCorps-only expandable item. Clicking it reveals the
     // five member communities as their own navigation items.
     {

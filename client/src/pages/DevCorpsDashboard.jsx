@@ -198,7 +198,8 @@ const DevCorpsDashboard = () => {
                 t={t}
                 greeting={greeting}
                 memberName={memberName}
-                onNavigateTab={setActiveTab}
+onNavigateTab={setActiveTab}
+          customPageTitle={activeTab === 'documentation' ? '' : undefined}
               />
             )}
 
