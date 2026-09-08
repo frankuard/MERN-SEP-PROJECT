@@ -148,16 +148,48 @@ const LostFoundSection = ({ t }) => {
         if (prev.some((x) => x._id === item._id)) return prev;
         return [item, ...prev];
       });
+
+      // If this item is mine, it also belongs in "Your Activity"
+      const isMine = user?.id && item.createdBy?._id === user.id;
+      const isMineAlt = user?._id && item.createdBy?._id === user._id;
+      if (isMine || isMineAlt) {
+        setActivity((prev) => {
+          if (prev.some((e) => e.kind === 'lostfound' && e.id === item._id)) return prev;
+          return [
+            {
+              kind: 'lostfound',
+              id: item._id,
+              type: item.type,
+              title: item.title,
+              subtitle: `Reported at ${item.location}`,
+              status: item.status,
+              createdAt: item.createdAt,
+            },
+            ...prev,
+          ];
+        });
+      }
     };
 
     const onUpdated = ({ item }) => {
       if (!item) return;
       setItems((prev) => prev.map((x) => (x._id === item._id ? item : x)));
+
+      // Keep "Your Activity" in sync with the item's latest status —
+      // whether it's my reported item, or an item I've claimed
+      setActivity((prev) =>
+        prev.map((e) =>
+          e.kind === 'lostfound' && e.id === item._id
+            ? { ...e, status: item.status, title: item.title }
+            : e
+        )
+      );
     };
 
     const onDeleted = ({ _id }) => {
       if (!_id) return;
       setItems((prev) => prev.filter((x) => x._id !== _id));
+      setActivity((prev) => prev.filter((e) => !(e.kind === 'lostfound' && e.id === _id)));
     };
 
     socket.on('lostfound:created', onCreated);
@@ -170,6 +202,53 @@ const LostFoundSection = ({ t }) => {
       socket.off('lostfound:deleted', onDeleted);
     };
   }, []);
+
+  // ── Real-time: keep "Your Activity" in sync with CCTV request status ──────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const isMine = (request) => {
+      const uid = user?.id || user?._id;
+      return uid && (request.user?._id === uid || request.user === uid);
+    };
+
+    const onCctvCreated = ({ request }) => {
+      if (!request || !isMine(request)) return;
+      setActivity((prev) => {
+        if (prev.some((e) => e.kind === 'cctv' && e.id === request._id)) return prev;
+        return [
+          {
+            kind: 'cctv',
+            id: request._id,
+            title: request.location,
+            subtitle: request.reason,
+            status: request.status,
+            createdAt: request.createdAt,
+          },
+          ...prev,
+        ];
+      });
+    };
+
+    const onCctvUpdated = ({ request }) => {
+      if (!request || !isMine(request)) return;
+      setActivity((prev) =>
+        prev.map((e) =>
+          e.kind === 'cctv' && e.id === request._id
+            ? { ...e, status: request.status, title: request.location, subtitle: request.reason }
+            : e
+        )
+      );
+    };
+
+    socket.on('lostfound:cctv:created', onCctvCreated);
+    socket.on('lostfound:cctv:updated', onCctvUpdated);
+
+    return () => {
+      socket.off('lostfound:cctv:created', onCctvCreated);
+      socket.off('lostfound:cctv:updated', onCctvUpdated);
+    };
+  }, [user]);
 
   const handleClaim = async (itemId) => {
     setClaimingId(itemId);

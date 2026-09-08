@@ -14,7 +14,12 @@ const formatDate = (isoString) => {
 const LostFoundCard = ({ item, currentUserEmail, onClaim, claiming, t }) => {
   const accent = item.type === 'lost' ? LOST_ACCENT : FOUND_ACCENT;
   const isResolved = item.status === 'Claimed' || item.status === 'Returned' || item.status === 'resolved';
-  const claimedByMe = item.claims?.some((c) => c.userEmail === currentUserEmail);
+
+  // My own active (non-Rejected) claim on this item, if any — this is what
+  // decides whether I see "Waiting for admin approval" instead of the button.
+  const myClaim = item.claims?.find((c) => c.userEmail === currentUserEmail && c.status !== 'Rejected');
+  const claimedByMe = !!myClaim;
+  const myClaimIsPending = myClaim?.status === 'Pending';
 
   return (
     <div
@@ -89,6 +94,11 @@ const LostFoundCard = ({ item, currentUserEmail, onClaim, claiming, t }) => {
             {claimedByMe
               ? `Claimed by you${item.status === 'Returned' ? ' · Returned' : ''}`
               : item.status === 'Returned' ? 'Claimed & Returned' : `Claimed${item.claimantName ? ` by ${item.claimantName}` : ''}`}
+          </div>
+        ) : myClaimIsPending ? (
+          <div className="flex items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-bold" style={{ backgroundColor: `${accent}0F`, color: accent }}>
+            <Lock size={15} />
+            Waiting for admin approval
           </div>
         ) : (
           <button

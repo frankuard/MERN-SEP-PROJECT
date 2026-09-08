@@ -287,6 +287,13 @@ const createCctvRequest = async (req, res) => {
       submittedAt: 'Just now',
     });
 
+    const populatedRequest = await CctvRequest.findById(cctvRequest._id)
+      .populate('user', 'username email role department semester')
+      .populate('relatedLostItem');
+
+    // Broadcast real-time update so admin's CCTV tab updates live
+    emitToAll('lostfound:cctv:created', { request: populatedRequest });
+
     res.status(201).json(cctvRequest);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -338,6 +345,9 @@ const updateCctvStatus = async (req, res) => {
     const updated = await CctvRequest.findById(id)
       .populate('user', 'username email role')
       .populate('reviewedBy', 'username email role');
+
+    // Broadcast real-time update
+    emitToAll('lostfound:cctv:updated', { request: updated });
 
     res.status(200).json(updated);
   } catch (err) {

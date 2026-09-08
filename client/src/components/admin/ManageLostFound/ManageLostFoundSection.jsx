@@ -336,6 +336,31 @@ const ManageLostFoundSection = ({ t, activeTab: controlledActiveTab, onTabChange
     };
   }, []);
 
+  // ── Real-time: new/updated CCTV requests show up in the admin's tab live ──
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCctvCreated = ({ request }) => {
+      if (!request) return;
+      setCctvRequests((prev) =>
+        prev.some((r) => r._id === request._id) ? prev : [request, ...prev]
+      );
+    };
+
+    const onCctvUpdated = ({ request }) => {
+      if (!request) return;
+      setCctvRequests((prev) => prev.map((r) => (r._id === request._id ? request : r)));
+    };
+
+    socket.on('lostfound:cctv:created', onCctvCreated);
+    socket.on('lostfound:cctv:updated', onCctvUpdated);
+
+    return () => {
+      socket.off('lostfound:cctv:created', onCctvCreated);
+      socket.off('lostfound:cctv:updated', onCctvUpdated);
+    };
+  }, []);
+
   const lostItems = items.filter((it) => it.type === 'lost');
   const foundItems = items.filter((it) => it.type === 'found');
 
