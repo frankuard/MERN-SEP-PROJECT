@@ -3,6 +3,7 @@ import { BookOpen, Trophy, Search, Clock, CheckCircle2, Hourglass } from 'lucide
 import resourcesApi from '../../api/resourcesApi';
 import BorrowRequestModal from './modals/BorrowRequestModal';
 import toast from 'react-hot-toast';
+import { getSocket } from '../../socket/socket';
 
 const CARD_TINTS = ['pastelBlue', 'pastelPink', 'pastelYellow', 'pastelCyan', 'pastelPurple', 'pastelOrange'];
 const ACCENT = '#5c8a72';
@@ -227,6 +228,56 @@ const ResourcesSection = ({ t }) => {
       loadMySportsRequests();
     }
   }, [resourcesActiveCategory, loadSportsItems, loadMySportsRequests]);
+
+  // Real-time book updates from admin
+  useEffect(() => {
+    const socket = getSocket();
+    const onBookCreated = ({ book }) => {
+      if (!book) return;
+      setBooks((prev) => prev.some((b) => b._id === book._id) ? prev : [book, ...prev]);
+    };
+    const onBookUpdated = ({ book }) => {
+      if (!book) return;
+      setBooks((prev) => prev.map((b) => b._id === book._id ? { ...b, ...book } : b));
+    };
+    const onBookDeleted = ({ _id }) => {
+      if (!_id) return;
+      setBooks((prev) => prev.filter((b) => b._id !== _id));
+    };
+    socket.on('resource:book:created', onBookCreated);
+    socket.on('resource:book:updated', onBookUpdated);
+    socket.on('resource:book:deleted', onBookDeleted);
+    return () => {
+      socket.off('resource:book:created', onBookCreated);
+      socket.off('resource:book:updated', onBookUpdated);
+      socket.off('resource:book:deleted', onBookDeleted);
+    };
+  }, []);
+
+  // Real-time sports item updates from admin
+  useEffect(() => {
+    const socket = getSocket();
+    const onSportsCreated = ({ item }) => {
+      if (!item) return;
+      setSportsItems((prev) => prev.some((s) => s._id === item._id) ? prev : [...prev, item]);
+    };
+    const onSportsUpdated = ({ item }) => {
+      if (!item) return;
+      setSportsItems((prev) => prev.map((s) => s._id === item._id ? item : s));
+    };
+    const onSportsDeleted = ({ _id }) => {
+      if (!_id) return;
+      setSportsItems((prev) => prev.filter((s) => s._id !== _id));
+    };
+    socket.on('resource:sports:created', onSportsCreated);
+    socket.on('resource:sports:updated', onSportsUpdated);
+    socket.on('resource:sports:deleted', onSportsDeleted);
+    return () => {
+      socket.off('resource:sports:created', onSportsCreated);
+      socket.off('resource:sports:updated', onSportsUpdated);
+      socket.off('resource:sports:deleted', onSportsDeleted);
+    };
+  }, []);
 
   const [sportsForm, setSportsForm] = useState({
     itemId: '',

@@ -2,6 +2,7 @@ const LostFoundItem = require('../models/LostFoundItem');
 const CctvRequest = require('../models/CctvRequest');
 const User = require('../models/User');
 const { createNotification } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 
 
 const resolveUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
@@ -87,6 +88,9 @@ const createLostFoundItem = async (req, res) => {
     const populatedItem = await LostFoundItem.findById(item._id)
       .populate('createdBy', 'username email role department semester');
 
+    // Broadcast real-time creation to all connected clients
+    emitToAll('lostfound:created', { item: populatedItem });
+
     res.status(201).json(populatedItem);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -123,6 +127,9 @@ const updateLostFoundItem = async (req, res) => {
       .populate('createdBy', 'username email role')
       .populate('claimedBy', 'username email role');
 
+    // Broadcast real-time update
+    emitToAll('lostfound:updated', { item: updatedItem });
+
     res.status(200).json(updatedItem);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
@@ -145,6 +152,10 @@ const deleteLostFoundItem = async (req, res) => {
     }
 
     await LostFoundItem.findByIdAndDelete(id);
+
+    // Broadcast real-time deletion
+    emitToAll('lostfound:deleted', { _id: id });
+
     res.status(200).json({ message: 'Item deleted successfully', id });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
@@ -194,6 +205,9 @@ const claimLostFoundItem = async (req, res) => {
       .populate('claimedBy', 'username email role')
       .populate('claims.user', 'username email role');
 
+    // Broadcast real-time update (claim pending status change)
+    emitToAll('lostfound:updated', { item: populated });
+
     res.status(200).json(populated);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid item ID' });
@@ -234,6 +248,9 @@ const markItemReturned = async (req, res) => {
       .populate('createdBy', 'username email role')
       .populate('claimedBy', 'username email role')
       .populate('claims.user', 'username email role');
+
+    // Broadcast real-time update (returned status)
+    emitToAll('lostfound:updated', { item: populated });
 
     res.status(200).json(populated);
   } catch (err) {
@@ -413,6 +430,9 @@ const updateClaimStatus = async (req, res) => {
       .populate('createdBy', 'username email role')
       .populate('claimedBy', 'username email role')
       .populate('claims.user', 'username email role');
+
+    // Broadcast real-time update (claim status changed)
+    emitToAll('lostfound:updated', { item: populated });
 
     res.status(200).json(populated);
   } catch (err) {

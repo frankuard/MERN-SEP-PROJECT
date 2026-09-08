@@ -4,6 +4,7 @@ const CanteenOrder = require('../models/CanteenOrder');
 const CanteenCreditRequest = require('../models/CanteenCreditRequest');
 const User = require('../models/User');
 const { createNotificationForRole, createNotification } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 const generateInvoicePdf = require('../utils/generateInvoicePdf');
 
 
@@ -94,6 +95,8 @@ const createMenuItem = async (req, res) => {
       availability: availability !== undefined ? availability : true,
     });
 
+    emitToAll('canteen:menu:updated', { action: 'create', item: newItem });
+
     createNotificationForRole('student', {
       type: 'canteen_menu',
       title: 'New Menu Item Added',
@@ -125,6 +128,8 @@ const updateMenuItem = async (req, res) => {
       { new: true, runValidators: true }
     );
 
+    emitToAll('canteen:menu:updated', { action: 'update', item: updatedItem });
+
     createNotificationForRole('student', {
       type: 'canteen_menu',
       title: 'Menu Item Updated',
@@ -151,6 +156,8 @@ const deleteMenuItem = async (req, res) => {
     }
 
     await CanteenMenu.findByIdAndDelete(req.params.id);
+
+    emitToAll('canteen:menu:updated', { action: 'delete', item: { _id: item._id, name: item.name } });
 
     createNotificationForRole('student', {
       type: 'canteen_menu',

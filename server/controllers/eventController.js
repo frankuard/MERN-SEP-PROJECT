@@ -1,6 +1,7 @@
 const Event = require('../models/Event');
 const EventRegistration = require('../models/EventRegistration');
 const { createNotification, createNotificationForRole } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 
 
 /**
@@ -172,6 +173,9 @@ const createEvent = async (req, res) => {
       createdBy: req.user._id,
     });
 
+    // Broadcast real-time update to all connected clients
+    emitToAll('event:created', { event: await Event.findById(event._id).populate('createdBy', 'username email role') });
+
     if (event.isPublished) {
       const typeLabel = event.type === 'college' ? 'College' : 'Community';
       createNotificationForRole('student', {
@@ -216,6 +220,9 @@ const updateEvent = async (req, res) => {
     Object.assign(event, req.body);
 
     await event.save();
+
+    // Broadcast real-time update to all connected clients
+    emitToAll('event:updated', { event: await Event.findById(event._id).populate('createdBy', 'username email role') });
 
     // Only send notifications for published events visible to students
     if (event.isPublished) {
@@ -342,6 +349,9 @@ const deleteEvent = async (req, res) => {
     await EventRegistration.deleteMany({
       event: event._id,
     });
+
+    // Broadcast real-time deletion to all connected clients
+    emitToAll('event:deleted', { _id: event._id });
 
     res.status(200).json({
       message: 'Event deleted successfully',

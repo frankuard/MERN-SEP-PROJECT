@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, UtensilsCrossed, ImageIcon, Sparkles, Flame, ShoppingBag, Plus, Check, ReceiptText } from 'lucide-react';
 import canteenApi from '../../api/canteenApi';
+import { getSocket } from '../../socket/socket';
 import CreditDueCard from './Dashboard/CreditDueCard';
 import CreditHistoryModal from './modals/CreditHistoryModal';
 import CanteenCartDrawer from './canteen/CanteenCartDrawer';
@@ -65,6 +66,30 @@ const CanteenSection = ({ t }) => {
   }, [selectedCategory, search]);
 
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
+
+  // Realtime: surgical state update when admin creates/updates/deletes a menu item.
+  // No refetch needed — we apply the change directly to local state.
+  useEffect(() => {
+    const socket = getSocket();
+    const onMenuUpdated = ({ action, item }) => {
+      if (!action || !item) return;
+      if (action === 'create') {
+        setMenuItems((prev) =>
+          prev.some((m) => m._id === item._id) ? prev : [item, ...prev]
+        );
+      } else if (action === 'update') {
+        setMenuItems((prev) =>
+          prev.map((m) => (m._id === item._id ? item : m))
+        );
+      } else if (action === 'delete') {
+        setMenuItems((prev) => prev.filter((m) => m._id !== item._id));
+      }
+    };
+    socket.on('canteen:menu:updated', onMenuUpdated);
+    return () => {
+      socket.off('canteen:menu:updated', onMenuUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;

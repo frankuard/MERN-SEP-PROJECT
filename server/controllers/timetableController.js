@@ -4,6 +4,7 @@ const Module = require('../models/Module');
 const Group = require('../models/Group');
 const Classroom = require('../models/Classroom');
 const { createNotificationForRole } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // ========================================================
@@ -114,6 +115,9 @@ const createPeriod = async (req, res) => {
       order: order != null ? Number(order) : 0,
     });
 
+    // Broadcast real-time update
+    emitToAll('timetable:period:created', { period });
+
         createNotificationForRole('student', {
       type: 'timetable',
       title: 'New Class Added',
@@ -174,6 +178,9 @@ const updatePeriod = async (req, res) => {
 
     const updated = await period.save();
 
+    // Broadcast real-time update
+    emitToAll('timetable:period:updated', { period: updated });
+
     createNotificationForRole('student', {
       type: 'timetable',
       title: 'Class Period Updated',
@@ -194,7 +201,12 @@ const deletePeriod = async (req, res) => {
     const period = await Timetable.findById(req.params.id);
     if (!period) return res.status(404).json({ message: 'Period not found' });
 
+    const periodId = period._id;
     await period.deleteOne();
+
+    // Broadcast real-time deletion
+    emitToAll('timetable:period:deleted', { _id: periodId });
+
     res.status(200).json({ message: 'Period deleted' });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid period ID' });
@@ -252,6 +264,9 @@ const createScheduleChange = async (req, res) => {
       badgeColor: badgeColor || 'amber',
     });
 
+    // Broadcast real-time update
+    emitToAll('timetable:change:created', { change });
+
     createNotificationForRole('student', {
       type: 'timetable',
       title: 'Schedule Change Published',
@@ -281,6 +296,9 @@ const updateScheduleChange = async (req, res) => {
 
     const updated = await change.save();
 
+    // Broadcast real-time update
+    emitToAll('timetable:change:updated', { change: updated });
+
     createNotificationForRole('student', {
       type: 'timetable',
       title: 'Schedule Change Updated',
@@ -301,7 +319,12 @@ const deleteScheduleChange = async (req, res) => {
     const change = await ScheduleChange.findById(req.params.id);
     if (!change) return res.status(404).json({ message: 'Schedule change not found' });
 
+    const changeId = change._id;
     await change.deleteOne();
+
+    // Broadcast real-time deletion
+    emitToAll('timetable:change:deleted', { _id: changeId });
+
     res.status(200).json({ message: 'Schedule change deleted' });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid schedule change ID' });

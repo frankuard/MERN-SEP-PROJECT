@@ -3,6 +3,7 @@ import { Search, MapPin, User, Video, Trash2, CheckCircle2, Clock, FileCheck } f
 import toast from 'react-hot-toast';
 import lostFoundApi from '../../../api/lostFoundApi';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
+import { getSocket } from '../../../socket/socket';
 
 const ACCENT = '#2f4336';
 
@@ -302,6 +303,38 @@ const ManageLostFoundSection = ({ t, activeTab: controlledActiveTab, onTabChange
   }, [search]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // ── Real-time: admin sees new student reports/claims instantly ────────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCreated = ({ item }) => {
+      if (!item) return;
+      setItems((prev) =>
+        prev.some((x) => x._id === item._id) ? prev : [item, ...prev]
+      );
+    };
+
+    const onUpdated = ({ item }) => {
+      if (!item) return;
+      setItems((prev) => prev.map((x) => (x._id === item._id ? item : x)));
+    };
+
+    const onDeleted = ({ _id }) => {
+      if (!_id) return;
+      setItems((prev) => prev.filter((x) => x._id !== _id));
+    };
+
+    socket.on('lostfound:created', onCreated);
+    socket.on('lostfound:updated', onUpdated);
+    socket.on('lostfound:deleted', onDeleted);
+
+    return () => {
+      socket.off('lostfound:created', onCreated);
+      socket.off('lostfound:updated', onUpdated);
+      socket.off('lostfound:deleted', onDeleted);
+    };
+  }, []);
 
   const lostItems = items.filter((it) => it.type === 'lost');
   const foundItems = items.filter((it) => it.type === 'found');

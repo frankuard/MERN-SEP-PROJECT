@@ -1,5 +1,6 @@
 const Announcement = require('../models/Announcement');
 const { createNotificationForRole } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 /**
  * 1. Get all announcements (optional department / priority filters)
  * GET /api/announcements
@@ -56,6 +57,8 @@ const createAnnouncement = async (req, res) => {
       publishedAt: publishedAt || Date.now(),
     });
 
+    emitToAll('announcement:updated', { action: 'create', announcement });
+
     createNotificationForRole('student', {
       type: 'announcement',
       title: 'New Announcement',
@@ -90,6 +93,8 @@ const updateAnnouncement = async (req, res) => {
 
         const updated = await announcement.save();
 
+    emitToAll('announcement:updated', { action: 'update', announcement: updated });
+
     createNotificationForRole('student', {
       type: 'announcement',
       title: 'Announcement Updated',
@@ -115,6 +120,9 @@ const deleteAnnouncement = async (req, res) => {
     if (!announcement) return res.status(404).json({ message: 'Announcement not found' });
 
     await announcement.deleteOne();
+
+    emitToAll('announcement:updated', { action: 'delete', announcement: { _id: announcement._id, title: announcement.title } });
+
     res.status(200).json({ message: 'Announcement deleted' });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid announcement ID' });

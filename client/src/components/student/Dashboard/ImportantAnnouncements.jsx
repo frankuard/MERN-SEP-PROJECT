@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ArrowRight, Megaphone } from 'lucide-react';
 import announcementApi from '../../../api/announcementApi';
+import { getSocket } from '../../../socket/socket';
 import AnnouncementsModal from '../modals/AnnouncementsModal';
 
 // Badge color still reflects priority, but the tile itself now shows the
@@ -33,19 +34,32 @@ const ImportantAnnouncements = ({ t }) => {
   const [announcements, setAnnouncements] = useState([]);
   const [status, setStatus] = useState('loading');
   const [showModal, setShowModal] = useState(false);
+  const mountedRef = useRef(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadAnnouncements = useCallback(() => {
     announcementApi.getAnnouncements()
       .then((data) => {
-        if (mounted) {
-          setAnnouncements(Array.isArray(data) ? data : []);
-          setStatus('success');
-        }
+        if (!mountedRef.current) return;
+        setAnnouncements(Array.isArray(data) ? data : []);
+        setStatus('success');
       })
-      .catch(() => { if (mounted) setStatus('error'); });
-    return () => { mounted = false; };
+      .catch(() => { if (mountedRef.current) setStatus('error'); });
   }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    loadAnnouncements();
+
+    // Realtime: when an admin creates/updates/deletes notices, refresh.
+    const socket = getSocket();
+    const onAnnouncementUpdated = () => loadAnnouncements();
+    socket.on('announcement:updated', onAnnouncementUpdated);
+
+    return () => {
+      mountedRef.current = false;
+      socket.off('announcement:updated', onAnnouncementUpdated);
+    };
+  }, [loadAnnouncements]);
 
   // Sort by timeline — most recent announcement first.
   const sortedAnnouncements = useMemo(() => {

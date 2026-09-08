@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import notificationApi from '../api/notificationApi';
+import { getSocket } from '../socket/socket';
 import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext(null);
@@ -76,8 +77,23 @@ export const NotificationProvider = ({ children }) => {
     refreshUnreadCount();
     pollRef.current = setInterval(refreshUnreadCount, POLL_INTERVAL_MS);
 
+    // Realtime: badge + list update instantly when a new notification arrives
+    // (e.g. canteen menu, credit, announcements). Polling stays as fallback.
+    const socket = getSocket();
+    const onNotificationNew = (notification) => {
+      refreshUnreadCount();
+      if (notification) {
+        setNotifications((prev) => {
+          if (!prev || prev.some((n) => n._id === notification._id)) return prev;
+          return [notification, ...prev];
+        });
+      }
+    };
+    socket.on('notification:new', onNotificationNew);
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      socket.off('notification:new', onNotificationNew);
     };
   }, [user, refreshUnreadCount]);
 

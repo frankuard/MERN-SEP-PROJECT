@@ -3,6 +3,7 @@ const BorrowRequest = require('../models/BorrowRequest');
 const SportsItem = require('../models/SportsItem');
 const SportsRequest = require('../models/SportsRequest');
 const { createNotificationForRole, createNotification } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 
 
 const resolveUserId = (req) => req.user?._id || req.user?.userId;
@@ -116,6 +117,9 @@ const createBook = async (req, res) => {
       cover: cover?.trim() || '',
     });
 
+    // Broadcast real-time creation
+    emitToAll('resource:book:created', { book });
+
     createNotificationForRole('student', {
       type: 'book',
       title: 'New Book Added',
@@ -142,6 +146,9 @@ const updateBook = async (req, res) => {
 
     const updated = await book.save();
 
+    // Broadcast real-time update
+    emitToAll('resource:book:updated', { book: updated });
+
     createNotificationForRole('student', {
       type: 'book',
       title: 'Book Updated',
@@ -161,7 +168,11 @@ const deleteBook = async (req, res) => {
     const book = await Book.findById(req.params.id);
     if (!book) return res.status(404).json({ message: 'Book not found' });
 
+    const bookId = book._id;
     await book.deleteOne();
+
+    // Broadcast real-time deletion
+    emitToAll('resource:book:deleted', { _id: bookId });
 
     createNotificationForRole('student', {
       type: 'book',
@@ -345,6 +356,9 @@ const createSportsItem = async (req, res) => {
       totalQuantity: Number(totalQuantity),
     });
 
+    // Broadcast real-time creation
+    emitToAll('resource:sports:created', { item });
+
     createNotificationForRole('student', {
       type: 'sports_item',
       title: 'New Sports Item Added',
@@ -371,6 +385,9 @@ const updateSportsItem = async (req, res) => {
 
     const updated = await item.save();
 
+    // Broadcast real-time update
+    emitToAll('resource:sports:updated', { item: updated });
+
     createNotificationForRole('student', {
       type: 'sports_item',
       title: 'Sports Item Updated',
@@ -390,7 +407,11 @@ const deleteSportsItem = async (req, res) => {
     const item = await SportsItem.findById(req.params.id);
     if (!item) return res.status(404).json({ message: 'Sports item not found' });
 
+    const itemId = item._id;
     await item.deleteOne();
+
+    // Broadcast real-time deletion
+    emitToAll('resource:sports:deleted', { _id: itemId });
 
     createNotificationForRole('student', {
       type: 'sports_item',

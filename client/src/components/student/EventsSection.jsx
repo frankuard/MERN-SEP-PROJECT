@@ -4,6 +4,7 @@ import {
   CalendarOff, RefreshCw, AlertCircle,
 } from 'lucide-react';
 import eventsApi from '../../api/eventsApi';
+import { getSocket } from '../../socket/socket';
 
 const ACCENT            = '#2f4336';
 const COLLEGE_ACCENT    = '#2563eb';
@@ -330,6 +331,48 @@ const EventsSection = ({ t }) => {
   useEffect(() => {
     fetchAllEvents();
   }, [fetchAllEvents]);
+
+  // ── Real-time WebSocket listeners ──────────────────────────────────────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onEventCreated = ({ event }) => {
+      if (!event) return;
+      // Only show published events in student view
+      if (!event.isPublished) return;
+      setAllEvents((prev) => {
+        if (prev.some((e) => e._id === event._id)) return prev;
+        return [event, ...prev];
+      });
+    };
+
+    const onEventUpdated = ({ event }) => {
+      if (!event) return;
+      setAllEvents((prev) => {
+        // If the event was just un-published, remove it from student view
+        if (!event.isPublished) return prev.filter((e) => e._id !== event._id);
+        const exists = prev.some((e) => e._id === event._id);
+        if (exists) return prev.map((e) => (e._id === event._id ? event : e));
+        // Was a draft, now published — add it
+        return [event, ...prev];
+      });
+    };
+
+    const onEventDeleted = ({ _id }) => {
+      if (!_id) return;
+      setAllEvents((prev) => prev.filter((e) => e._id !== _id));
+    };
+
+    socket.on('event:created', onEventCreated);
+    socket.on('event:updated', onEventUpdated);
+    socket.on('event:deleted', onEventDeleted);
+
+    return () => {
+      socket.off('event:created', onEventCreated);
+      socket.off('event:updated', onEventUpdated);
+      socket.off('event:deleted', onEventDeleted);
+    };
+  }, []); // stable — no deps needed, setAllEvents is stable
 
   // ── Client-side filtering ──────────────────────────────────────────────────
   const visibleEvents = (() => {
