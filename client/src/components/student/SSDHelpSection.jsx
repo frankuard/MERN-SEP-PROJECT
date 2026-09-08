@@ -84,6 +84,46 @@ const SSDHelpSection = ({ t, user, studentName }) => {
     return () => { mounted = false; };
   }, []);
 
+  // ── Real-time: admin marking/updating attendance reflects here live ──────
+  const myUserId = user?.id || user?._id;
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onAttendanceUpdated = ({ studentId, summary, record, deletedRecordId, logReplaced }) => {
+      if (!studentId || !myUserId) return;
+      if (studentId.toString() !== myUserId.toString()) return;
+
+      if (summary) setAttendanceSummary(summary);
+
+      if (logReplaced) {
+        // Bulk quick-set wiped and regenerated the whole record set —
+        // re-fetch rather than trying to patch individual entries.
+        attendanceApi.getMyAttendanceLog()
+          .then((data) => setAttendanceLog(Array.isArray(data) ? data : []))
+          .catch(() => {});
+        return;
+      }
+
+      if (record) {
+        setAttendanceLog((prev) => {
+          if (prev === null) return prev;
+          const exists = prev.some((r) => r._id === record._id);
+          return exists
+            ? prev.map((r) => (r._id === record._id ? record : r))
+            : [record, ...prev];
+        });
+      }
+
+      if (deletedRecordId) {
+        setAttendanceLog((prev) => (prev === null ? prev : prev.filter((r) => r._id !== deletedRecordId)));
+      }
+    };
+
+    socket.on('attendance:updated', onAttendanceUpdated);
+    return () => socket.off('attendance:updated', onAttendanceUpdated);
+  }, [myUserId]);
+
   const submitReportRequest = async (payload) => {
     await attendanceApi.createReportRequest(payload);
   };

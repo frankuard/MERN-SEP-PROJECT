@@ -2,6 +2,19 @@ const Attendance = require('../models/Attendance');
 const AttendanceReportRequest = require('../models/AttendanceReportRequest');
 const User = require('../models/User');
 const { createNotification } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
+
+// Recomputes a single student's attendance summary — used to broadcast
+// a fresh snapshot any time their records change, without sending the
+// entire records collection over the socket.
+const computeSummary = async (studentId) => {
+  const records = await Attendance.find({ student: studentId });
+  const totalDays = records.length;
+  const present = records.filter((r) => r.status === 'Present').length;
+  const absent = totalDays - present;
+  const percentage = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0;
+  return { percentage, present, absent, totalDays };
+};
 
 
 // ========================================================
@@ -94,6 +107,11 @@ const markAttendance = async (req, res) => {
       markedBy: req.user._id,
     });
 
+    const summary = await computeSummary(studentId);
+
+    // Broadcast so the student's dashboard + SSD Help page update live
+    emitToAll('attendance:updated', { studentId, summary, record });
+
     createNotification(studentId, {
       type: 'attendance',
       title: 'Attendance Recorded',
@@ -121,6 +139,11 @@ const updateAttendance = async (req, res) => {
 
     const updated = await record.save();
 
+    const summary = await computeSummary(updated.student);
+
+    // Broadcast so the student's dashboard + SSD Help page update live
+    emitToAll('attendance:updated', { studentId: updated.student, summary, record: updated });
+
     createNotification(record.student, {
       type: 'attendance',
       title: 'Attendance Modified',
@@ -141,7 +164,15 @@ const deleteAttendance = async (req, res) => {
     const record = await Attendance.findById(req.params.id);
     if (!record) return res.status(404).json({ message: 'Attendance record not found' });
 
+    const studentId = record.student;
+    const recordId = record._id;
     await record.deleteOne();
+
+    const summary = await computeSummary(studentId);
+
+    // Broadcast so the student's dashboard + SSD Help page update live
+    emitToAll('attendance:updated', { studentId, summary, deletedRecordId: recordId });
+
     res.status(200).json({ message: 'Attendance record deleted' });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid record ID' });
@@ -282,6 +313,19 @@ const quickSetAttendance = async (req, res) => {
       await Attendance.insertMany(records);
     }
 
+    const summary = {
+      totalDays,
+      present,
+      absent,
+      percentage: totalDays > 0 ? Math.round((present / totalDays) * 100) : 0,
+    };
+
+    // Broadcast so the student's dashboard + SSD Help page update live.
+    // logReplaced flags that the whole record set was regenerated (bulk
+    // quick-set), so listeners should re-fetch the log instead of
+    // trying to patch individual records.
+    emitToAll('attendance:updated', { studentId, summary, logReplaced: true });
+
     createNotification(studentId, {
       type: 'attendance',
       title: 'Attendance Modified',
@@ -291,12 +335,7 @@ const quickSetAttendance = async (req, res) => {
 
     res.status(200).json({
       message: 'Attendance updated',
-      record: {
-        totalDays,
-        present,
-        absent,
-        percentage: totalDays > 0 ? Math.round((present / totalDays) * 100) : 0,
-      },
+      record: summary,
     });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid student ID' });

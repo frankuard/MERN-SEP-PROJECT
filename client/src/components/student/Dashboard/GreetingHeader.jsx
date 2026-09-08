@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import attendanceApi from '../../../api/attendanceApi';
 import DashboardMascot from './DashboardMascot';
+import { getSocket } from '../../../socket/socket';
+import { useAuth } from '../../../context/AuthContext';
 
 const GreetingHeader = ({ t, greeting, studentName, onNavigateTab }) => {
+  const { user } = useAuth();
+  const myUserId = user?.id || user?._id;
+
   // Real attendance summary from the backend — replaces the old hardcoded
   // DASHBOARD_ATTENDANCE import. Defaults to zeros until the fetch resolves.
   const [attendance, setAttendance] = useState({ percentage: 0, present: 0, absent: 0 });
@@ -17,6 +22,20 @@ const GreetingHeader = ({ t, greeting, studentName, onNavigateTab }) => {
       .catch(() => {});
     return () => { mounted = false; };
   }, []);
+
+  // ── Real-time: admin marking/updating attendance reflects here live ──────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onAttendanceUpdated = ({ studentId, summary }) => {
+      if (!studentId || !summary || !myUserId) return;
+      if (studentId.toString() !== myUserId.toString()) return;
+      setAttendance(summary);
+    };
+
+    socket.on('attendance:updated', onAttendanceUpdated);
+    return () => socket.off('attendance:updated', onAttendanceUpdated);
+  }, [myUserId]);
 
   const { percentage, present, absent } = attendance;
 
