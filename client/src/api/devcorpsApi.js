@@ -6,8 +6,23 @@ const devcorpsApi = {
     return res.data;
   },
 
+  getDocumentationSummary: async () => {
+    const res = await axiosInstance.get('/devcorps/documentation/summary');
+    return res.data;
+  },
+
   getDocumentation: async (communityId) => {
     const res = await axiosInstance.get(`/devcorps/documentation/${communityId}`);
+    return res.data;
+  },
+
+  addEvent: async (communityId, title) => {
+    const res = await axiosInstance.post(`/devcorps/documentation/${communityId}/events`, { title });
+    return res.data;
+  },
+
+  removeEvent: async (communityId, order) => {
+    const res = await axiosInstance.delete(`/devcorps/documentation/${communityId}/events/${order}`);
     return res.data;
   },
 
@@ -21,6 +36,11 @@ const devcorpsApi = {
       `/devcorps/documentation/${communityId}/events/${order}/tasks/${key}`,
       payload
     );
+    return res.data;
+  },
+
+  updateWorkshops: async (communityId, count) => {
+    const res = await axiosInstance.patch(`/devcorps/documentation/${communityId}/workshops`, { count });
     return res.data;
   },
 

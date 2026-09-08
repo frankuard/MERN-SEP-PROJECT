@@ -79,9 +79,19 @@ router.get('/portal', authMiddleware, devcorpsMiddleware, (req, res) => {
 // ── Community Documentation boards + per-community file storage ────────────
 // The DevCorps admin can read every community's records. A community member
 // (the five member communities) is scoped to their OWN community only —
-// matched by the account's specific community name. Management — toggling
-// tasks, awarding points, renaming events, uploading/removing files — is
-// restricted to the DevCorps admin.
+// matched by the account's specific community name. The member community
+// itself can manage its own cards and sections and its workshop count; the
+// checkboxes and points (the DevCorps marking/point system) and file
+// management stay admin-only.
+
+// Overall summary for DevCorps to track all five communities. Registered
+// BEFORE the :communityId routes so "summary" is never parsed as an id.
+router.get(
+  '/documentation/summary',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.getSummary
+);
 
 // Checklist board
 router.get(
@@ -90,17 +100,35 @@ router.get(
   devcorpsMiddleware.devcorpsMemberScope,
   devcorpsDocumentationController.getBoard
 );
+router.post(
+  '/documentation/:communityId/events',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.addEvent
+);
+router.delete(
+  '/documentation/:communityId/events/:order',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.removeEvent
+);
 router.patch(
   '/documentation/:communityId/events/:order',
   authMiddleware,
-  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
   devcorpsDocumentationController.renameEvent
 );
 router.patch(
   '/documentation/:communityId/events/:order/tasks/:key',
   authMiddleware,
-  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
   devcorpsDocumentationController.updateTask
+);
+router.patch(
+  '/documentation/:communityId/workshops',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.updateWorkshops
 );
 
 // File storage (per-community, only reachable through this portal)

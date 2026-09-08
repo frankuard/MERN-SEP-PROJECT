@@ -24,6 +24,7 @@ const communityDocumentationSchema = new mongoose.Schema(
   {
     communityId: { type: String, required: true, unique: true, index: true },
     events: [documentationEventSchema],
+    workshopsDone: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

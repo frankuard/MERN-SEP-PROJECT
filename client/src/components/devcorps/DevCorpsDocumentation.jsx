@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  Award,
   Check,
   ExternalLink,
   FileText,
   FolderOpen,
   Loader2,
   Pencil,
+  Plus,
   RefreshCw,
   Trash2,
   Upload,
@@ -59,59 +61,173 @@ const PointsInput = ({ value, max, onCommit }) => {
   );
 };
 
-const TaskRow = ({ task, canEdit, onToggle, onPoints }) => {
-  return (
-    <div
-      className="rounded-xl border p-2.5 transition-colors"
-      style={{
-        borderColor: task.completed ? `${ACCENT}55` : '#e5e7eb',
-        backgroundColor: task.completed ? `${ACCENT}0F` : '#fafafa',
-      }}
-    >
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => canEdit && onToggle(task)}
-          disabled={!canEdit}
-          aria-label={task.completed ? 'Mark as incomplete' : 'Mark as complete'}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-60"
-          style={{
-            backgroundColor: task.completed ? ACCENT : 'transparent',
-            borderColor: task.completed ? ACCENT : '#cbd5e1',
-            color: '#ffffff',
-          }}
-        >
-          {task.completed && <Check size={12} strokeWidth={3} />}
-        </button>
-        <span className="flex-1 text-[12px] font-semibold leading-snug" style={{ color: '#1f2937' }}>
-          {task.label}
-        </span>
-      </div>
+const WorkshopsControl = ({ count, onCommit }) => {
+  const [draft, setDraft] = useState(String(count));
 
-      <div className="mt-2 flex items-center justify-between gap-2 pl-7">
-        <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-          style={{
-            backgroundColor: task.completed ? '#dcfce7' : '#f1f5f9',
-            color: task.completed ? '#15803d' : '#64748b',
-          }}
-        >
-          {task.completed ? 'Completed' : 'Pending'}
-        </span>
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: '#64748b' }}>
-          {canEdit ? (
-            <PointsInput value={task.points} max={task.maxPoints} onCommit={(points) => onPoints(task, points)} />
-          ) : (
-            <span className="font-extrabold" style={{ color: ACCENT }}>{task.points}</span>
-          )}
-          <span>/ {task.maxPoints} pts</span>
-        </div>
-      </div>
+  const commit = () => {
+    const parsed = Number(draft);
+    const clamped = Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : count;
+    setDraft(String(clamped));
+    if (clamped !== count) onCommit(clamped);
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onCommit(Math.max(0, count - 1))}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border text-lg font-extrabold transition-colors hover:bg-black/5"
+        style={{ borderColor: '#e5e7eb', color: '#111827', backgroundColor: '#ffffff' }}
+        aria-label="Decrease workshops count"
+      >
+        −
+      </button>
+      <input
+        type="number"
+        min={0}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+        className="h-9 w-16 rounded-lg border bg-white text-center text-lg font-extrabold outline-none"
+        style={{ borderColor: '#e5e7eb', color: '#111827' }}
+        aria-label="Workshops completed count"
+      />
+      <button
+        type="button"
+        onClick={() => onCommit(count + 1)}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border text-lg font-extrabold transition-colors hover:bg-black/5"
+        style={{ borderColor: '#e5e7eb', color: '#111827', backgroundColor: '#ffffff' }}
+        aria-label="Increase workshops count"
+      >
+        +
+      </button>
     </div>
   );
 };
 
-const EventColumn = ({ event, canEdit, editing, onStartRename, onCancelRename, onRename, onToggle, onPoints }) => {
+const TaskRow = ({
+  index,
+  task,
+  scoring,
+  canEdit,
+  editing,
+  onToggle,
+  onPoints,
+  onLabelStart,
+  onLabelDraft,
+  onLabelSave,
+  onLabelCancel,
+}) => {
+  return (
+    <div
+      className="rounded-xl border p-2.5 transition-colors"
+      style={{
+        borderColor: scoring && task.completed ? `${ACCENT}55` : '#e5e7eb',
+        backgroundColor: scoring && task.completed ? `${ACCENT}0F` : '#fafafa',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        {scoring ? (
+          <button
+            type="button"
+            onClick={() => canEdit && onToggle(task)}
+            disabled={!canEdit}
+            aria-label={task.completed ? 'Mark as incomplete' : 'Mark as complete'}
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-60"
+            style={{
+              backgroundColor: task.completed ? ACCENT : 'transparent',
+              borderColor: task.completed ? ACCENT : '#cbd5e1',
+              color: '#ffffff',
+            }}
+          >
+            {task.completed && <Check size={12} strokeWidth={3} />}
+          </button>
+        ) : (
+          <span
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-extrabold"
+            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+          >
+            {String(index + 1).padStart(2, '0')}
+          </span>
+        )}
+
+        {editing ? (
+          <input
+            type="text"
+            value={editing.label}
+            onChange={(e) => onLabelDraft(editing.order, editing.key, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onLabelSave(editing);
+              if (e.key === 'Escape') onLabelCancel();
+            }}
+            className="h-7 min-w-0 flex-1 rounded-lg border px-2 text-[12px] font-semibold outline-none"
+            style={{ borderColor: ACCENT, color: '#111827', backgroundColor: '#ffffff' }}
+            autoFocus
+            aria-label="Section label"
+          />
+        ) : (
+          <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug" style={{ color: '#1f2937' }}>
+            {task.label}
+          </span>
+        )}
+
+        {canEdit && !editing && (
+          <button
+            type="button"
+            onClick={() => onLabelStart(task)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-black/5"
+            style={{ color: '#64748b' }}
+            aria-label="Edit section"
+            title="Edit section"
+          >
+            <Pencil size={12} />
+          </button>
+        )}
+      </div>
+
+      {scoring && (
+        <div className="mt-2 flex items-center justify-between gap-2 pl-7">
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            style={{
+              backgroundColor: task.completed ? '#dcfce7' : '#f1f5f9',
+              color: task.completed ? '#15803d' : '#64748b',
+            }}
+          >
+            {task.completed ? 'Completed' : 'Pending'}
+          </span>
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: '#64748b' }}>
+            {canEdit ? (
+              <PointsInput value={task.points} max={task.maxPoints} onCommit={(points) => onPoints(task, points)} />
+            ) : (
+              <span className="font-extrabold" style={{ color: ACCENT }}>{task.points}</span>
+            )}
+            <span>/ {task.maxPoints} pts</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EventColumn = ({
+  event,
+  scoring,
+  canEdit,
+  editing,
+  editingTask,
+  onStartRename,
+  onCancelRename,
+  onRename,
+  onRemoveCard,
+  onToggle,
+  onPoints,
+  onLabelStart,
+  onLabelDraft,
+  onLabelSave,
+  onLabelCancel,
+}) => {
   const done = (event.tasks || []).filter((task) => task.completed).length;
   const earned = (event.tasks || []).reduce((sum, task) => sum + (Number(task.points) || 0), 0);
   const max = (event.tasks || []).reduce((sum, task) => sum + (Number(task.maxPoints) || 0), 0);
@@ -173,21 +289,47 @@ const EventColumn = ({ event, canEdit, editing, onStartRename, onCancelRename, o
             </div>
           )}
         </div>
+        {canEdit && !editing && (
+          <button
+            type="button"
+            onClick={() => onRemoveCard(event)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-red-50"
+            style={{ color: '#ef4444' }}
+            aria-label="Remove card"
+            title="Remove card"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
       </div>
 
       <div className="mt-1 flex items-center justify-between pl-8 text-[11px] font-semibold" style={{ color: '#64748b' }}>
-        <span>{done} / {event.tasks.length} tasks done</span>
-        <span><span className="font-extrabold" style={{ color: ACCENT }}>{earned}</span> / {max} pts</span>
+        {scoring ? (
+          <>
+            <span>{done} / {event.tasks.length} tasks done</span>
+            <span><span className="font-extrabold" style={{ color: ACCENT }}>{earned}</span> / {max} pts</span>
+          </>
+        ) : (
+          <span>{event.tasks.length} sections</span>
+        )}
       </div>
 
       <div className="mt-3 flex-1 space-y-2">
-        {(event.tasks || []).map((task) => (
+        {(event.tasks || []).map((task, index) => (
           <TaskRow
             key={task.key}
+            order={event.order}
+            index={index}
             task={task}
+            scoring={scoring}
             canEdit={canEdit}
-            onToggle={onToggle}
-            onPoints={onPoints}
+            editing={editingTask?.order === event.order && editingTask?.key === task.key ? editingTask : null}
+            onToggle={(task) => onToggle(event.order, task)}
+            onPoints={(task, points) => onPoints(event.order, task, points)}
+            onLabelStart={(task) => onLabelStart(event.order, task)}
+            onLabelDraft={onLabelDraft}
+            onLabelSave={onLabelSave}
+            onLabelCancel={onLabelCancel}
           />
         ))}
       </div>
@@ -200,6 +342,12 @@ const DevCorpsDocumentation = ({ t }) => {
   const isAdmin = user?.portalRole === 'admin';
   const myCommunity = communityByAccount(user);
 
+  // Every DevCorps portal account manages its own community's boards; the
+  // checkboxes and points (the DevCorps marking/point system) are admin-only.
+  const canManage = true;
+  const canManageFiles = isAdmin;
+  const scoring = isAdmin;
+
   // DevCorps admin sees every community; each member community is scoped to
   // its own board/files only — matched by the account's specific community name.
   const visibleCommunities = isAdmin
@@ -210,13 +358,14 @@ const DevCorpsDocumentation = ({ t }) => {
   const activeId = visibleCommunities.some((c) => c.id === activeIdState)
     ? activeIdState
     : (visibleCommunities[0]?.id || DEV_CORPS_COMMUNITIES[0].id);
-  const canEdit = isAdmin;
 
   const [board, setBoard] = useState(null);
   const [boardStatus, setBoardStatus] = useState('loading');
   const [files, setFiles] = useState([]);
   const [filesStatus, setFilesStatus] = useState('loading');
+  const [summary, setSummary] = useState([]);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [editingTask, setEditingTask] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
@@ -264,11 +413,27 @@ const DevCorpsDocumentation = ({ t }) => {
     };
   }, [communityId, reloadToken]);
 
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    let cancelled = false;
+    devcorpsApi.getDocumentationSummary()
+      .then((data) => {
+        if (!cancelled) setSummary(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSummary([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, reloadToken]);
+
   const reload = () => setReloadToken((n) => n + 1);
 
   const handleSwitch = (communityId) => {
     setActiveIdState(communityId);
     setEditingEvent(null);
+    setEditingTask(null);
     setUploadError('');
   };
 
@@ -301,6 +466,56 @@ const DevCorpsDocumentation = ({ t }) => {
     try {
       const updated = await devcorpsApi.renameEvent(communityId, draft.order, title);
       setBoard(updated);
+    } catch {
+      reload();
+    }
+  };
+
+  const handleAddEvent = async () => {
+    try {
+      const updated = await devcorpsApi.addEvent(communityId);
+      setBoard(updated);
+    } catch {
+      reload();
+    }
+  };
+
+  const handleRemoveEvent = async (event) => {
+    const count = (event.tasks || []).length;
+    if (!window.confirm(`Remove the card "${event.title}" and its ${count} sections?`)) return;
+    try {
+      const updated = await devcorpsApi.removeEvent(communityId, event.order);
+      setBoard(updated);
+    } catch {
+      reload();
+    }
+  };
+
+  const handleLabelStart = (eventOrder, task) => setEditingTask({ order: eventOrder, key: task.key, label: task.label });
+
+  const handleLabelDraft = (eventOrder, key, label) => setEditingTask({ order: eventOrder, key, label });
+
+  const handleLabelCancel = () => setEditingTask(null);
+
+  const handleLabelSave = async (draft) => {
+    setEditingTask(null);
+    const label = (draft.label || '').trim();
+    if (!label) return;
+    try {
+      const updated = await devcorpsApi.updateTask(communityId, draft.order, draft.key, { label });
+      setBoard(updated);
+    } catch {
+      reload();
+    }
+  };
+
+  const handleUpdateWorkshops = async (count) => {
+    try {
+      const updated = await devcorpsApi.updateWorkshops(communityId, count);
+      setBoard(updated);
+      setSummary((prev) => prev.map((s) =>
+        s.communityId === communityId ? { ...s, workshopsDone: count } : s
+      ));
     } catch {
       reload();
     }
@@ -367,43 +582,45 @@ const DevCorpsDocumentation = ({ t }) => {
         <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
           Documentation
         </h2>
-        <p className="mt-1.5 text-base leading-relaxed" style={{ color: t.textMuted }}>
-          {isAdmin
-            ? 'Community progress boards, event checklists, and per-community file storage.'
-            : `${activeCommunity?.name || 'Your community'}'s progress board and file storage.`}
-          {!canEdit && ' You are viewing this documentation in read-only mode.'}
-        </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {visibleCommunities.map((community) => {
-          const active = community.id === activeId;
-          return (
-            <button
-              key={community.id}
-              type="button"
-              onClick={() => handleSwitch(community.id)}
-              className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all duration-200"
-              style={{
-                backgroundColor: active ? ACCENT : t.cardBg,
-                color: active ? '#ffffff' : t.textPrimary,
-                border: `1px solid ${active ? ACCENT : t.border}`,
-              }}
-            >
-              <span
-                className="flex h-5 w-5 items-center justify-center rounded-lg text-[11px] font-extrabold"
+      {isAdmin && summary.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {summary.map((s) => {
+            const community = DEV_CORPS_COMMUNITIES.find((c) => c.id === s.communityId);
+            const active = s.communityId === activeId;
+            return (
+              <button
+                key={s.communityId}
+                type="button"
+                onClick={() => handleSwitch(s.communityId)}
+                className="rounded-2xl border p-4 text-left transition-all duration-200"
                 style={{
-                  backgroundColor: active ? 'rgba(255,255,255,0.22)' : `${ACCENT}1A`,
-                  color: active ? '#ffffff' : ACCENT,
+                  backgroundColor: active ? `${ACCENT}0F` : t.cardBg,
+                  borderColor: active ? ACCENT : t.border,
                 }}
               >
-                {community.name.charAt(0)}
-              </span>
-              {community.name}
-            </button>
-          );
-        })}
-      </div>
+                <p className="truncate text-[11px] font-bold uppercase tracking-widest" style={{ color: active ? ACCENT : t.textMuted }}>
+                  {community?.name || s.communityId}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <p className="flex items-center gap-1.5 text-lg font-extrabold" style={{ color: t.textPrimary }}>
+                    <Award size={15} style={{ color: ACCENT }} />
+                    {s.workshopsDone}
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: t.textMuted }}>workshops</span>
+                  </p>
+                  <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                    {s.completedTasks}/{s.totalTasks} tasks
+                  </p>
+                  <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
+                    {s.earnedPoints}/{s.maxPoints} pts
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {!isAdmin && !myCommunity && (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-12 text-center" style={{ borderColor: t.border }}>
@@ -450,33 +667,64 @@ const DevCorpsDocumentation = ({ t }) => {
 
       {boardStatus === 'success' && board && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              { label: 'Tasks completed', value: `${totals.completed} / ${totals.total}` },
-              { label: 'Points earned', value: `${totals.earned} pts` },
-              { label: 'Total possible points', value: `${totals.max} pts` },
-            ].map((item) => (
-              <div key={item.label} className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
-                <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>{item.label}</p>
-                <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{item.value}</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {scoring && (
+              <>
+                <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
+                  <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>Tasks completed</p>
+                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{totals.completed} / {totals.total}</p>
+                </div>
+                <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
+                  <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>Points earned</p>
+                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{totals.earned} pts</p>
+                </div>
+                <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
+                  <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>Total possible points</p>
+                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{totals.max} pts</p>
+                </div>
+              </>
+            )}
+            <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
+              <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>Workshops completed</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{board.workshopsDone || 0}</p>
+                <WorkshopsControl key={communityId} count={board.workshopsDone || 0} onCommit={handleUpdateWorkshops} />
               </div>
-            ))}
+            </div>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div key={communityId} className="flex gap-4 overflow-x-auto pb-2">
             {board.events.map((event) => (
               <EventColumn
                 key={event.order}
                 event={event}
-                canEdit={canEdit}
+                scoring={scoring}
+                canEdit={canManage}
                 editing={editingEvent?.order === event.order ? editingEvent : null}
+                editingTask={editingTask}
                 onStartRename={handleStartRename}
                 onCancelRename={handleRenameInput}
                 onRename={handleRename}
-                onToggle={(task) => handleToggle(event.order, task)}
-                onPoints={(task, points) => handlePoints(event.order, task, points)}
+                onRemoveCard={handleRemoveEvent}
+                onToggle={handleToggle}
+                onPoints={handlePoints}
+                onLabelStart={handleLabelStart}
+                onLabelDraft={handleLabelDraft}
+                onLabelSave={handleLabelSave}
+                onLabelCancel={handleLabelCancel}
               />
             ))}
+            {canManage && (
+              <button
+                type="button"
+                onClick={handleAddEvent}
+                className="flex w-56 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-4 transition-colors hover:border-solid"
+                style={{ borderColor: `${ACCENT}55`, backgroundColor: `${ACCENT}08`, color: ACCENT }}
+              >
+                <Plus size={18} />
+                <span className="text-sm font-extrabold">Add card</span>
+              </button>
+            )}
           </div>
         </>
       )}
@@ -492,7 +740,7 @@ const DevCorpsDocumentation = ({ t }) => {
             </p>
           </div>
 
-          {canEdit && (
+          {canManageFiles && (
             <label
               className="flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               style={{ backgroundColor: ACCENT }}
@@ -566,16 +814,18 @@ const DevCorpsDocumentation = ({ t }) => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: t.textMuted }}>
-                    {canEdit ? (
-                      <>
-                        <PointsInput value={file.points} max={100} onCommit={(points) => handleFilePoints(file, points)} />
-                        <span>pts</span>
-                      </>
-                    ) : (
-                      <span className="font-extrabold" style={{ color: ACCENT }}>{file.points} pts</span>
-                    )}
-                  </div>
+                  {scoring && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: t.textMuted }}>
+                      {canManageFiles ? (
+                        <>
+                          <PointsInput value={file.points} max={100} onCommit={(points) => handleFilePoints(file, points)} />
+                          <span>pts</span>
+                        </>
+                      ) : (
+                        <span className="font-extrabold" style={{ color: ACCENT }}>{file.points} pts</span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1.5">
                     <a
@@ -589,7 +839,7 @@ const DevCorpsDocumentation = ({ t }) => {
                     >
                       <ExternalLink size={16} />
                     </a>
-                    {canEdit && (
+                    {canManageFiles && (
                       <button
                         type="button"
                         onClick={() => handleDeleteFile(file)}
