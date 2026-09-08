@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
     Calendar, Plus, Pencil, Trash2, ArrowLeft, Search, MapPin, Clock,
+    Inbox, Check, X, Loader2,
 } from 'lucide-react';
 import eventsApi from '../../../api/eventsApi';
 import ImageUploadField from '../../common/ImageUploadField';
@@ -99,6 +100,209 @@ const formatDate = (isoDate) => {
 // Shared sizing so every field — text, select, textarea, image — lines up
 const FIELD_LABEL = 'mb-2 block text-xs font-bold uppercase tracking-wide sm:text-sm';
 const FIELD_INPUT = 'w-full rounded-xl border px-4 py-3 text-sm sm:py-3.5 sm:text-base';
+
+// ── Event Requests / Approval (DevCorps only) ────────────────────────────────
+// Lets the DevCorps admin review event requests submitted by the five member
+// communities and approve (publish to Event Board) or reject each one.
+
+const REQUEST_STATUS_BADGE = {
+    pending:  { bg: '#fef3c7', text: '#b45309', label: 'Pending' },
+    approved: { bg: '#dcfce7', text: '#15803d', label: 'Approved' },
+    rejected: { bg: '#fee2e2', text: '#b91c1c', label: 'Rejected' },
+};
+
+const REQUEST_FILTERS = [
+    { id: 'pending', label: 'Pending' },
+    { id: 'approved', label: 'Approved' },
+    { id: 'rejected', label: 'Rejected' },
+    { id: 'all', label: 'All' },
+];
+
+const EventRequestsView = ({ t }) => {
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('pending');
+    const [busyId, setBusyId] = useState(null);
+
+    const loadRequests = (statusFilter = filter) => {
+        setLoading(true);
+        const params = statusFilter && statusFilter !== 'all' ? { status: statusFilter } : {};
+        eventsApi.getEventRequests(params)
+            .then((data) => setRequests(Array.isArray(data) ? data : []))
+            .catch((err) => { toast.error(err?.response?.data?.message || 'Failed to load requests'); setRequests([]); })
+            .finally(() => setLoading(false));
+    };
+
+    useEffect(() => { loadRequests(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+    const handleFilterChange = (next) => {
+        setFilter(next);
+        loadRequests(next);
+    };
+
+    const handleRespond = async (req, status) => {
+        setBusyId(req._id);
+        try {
+            await eventsApi.respondToEventRequest(req._id, status);
+            toast.success(status === 'approved'
+                ? `Approved — "${req.title}" is now on the Event Board`
+                : 'Event request rejected');
+            loadRequests();
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Failed to respond to request');
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const formatDate = (isoDate) => {
+        const d = new Date(isoDate);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
+                {REQUEST_FILTERS.map((f) => {
+                    const isActive = filter === f.id;
+                    return (
+                        <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => handleFilterChange(f.id)}
+                            className="rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all"
+                            style={{
+                                backgroundColor: isActive ? '#111' : t.cardBg,
+                                borderColor: isActive ? '#111' : t.border,
+                                color: isActive ? '#fff' : t.textMuted,
+                            }}
+                        >
+                            {f.label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {loading && (
+                <div
+                    className="rounded-2xl border px-4 py-6 text-center text-sm"
+                    style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}
+                >
+                    Loading event requests...
+                </div>
+            )}
+
+            {!loading && requests.length === 0 && (
+                <div
+                    className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-12 text-center"
+                    style={{ borderColor: t.border }}
+                >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: t.pageBg }}>
+                        <Inbox size={20} style={{ color: t.textMuted }} />
+                    </div>
+                    <p className="text-sm font-medium" style={{ color: t.textMuted }}>
+                        No {filter === 'all' ? '' : `${filter} `}event requests.
+                    </p>
+                </div>
+            )}
+
+            {!loading && requests.length > 0 && (
+                <div className="space-y-3">
+                    {requests.map((req) => {
+                        const badge = REQUEST_STATUS_BADGE[req.status] || REQUEST_STATUS_BADGE.pending;
+                        const submitting = busyId === req._id;
+                        return (
+                            <div
+                                key={req._id}
+                                className="rounded-2xl border p-4 sm:p-5"
+                                style={{ backgroundColor: t.cardBg, borderColor: t.border }}
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-extrabold" style={{ color: t.textPrimary }}>{req.title}</p>
+                                        <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>
+                                            {req.category} · by {req.requestedBy?.username || 'Community'}
+                                        </p>
+                                    </div>
+                                    <span
+                                        className="shrink-0 rounded-full px-3 py-1 text-xs font-bold"
+                                        style={{ backgroundColor: badge.bg, color: badge.text }}
+                                    >
+                                        {badge.label}
+                                    </span>
+                                </div>
+
+                                {req.description && (
+                                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed" style={{ color: t.textMuted }}>
+                                        {req.description}
+                                    </p>
+                                )}
+
+                                <div className="mt-3 space-y-1.5 text-sm" style={{ color: t.textMuted }}>
+                                    <p className="flex items-center gap-2">
+                                        <Calendar size={14} className="shrink-0" />
+                                        <span className="font-semibold" style={{ color: t.textPrimary }}>
+                                            {formatDate(req.date)}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock size={12} /> {req.startTime}{req.endTime ? ` – ${req.endTime}` : ''}
+                                        </span>
+                                    </p>
+                                    {req.venue && (
+                                        <p className="flex items-center gap-2">
+                                            <MapPin size={14} className="shrink-0" />
+                                            <span className="truncate">{req.venue}</span>
+                                        </p>
+                                    )}
+                                    {req.organizer?.name && (
+                                        <p className="flex items-center gap-2">
+                                            <span className="text-xs font-semibold uppercase tracking-wide">Organizer</span>
+                                            <span className="font-bold" style={{ color: t.textPrimary }}>{req.organizer.name}</span>
+                                        </p>
+                                    )}
+                                </div>
+
+                                {req.status === 'pending' && (
+                                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: t.border }}>
+                                        <button
+                                            type="button"
+                                            disabled={submitting}
+                                            onClick={() => handleRespond(req, 'approved')}
+                                            className="flex items-center gap-1.5 rounded-xl bg-green-600 px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                                        >
+                                            {submitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                                            Approve & Publish
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={submitting}
+                                            onClick={() => handleRespond(req, 'rejected')}
+                                            className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                                        >
+                                            <X size={14} />
+                                            Reject
+                                        </button>
+                                    </div>
+                                )}
+
+                                {req.reviewNote && (
+                                    <div
+                                        className="mt-3 rounded-xl border px-3 py-2 text-xs"
+                                        style={{ borderColor: t.border, backgroundColor: t.pageBg, color: t.textMuted }}
+                                    >
+                                        <span className="font-bold" style={{ color: t.textPrimary }}>Note: </span>
+                                        {req.reviewNote}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const ManageEventsSection = ({ t }) => {
     const [events, setEvents] = useState([]);
@@ -512,6 +716,37 @@ const ManageEventsSection = ({ t }) => {
         );
     }
 
+    // ===================== REQUEST APPROVAL VIEW =====================
+    if (view === 'requests') {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setView('list')}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border"
+                        style={{ borderColor: t.border, color: t.textPrimary }}
+                    >
+                        <ArrowLeft size={16} />
+                    </button>
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-white">
+                            <Inbox size={20} />
+                        </div>
+                        <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>
+                            Event Requests / Approval
+                        </h2>
+                    </div>
+                </div>
+                <p className="text-base" style={{ color: t.textMuted }}>
+                    Review event requests from the five member communities. Approving publishes the
+                    event to the shared Event Board with the correct organizer.
+                </p>
+                <EventRequestsView t={t} />
+            </div>
+        );
+    }
+
     // ===================== LIST VIEW =====================
     return (
         <div className="space-y-6 animate-in fade-in duration-200">
@@ -522,14 +757,43 @@ const ManageEventsSection = ({ t }) => {
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight" style={{ color: t.textPrimary }}>Manage Events</h2>
                 </div>
-                <button
-                    type="button"
-                    onClick={openCreate}
-                    className="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-black px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                {/* Section switcher — Events CRUD vs Event Requests approval */}
+                <div
+                    className="inline-flex items-center gap-1 rounded-full border p-1"
+                    style={{ borderColor: t.border, backgroundColor: t.cardBg }}
                 >
-                    <Plus size={16} />
-                    Add New Event
-                </button>
+                    <button
+                        type="button"
+                        onClick={() => { setView('list'); setSearch(''); }}
+                        className="rounded-full px-3.5 py-1.5 text-xs font-bold"
+                        style={{
+                            backgroundColor: view === 'list' ? '#111' : 'transparent',
+                            color: view === 'list' ? '#fff' : t.textMuted,
+                        }}
+                    >
+                        Events
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setView('requests')}
+                        className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold"
+                        style={{
+                            backgroundColor: view === 'requests' ? '#111' : 'transparent',
+                            color: view === 'requests' ? '#fff' : t.textMuted,
+                        }}
+                    >
+                        <Inbox size={13} />
+                        Event Requests
+                    </button>
+                    <button
+                        type="button"
+                        onClick={openCreate}
+                        className="flex items-center gap-1 rounded-full bg-black px-3.5 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+                    >
+                        <Plus size={13} />
+                        Add Event
+                    </button>
+                </div>
             </div>
 
             <div className="relative max-w-sm">

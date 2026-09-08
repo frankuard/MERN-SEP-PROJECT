@@ -4,6 +4,7 @@ const GroupInvite = require('../models/GroupInvite');
 const User = require('../models/User');
 const { areFriends } = require('./friendController');
 const { createNotification } = require('../utils/createNotification');
+const { DEV_CORPS_PORTAL_ID } = require('../middleware/devcorpsMiddleware');
 
 const resolveUserId = (req) => (req.user?._id || req.user?.userId).toString();
 
@@ -65,13 +66,25 @@ const searchUsers = async (req, res) => {
     // Students and teachers are all searchable — a teacher needs to find
     // students (and other teachers) to chat with; admins stay out of the
     // chat pool entirely.
+    const orConditions = [{ role: { $in: ['student', 'teacher'] } }];
+
+    // Community accounts (the six DevCorps Community Portal members) can
+    // discover one another so they can connect and chat. This branch only
+    // applies when the SEARCHER is themselves a community account — regular
+    // students/teachers keep their existing pool unchanged and never see the
+    // community accounts.
+    const isCommunitySearcher = req.user?.portal === DEV_CORPS_PORTAL_ID;
+    if (isCommunitySearcher) {
+      orConditions.push({ portal: DEV_CORPS_PORTAL_ID, role: 'staff' });
+    }
+
     const users = await User.find({
       _id: { $ne: myId },
       status: 'approved',
-      role: { $in: ['student', 'teacher'] },
-      $or: [{ email: regex }, { username: regex }],
+      $or: orConditions,
+      $and: [{ $or: [{ email: regex }, { username: regex }] }],
     })
-      .select('username email role department profileImage')
+      .select('username email role profileImage')
       .limit(15);
 
     res.status(200).json(users);

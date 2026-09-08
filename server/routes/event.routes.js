@@ -19,6 +19,12 @@ const {
   cancelRegistration,
   getMyRegistrations,
 } = require('../controllers/eventController');
+const {
+  getMyEventRequests,
+  getAllEventRequests,
+  createEventRequest,
+  respondToEventRequest,
+} = require('../controllers/eventRequestController');
 
 // =====================================================
 // PUBLIC EVENTS
@@ -54,6 +60,44 @@ router.get('/:id/registrations', authMiddleware, roleMiddleware('admin'), getEve
 router.post('/', authMiddleware, roleOrDevcorpsAdmin('teacher', 'staff', 'admin'), createEvent);
 router.patch('/:id', authMiddleware, roleOrDevcorpsAdmin('teacher', 'staff', 'admin'), updateEvent);
 router.delete('/:id', authMiddleware, roleOrDevcorpsAdmin('staff', 'admin'), deleteEvent);
+
+// =====================================================
+// COMMUNITY EVENT REQUESTS — scoped to the six community accounts
+// =====================================================
+// NOTE: must be declared BEFORE the generic '/:id' route below, and after
+// '/my-registrations' so the static segments win over ':id'.
+
+// DevCorps admin reviews all community event requests.
+router.get(
+  '/requests',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  getAllEventRequests
+);
+
+// A member community fetches its own submitted requests (tracking).
+router.get(
+  '/requests/mine',
+  authMiddleware,
+  devcorpsMiddleware.communityMemberMiddleware,
+  getMyEventRequests
+);
+
+// A member community submits a new event request.
+router.post(
+  '/requests',
+  authMiddleware,
+  devcorpsMiddleware.communityMemberMiddleware,
+  createEventRequest
+);
+
+// DevCorps admin approves/rejects a specific request.
+router.patch(
+  '/requests/:id',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  respondToEventRequest
+);
 
 // =====================================================
 // SINGLE EVENT (public, must come after the admin/specific routes above)
