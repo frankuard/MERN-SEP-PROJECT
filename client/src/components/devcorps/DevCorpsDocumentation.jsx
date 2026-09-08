@@ -573,7 +573,7 @@ const DevCorpsDocumentation = ({ t }) => {
         if (task.completed) completed += 1;
       });
     });
-    return { completed, total, earned, max };
+    return { completed, total, earned, max, pct: max > 0 ? Math.min(100, Math.round((earned / max) * 100)) : 0 };
   }, [board]);
 
   return (
@@ -607,7 +607,7 @@ const DevCorpsDocumentation = ({ t }) => {
                     {s.completedTasks}/{s.totalTasks} tasks
                   </p>
                   <p className="text-xs font-semibold" style={{ color: t.textMuted }}>
-                    {s.earnedPoints}/{s.maxPoints} pts
+                    {s.maxPoints > 0 ? Math.min(100, Math.round((s.earnedPoints / s.maxPoints) * 100)) : 0}/100 pts
                   </p>
                 </div>
               </button>
@@ -665,16 +665,12 @@ const DevCorpsDocumentation = ({ t }) => {
             {scoring && (
               <>
                 <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
-                  <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>Tasks completed</p>
-                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{totals.completed} / {totals.total}</p>
-                </div>
-                <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
                   <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>Points earned</p>
-                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{totals.earned} pts</p>
+                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{totals.pct} pts</p>
                 </div>
                 <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg || '#ffffff', borderColor: t.border }}>
                   <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: t.textMuted }}>Total possible points</p>
-                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>{totals.max} pts</p>
+                  <p className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: ACCENT }}>100 pts</p>
                 </div>
               </>
             )}
