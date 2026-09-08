@@ -14,6 +14,14 @@ const ADMIN_SECTIONS = [
 
 const COMMUNITY_ROLE = 'staff';
 
+// Display label for each role value in the toggle — the 'staff' role
+// value is shown to users as "Community".
+const ROLE_LABELS = {
+  teacher: 'Teacher',
+  [COMMUNITY_ROLE]: 'Community',
+  admin: 'Admin',
+};
+
 const CreateStaffModal = ({ t, onClose, onCreated }) => {
   const [role, setRole] = useState('teacher');
   const [form, setForm] = useState({
@@ -180,13 +188,13 @@ const CreateStaffModal = ({ t, onClose, onCreated }) => {
               key={r}
               type="button"
               onClick={() => setRole(r)}
-              className="flex-1 cursor-pointer rounded-full py-1.5 text-xs font-bold capitalize transition-colors"
+              className="flex-1 cursor-pointer rounded-full py-1.5 text-xs font-bold transition-colors"
               style={{
                 backgroundColor: role === r ? t.accentPrimary : 'transparent',
                 color: role === r ? t.pageBg : t.textPrimary,
               }}
             >
-              {r}
+              {ROLE_LABELS[r] || r}
             </button>
           ))}
         </div>

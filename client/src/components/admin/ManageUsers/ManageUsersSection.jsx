@@ -34,6 +34,15 @@ const ROLE_BADGE = {
   admin: { bg: '#dcfce7', text: '#15803d' },
 };
 
+// Display name for each role value — the 'staff' role value is shown to
+// users as "Community".
+const ROLE_LABELS = {
+  student: 'Student',
+  teacher: 'Teacher',
+  staff: 'Community',
+  admin: 'Admin',
+};
+
 const ManageUsersSection = ({ t }) => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState(null);
@@ -262,14 +271,14 @@ const ManageUsersSection = ({ t }) => {
                 key={r}
                 type="button"
                 onClick={() => setRoleFilter(r)}
-                className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold capitalize transition-colors"
+                className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors"
                 style={{
                   backgroundColor:
                     roleFilter === r ? t.accentPrimary : 'transparent',
                   color: roleFilter === r ? t.pageBg : t.textPrimary,
                 }}
               >
-                {r}
+                {ROLE_LABELS[r] || r}
               </button>
             ))}
           </div>
@@ -406,13 +415,13 @@ const ManageUsersSection = ({ t }) => {
                   </div>
 
                   <span
-                    className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold capitalize"
+                    className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold"
                     style={{
                       backgroundColor: badge.bg,
                       color: badge.text,
                     }}
                   >
-                    {u.role}
+                    {ROLE_LABELS[u.role] || u.role}
                   </span>
                 </div>
 
@@ -794,7 +803,7 @@ const ManageUsersSection = ({ t }) => {
         </div>
       )}
 
-      {/* Create staff (teacher/admin) modal — super admin only */}
+      {/* Create staff (teacher/admin/community) modal — super admin only */}
       {showCreateTeacher && (
         <CreateStaffModal
           t={t}
