@@ -61,6 +61,32 @@ const eventsApi = {
   const res = await axiosInstance.get('/events/admin/all');
   return res.data;
 },
+
+  // -------- Community event requests (six community accounts only) --------
+
+  // DevCorps admin: fetch all requests (optional ?status filter)
+  getEventRequests: async (params = {}) => {
+    const res = await axiosInstance.get('/events/requests', { params });
+    return res.data;
+  },
+
+  // Member community: fetch my submitted requests
+  getMyEventRequests: async () => {
+    const res = await axiosInstance.get('/events/requests/mine');
+    return res.data;
+  },
+
+  // Member community: submit a new event request
+  createEventRequest: async (eventData) => {
+    const res = await axiosInstance.post('/events/requests', eventData);
+    return res.data;
+  },
+
+  // DevCorps admin: approve/reject a request
+  respondToEventRequest: async (requestId, status, reviewNote = '') => {
+    const res = await axiosInstance.patch(`/events/requests/${requestId}`, { status, reviewNote });
+    return res.data;
+  },
 };
 
 

@@ -19,6 +19,7 @@ import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSe
 // DevCorps-specific sections
 import DevCorpsDashboardHome from '../components/devcorps/DevCorpsDashboardHome';
 import DevCorpsDocumentation from '../components/devcorps/DevCorpsDocumentation';
+import EventRequestSection from '../components/devcorps/EventRequestSection';
 
 // Every valid URL segment for /devcorps/:tab. Anything else in the URL
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'.
@@ -189,10 +190,13 @@ const DevCorpsDashboard = () => {
               />
             )}
 
-            {/* Events — exact reuse of the student Events section */}
-            {activeTab === 'events' && (
+            {/* Events — DevCorps admin sees the full Event Board; the five
+                member communities see their Event Request submission/tracking. */}
+            {activeTab === 'events' && (isDevCorpsAdmin ? (
               <EventsSection t={t} />
-            )}
+            ) : (
+              <EventRequestSection t={t} />
+            ))}
 
             {/* Manage Events — exclusive to the DevCorps portal admin; full
                 authority over all events (create/edit/delete, approve/reject
