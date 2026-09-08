@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import canteenApi from '../../../api/canteenApi';
+import { getSocket } from '../../../socket/socket';
 import InvoiceModal from './InvoiceModal';
 
 const ORDER_STATUS_COLORS = {
@@ -224,6 +225,32 @@ export const OrdersTab = ({ t }) => {
 
   useEffect(() => { load(); }, [load]);
 
+  // Real-time: new orders and order status changes appear instantly without refresh
+  useEffect(() => {
+    const socket = getSocket();
+
+    const upsertOrder = (incoming) => {
+      if (!incoming || !incoming._id) return;
+      setOrders((prev) => {
+        const existing = prev.find((o) => o._id === incoming._id);
+        if (existing) {
+          return prev.map((o) => (o._id === incoming._id ? incoming : o));
+        }
+        return [incoming, ...prev];
+      });
+    };
+
+    const onNewOrder = ({ order }) => upsertOrder(order);
+    const onOrderUpdated = ({ order }) => upsertOrder(order);
+
+    socket.on('canteen:order:new', onNewOrder);
+    socket.on('canteen:order:updated', onOrderUpdated);
+    return () => {
+      socket.off('canteen:order:new', onNewOrder);
+      socket.off('canteen:order:updated', onOrderUpdated);
+    };
+  }, []);
+
   const countByStatus = (s) => orders.filter((o) => o.orderStatus === s).length;
 
   const filterBtnStyle = (active) => ({
@@ -373,6 +400,35 @@ export const CreditRequestsTab = ({ t }) => {
   }, [filter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Real-time: new credit requests and status changes appear instantly without refresh
+  useEffect(() => {
+    const socket = getSocket();
+
+    const upsertRequest = (incoming) => {
+      if (!incoming || !incoming._id) return;
+      setRequests((prev) => {
+        if (filter === 'Pending' && incoming.status !== 'Pending') {
+          return prev.filter((r) => r._id !== incoming._id);
+        }
+        const existing = prev.find((r) => r._id === incoming._id);
+        if (existing) {
+          return prev.map((r) => (r._id === incoming._id ? incoming : r));
+        }
+        return [incoming, ...prev];
+      });
+    };
+
+    const onNew = ({ creditRequest }) => upsertRequest(creditRequest);
+    const onUpdated = ({ creditRequest }) => upsertRequest(creditRequest);
+
+    socket.on('canteen:credit-request:new', onNew);
+    socket.on('canteen:credit-request:updated', onUpdated);
+    return () => {
+      socket.off('canteen:credit-request:new', onNew);
+      socket.off('canteen:credit-request:updated', onUpdated);
+    };
+  }, [filter]);
 
   const handleReview = async (req, status) => {
     try {
