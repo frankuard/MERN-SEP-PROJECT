@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const CanteenCredit = require('../models/CanteenCredit');
 const { createNotification } = require('../utils/createNotification');
+const { isKnownTeacherName } = require('../utils/normalizeName');
 
 const ADMIN_SECTIONS = ['super', 'canteen', 'ssd', 'rte', 'resources'];
 
@@ -138,12 +139,23 @@ const createStaffAccount = async (req, res) => {
       return res.status(400).json({ message: `adminSection must be one of: ${ADMIN_SECTIONS.join(', ')}` });
     }
 
+    if (role === 'teacher') {
+      const matchesLecturer = await isKnownTeacherName(username);
+      if (!matchesLecturer) {
+        return res.status(400).json({
+          message: 'This username does not match any lecturer name in the timetable. Check spelling (it should match the name as it appears in the timetable, titles like "Mr."/"Dr." are ignored), or add the module to the timetable first.',
+        });
+      }
+    }
+
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       return res.status(409).json({ message: 'Email is already registered' });
     }
 
-    const existingUsername = await User.findOne({ username });
+    const trimmedUsername = username.trim();
+
+    const existingUsername = await User.findOne({ username: trimmedUsername });
     if (existingUsername) {
       return res.status(409).json({ message: 'Username is already taken' });
     }
@@ -152,7 +164,7 @@ const createStaffAccount = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const userData = {
-      username,
+      username: trimmedUsername,
       email,
       password: hashedPassword,
       role,
@@ -160,7 +172,7 @@ const createStaffAccount = async (req, res) => {
     };
 
     if (role === 'teacher') {
-      userData.department = department || '';
+      userData.department = (department || '').trim();
     } else {
       userData.department = 'Administration';
       userData.adminSection = adminSection;

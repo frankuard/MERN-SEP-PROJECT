@@ -129,7 +129,7 @@ const TeacherGreetingHeader = ({ t, greeting, teacherName, onNavigateTab }) => {
 
           <button
             type="button"
-            onClick={() => onNavigateTab('dashboard')}
+            onClick={() => onNavigateTab('rte')}
             className="dashboard-btn-bounce mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-black py-2.5 text-xs font-extrabold text-white"
           >
             All classes

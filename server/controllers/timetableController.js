@@ -5,6 +5,7 @@ const Group = require('../models/Group');
 const Classroom = require('../models/Classroom');
 const { createNotificationForRole } = require('../utils/createNotification');
 const { emitToAll } = require('../utils/socketEmitter');
+const { normalizeName } = require('../utils/normalizeName');
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // ========================================================
@@ -15,13 +16,20 @@ const getTimetable = async (req, res) => {
   try {
     const periods = await Timetable.find({}).sort({ day: 1, order: 1, startTime: 1 });
 
-    // Only show periods that include the logged-in student's own group.
-    // Staff/admin/teacher accounts have no group set, so they see everything.
-   const studentGroup = req.user?.group || '';
+    let visiblePeriods = periods;
 
-const visiblePeriods = studentGroup
-  ? periods.filter((p) => (p.groupNames || []).includes(studentGroup))
-  : periods;
+    if (req.user?.role === 'teacher') {
+      // Match by normalized name so titles/case in the JSON don't matter,
+      // and across every level/department in one pass since they all
+      // live in the same Timetable collection.
+      const teacherKey = normalizeName(req.user.username || '');
+      visiblePeriods = periods.filter((p) => normalizeName(p.lecturer) === teacherKey);
+    } else {
+      const studentGroup = req.user?.group || '';
+      visiblePeriods = studentGroup
+        ? periods.filter((p) => (p.groupNames || []).includes(studentGroup))
+        : periods; // staff/admin with no group set: unrestricted, unchanged
+    }
 
     const grouped = DAY_ORDER.map((day) => {
       const dayPeriods = visiblePeriods
@@ -342,15 +350,13 @@ const DAY_INDEX = Object.fromEntries(DAY_ORDER.map((d, i) => [d, i]));
 
 const getTeacherUpcomingClasses = async (req, res) => {
   try {
-    const lecturerName = req.user?.username || '';
-    if (!lecturerName) {
+    const teacherKey = normalizeName(req.user?.username || '');
+    if (!teacherKey) {
       return res.status(400).json({ message: 'Unable to resolve teacher identity' });
     }
 
-    // Case-insensitive search so minor capitalisation differences don't break it
-    const periods = await Timetable.find({
-      lecturer: { $regex: new RegExp(lecturerName, 'i') },
-    }).sort({ order: 1 });
+    const allPeriods = await Timetable.find({}).sort({ order: 1 });
+    const periods = allPeriods.filter((p) => normalizeName(p.lecturer) === teacherKey);
 
     // Sort by the logical week order: Sun→Sat, then by startTime string
     const sorted = periods.slice().sort((a, b) => {
