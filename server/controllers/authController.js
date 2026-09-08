@@ -37,15 +37,13 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'username, email and password are required' });
     }
 
-    // 2. Role validation — admin cannot self-register
-    const allowedRoles = ['student', 'teacher', 'staff'];
-    if (role && role === 'admin') {
-      return res.status(403).json({ message: 'Public registration as admin is not allowed' });
+    // 2. Role validation — only students may self-register.
+    // Teacher accounts are created only via the super admin panel
+    // (see createTeacherAccount in adminUserController.js).
+    if (role && role !== 'student') {
+      return res.status(403).json({ message: 'Public registration is only available for students. Contact an administrator for a teacher account.' });
     }
-    if (role && !allowedRoles.includes(role)) {
-      return res.status(400).json({ message: `role must be one of: ${allowedRoles.join(', ')}` });
-    }
-    const finalRole = role || 'student';
+    const finalRole = 'student';
 
     // 3. Check duplicate email
     const existingEmail = await User.findOne({ email });

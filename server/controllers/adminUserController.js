@@ -1,7 +1,9 @@
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const CanteenCredit = require('../models/CanteenCredit');
 const { createNotification } = require('../utils/createNotification');
 
+const ADMIN_SECTIONS = ['super', 'canteen', 'ssd', 'rte', 'resources'];
 
 // GET /api/admin/users
 const getAllUsers = async (req, res) => {
@@ -117,9 +119,94 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// POST /api/admin/users/staff  (super admin only)
+// Creates either a teacher or an admin account. Admin accounts require
+// adminSection; teacher accounts use department instead.
+const createStaffAccount = async (req, res) => {
+  try {
+    const { username, email, password, role, department, adminSection } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'username, email and password are required' });
+    }
+
+    if (!['teacher', 'admin'].includes(role)) {
+      return res.status(400).json({ message: "role must be 'teacher' or 'admin'" });
+    }
+
+    if (role === 'admin' && !ADMIN_SECTIONS.includes(adminSection)) {
+      return res.status(400).json({ message: `adminSection must be one of: ${ADMIN_SECTIONS.join(', ')}` });
+    }
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(409).json({ message: 'Email is already registered' });
+    }
+
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(409).json({ message: 'Username is already taken' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const userData = {
+      username,
+      email,
+      password: hashedPassword,
+      role,
+      status: 'approved',
+    };
+
+    if (role === 'teacher') {
+      userData.department = department || '';
+    } else {
+      userData.department = 'Administration';
+      userData.adminSection = adminSection;
+    }
+
+    const user = await User.create(userData);
+
+    const { password: _pw, ...safeUser } = user.toObject();
+    res.status(201).json(safeUser);
+  } catch (err) {
+    if (err.name === 'ValidationError') return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+// PATCH /api/admin/users/:id/reset-password  (super admin only)
+const resetStaffPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    await user.save();
+
+    res.status(200).json({
+      message: 'Password reset successfully',
+      username: user.username,
+      email: user.email,
+    });
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid user ID' });
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
   updateUser,
   deleteUser,
+  createStaffAccount,
+  resetStaffPassword,
 };

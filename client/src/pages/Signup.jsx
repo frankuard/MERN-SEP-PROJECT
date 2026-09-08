@@ -10,7 +10,6 @@ import { getLevelForSemester, getCohortGroupOptions, buildGroupCode } from '../d
 // Teacher signup is now enabled alongside student registration.
 const ROLES = [
   { value: 'student', label: 'Student' },
-  { value: 'teacher', label: 'Teacher' },
 ];
 
 const Signup = () => {

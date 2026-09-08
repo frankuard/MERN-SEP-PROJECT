@@ -9,13 +9,18 @@ import {
   GraduationCap,
   Building2,
   Trash2,
+  UserPlus,
+  KeyRound,
 } from 'lucide-react';
 
 import adminUserApi from '../../../api/adminUserApi';
+import { useAuth } from '../../../context/AuthContext';
+import CreateStaffModal from './CreateStaffModal';
+import ResetPasswordModal from './ResetPasswordModal';
 import { DEPARTMENTS, getSemesterOptions } from '../../../data/departmentSemesters';
 import { getLevelForSemester, getCohortGroupOptions, buildGroupCode, buildGroupLabel, parseGroupCode } from '../../../data/levelGroups';
 
-const ROLE_FILTERS = ['All', 'student', 'teacher', 'staff', 'admin'];
+const ROLE_FILTERS = ['All', 'student', 'teacher', 'admin'];
 
 // Sentinel value for "department not in the known list" — covers users
 // with a custom/admin-set department so they remain filterable instead of
@@ -30,11 +35,14 @@ const ROLE_BADGE = {
 };
 
 const ManageUsersSection = ({ t }) => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState(null);
   const [roleFilter, setRoleFilter] = useState('All');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [semesterFilter, setSemesterFilter] = useState('All');
   const [search, setSearch] = useState('');
+  const [showCreateTeacher, setShowCreateTeacher] = useState(false);
+  const [resetPasswordModal, setResetPasswordModal] = useState(null);
 
   const [editModal, setEditModal] = useState(null);
   const [editError, setEditError] = useState('');
@@ -203,29 +211,43 @@ const ManageUsersSection = ({ t }) => {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center gap-2.5">
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: t.chipBg }}
-        >
-          <Users size={19} style={{ color: t.textPrimary }} />
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: t.chipBg }}
+          >
+            <Users size={19} style={{ color: t.textPrimary }} />
+          </div>
+
+          <div>
+            <h2
+              className="text-2xl font-bold tracking-tight"
+              style={{ color: t.textPrimary }}
+            >
+              Manage Users
+            </h2>
+
+            <p
+              className="mt-0.5 text-sm font-semibold"
+              style={{ color: t.textMuted }}
+            >
+              Edit username, department &amp; semester for any user
+            </p>
+          </div>
         </div>
 
-        <div>
-          <h2
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: t.textPrimary }}
+        {currentUser?.adminSection === 'super' && (
+          <button
+            type="button"
+            onClick={() => setShowCreateTeacher(true)}
+            className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+            style={{ backgroundColor: t.accentPrimary }}
           >
-            Manage Users
-          </h2>
-
-          <p
-            className="mt-0.5 text-sm font-semibold"
-            style={{ color: t.textMuted }}
-          >
-            Edit username, department &amp; semester for any user
-          </p>
-        </div>
+            <UserPlus size={14} />
+            Add Staff
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -452,6 +474,22 @@ const ManageUsersSection = ({ t }) => {
                     Delete
                   </button>
                 </div>
+
+                {/* Reset password — admin accounts only, super admin only */}
+                {u.role === 'admin' && currentUser?.adminSection === 'super' && (
+                  <button
+                    type="button"
+                    onClick={() => setResetPasswordModal(u)}
+                    className="mt-2 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-bold transition-colors"
+                    style={{
+                      borderColor: t.border,
+                      color: t.textPrimary,
+                    }}
+                  >
+                    <KeyRound size={12} />
+                    Reset Password
+                  </button>
+                )}
               </div>
             );
           })}
@@ -755,8 +793,32 @@ const ManageUsersSection = ({ t }) => {
           </div>
         </div>
       )}
+
+      {/* Create staff (teacher/admin) modal — super admin only */}
+      {showCreateTeacher && (
+        <CreateStaffModal
+          t={t}
+          onClose={() => setShowCreateTeacher(false)}
+          onCreated={() => {
+            setShowCreateTeacher(false);
+            loadUsers();
+          }}
+        />
+      )}
+
+      {resetPasswordModal && (
+        <ResetPasswordModal
+          t={t}
+          targetUser={resetPasswordModal}
+          onClose={() => setResetPasswordModal(null)}
+          onDone={() => {
+            setResetPasswordModal(null);
+          }}
+        />
+      )}
     </div>
   );
 };
+
 
 export default ManageUsersSection;

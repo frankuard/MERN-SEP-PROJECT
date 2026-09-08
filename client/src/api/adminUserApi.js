@@ -52,6 +52,27 @@ const adminUserApi = {
     throw err;
   }
 },
+
+  createStaff: async (payload) => {
+    try {
+      const res = await axiosInstance.post('/admin/users/staff', payload);
+      return normalizeItem(res.data);
+    } catch (err) {
+      console.error('Error creating staff account:', err);
+      throw err;
+    }
+  },
+
+
+    resetPassword: async (id, password) => {
+    try {
+      const res = await axiosInstance.patch(`/admin/users/${id}/reset-password`, { password });
+      return res.data;
+    } catch (err) {
+      console.error(`Error resetting password for user #${id}:`, err);
+      throw err;
+    }
+  },
 };
 
 export default adminUserApi;
