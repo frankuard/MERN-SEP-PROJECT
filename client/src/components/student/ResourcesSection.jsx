@@ -4,6 +4,7 @@ import resourcesApi from '../../api/resourcesApi';
 import BorrowRequestModal from './modals/BorrowRequestModal';
 import toast from 'react-hot-toast';
 import { getSocket } from '../../socket/socket';
+import { useAuth } from '../../context/AuthContext';
 
 const CARD_TINTS = ['pastelBlue', 'pastelPink', 'pastelYellow', 'pastelCyan', 'pastelPurple', 'pastelOrange'];
 const ACCENT = '#5c8a72';
@@ -60,7 +61,6 @@ const BookCover = ({ book, tint }) => {
 const BookCard = ({ book, tint, onRequestBorrow, t }) => {
   const status = book.status; // 'none' | 'pending' | 'borrowed'
   const record = book.myRequest;
-
   return (
     <div
       className="flex h-full flex-col rounded-2xl border p-4 transition-all duration-200 hover:shadow-md"
@@ -168,6 +168,9 @@ const YourBooksLog = ({ myBorrows, t }) => {
 /* Main component                                                      */
 /* ------------------------------------------------------------------ */
 const ResourcesSection = ({ t }) => {
+  const { user } = useAuth();
+  const myUserId = user?.id || user?._id;
+
   const [resourcesActiveCategory, setResourcesActiveCategory] = useState('library');
   const [bookSearchQuery, setBookSearchQuery] = useState('');
   const [activeBookCategory, setActiveBookCategory] = useState('All');
@@ -234,11 +237,23 @@ const ResourcesSection = ({ t }) => {
     const socket = getSocket();
     const onBookCreated = ({ book }) => {
       if (!book) return;
-      setBooks((prev) => prev.some((b) => b._id === book._id) ? prev : [book, ...prev]);
+      // Freshly created books have no borrow requests yet, so they're
+      // always available — the admin payload doesn't include the
+      // computed status/myRequest fields that getBooks() normally adds.
+      const withStatus = { ...book, status: 'none', myRequest: null };
+      setBooks((prev) => prev.some((b) => b._id === book._id) ? prev : [withStatus, ...prev]);
     };
     const onBookUpdated = ({ book }) => {
       if (!book) return;
-      setBooks((prev) => prev.map((b) => b._id === book._id ? { ...b, ...book } : b));
+      // Preserve the existing computed status/myRequest — the admin
+      // update payload doesn't carry those fields.
+      setBooks((prev) =>
+        prev.map((b) =>
+          b._id === book._id
+            ? { ...b, ...book, status: b.status, myRequest: b.myRequest }
+            : b
+        )
+      );
     };
     const onBookDeleted = ({ _id }) => {
       if (!_id) return;
@@ -278,6 +293,103 @@ const ResourcesSection = ({ t }) => {
       socket.off('resource:sports:deleted', onSportsDeleted);
     };
   }, []);
+
+  // Real-time book borrow-request updates (any student's request affects
+  // whether the book shows as available, and mine specifically if it's me)
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onBorrowRequestCreated = ({ request }) => {
+      if (!request?.book) return;
+      const bookId = request.book._id;
+      const isMine = myUserId && request.requestedBy?._id === myUserId;
+
+      setBooks((prev) =>
+        prev.map((b) =>
+          b._id === bookId
+            ? {
+                ...b,
+                status: 'pending',
+                myRequest: isMine
+                  ? { returnBy: request.returnBy, studentIdNumber: request.studentIdNumber, status: request.status, requestedAt: request.createdAt }
+                  : b.myRequest,
+              }
+            : b
+        )
+      );
+
+      if (isMine) {
+        setMyBorrows((prev) => (prev.some((r) => r._id === request._id) ? prev : [request, ...prev]));
+      }
+    };
+
+    const onBorrowRequestUpdated = ({ request }) => {
+      if (!request?.book) return;
+      const bookId = request.book._id;
+      const isMine = myUserId && request.requestedBy?._id === myUserId;
+
+      setBooks((prev) =>
+        prev.map((b) => {
+          if (b._id !== bookId) return b;
+          if (request.status === 'approved') {
+            return {
+              ...b,
+              status: 'borrowed',
+              myRequest: isMine
+                ? { returnBy: request.returnBy, studentIdNumber: request.studentIdNumber, status: request.status, requestedAt: request.createdAt }
+                : b.myRequest,
+            };
+          }
+          // rejected or returned — the book becomes available again
+          return {
+            ...b,
+            status: 'none',
+            myRequest: isMine ? null : b.myRequest,
+          };
+        })
+      );
+
+      if (isMine) {
+        setMyBorrows((prev) => prev.map((r) => (r._id === request._id ? request : r)));
+      }
+    };
+
+    socket.on('resource:borrowRequest:created', onBorrowRequestCreated);
+    socket.on('resource:borrowRequest:updated', onBorrowRequestUpdated);
+
+    return () => {
+      socket.off('resource:borrowRequest:created', onBorrowRequestCreated);
+      socket.off('resource:borrowRequest:updated', onBorrowRequestUpdated);
+    };
+  }, [myUserId]);
+
+  // Real-time sports equipment request updates — approve/reject/return
+  // reflected in "My Sports Equipment Requisitions" without a reload
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onSportsRequestCreated = ({ request }) => {
+      if (!request) return;
+      const isMine = myUserId && request.requestedBy?._id === myUserId;
+      if (!isMine) return;
+      setMySportsRequests((prev) => (prev.some((r) => r._id === request._id) ? prev : [request, ...prev]));
+    };
+
+    const onSportsRequestUpdated = ({ request }) => {
+      if (!request) return;
+      const isMine = myUserId && request.requestedBy?._id === myUserId;
+      if (!isMine) return;
+      setMySportsRequests((prev) => prev.map((r) => (r._id === request._id ? request : r)));
+    };
+
+    socket.on('resource:sportsRequest:created', onSportsRequestCreated);
+    socket.on('resource:sportsRequest:updated', onSportsRequestUpdated);
+
+    return () => {
+      socket.off('resource:sportsRequest:created', onSportsRequestCreated);
+      socket.off('resource:sportsRequest:updated', onSportsRequestUpdated);
+    };
+  }, [myUserId]);
 
   const [sportsForm, setSportsForm] = useState({
     itemId: '',

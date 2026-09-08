@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import resourcesApi from '../../../api/resourcesApi';
 import ImageUploadField from '../../common/ImageUploadField';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
+import { getSocket } from '../../../socket/socket';
 
 const FIELD_LABEL = 'mb-2 block text-xs font-bold uppercase tracking-wide sm:text-sm';
 const FIELD_INPUT = 'w-full rounded-xl border px-4 py-3 text-sm sm:py-3.5 sm:text-base';
@@ -214,6 +215,41 @@ const RequestsTab = ({ t }) => {
   }, [statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── Real-time WebSocket listeners for book borrow requests ─────────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCreated = ({ request }) => {
+      if (!request) return;
+      if (statusFilter !== 'All' && statusFilter !== request.status) return;
+      setRequests((prev) => {
+        if (prev.some((r) => r._id === request._id)) return prev;
+        return [request, ...prev];
+      });
+    };
+
+    const onUpdated = ({ request }) => {
+      if (!request) return;
+      setRequests((prev) => {
+        const exists = prev.some((r) => r._id === request._id);
+        // No longer matches the active filter — drop it from this view
+        if (statusFilter !== 'All' && statusFilter !== request.status) {
+          return exists ? prev.filter((r) => r._id !== request._id) : prev;
+        }
+        if (exists) return prev.map((r) => (r._id === request._id ? request : r));
+        return [request, ...prev];
+      });
+    };
+
+    socket.on('resource:borrowRequest:created', onCreated);
+    socket.on('resource:borrowRequest:updated', onUpdated);
+
+    return () => {
+      socket.off('resource:borrowRequest:created', onCreated);
+      socket.off('resource:borrowRequest:updated', onUpdated);
+    };
+  }, [statusFilter]);
 
   const handleApprove = async (id) => {
     setProcessingId(id);
@@ -510,6 +546,40 @@ const SportsRequestsTab = ({ t }) => {
   }, [statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── Real-time WebSocket listeners for sports equipment requests ────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCreated = ({ request }) => {
+      if (!request) return;
+      if (statusFilter !== 'All' && statusFilter !== request.status) return;
+      setRequests((prev) => {
+        if (prev.some((r) => r._id === request._id)) return prev;
+        return [request, ...prev];
+      });
+    };
+
+    const onUpdated = ({ request }) => {
+      if (!request) return;
+      setRequests((prev) => {
+        const exists = prev.some((r) => r._id === request._id);
+        if (statusFilter !== 'All' && statusFilter !== request.status) {
+          return exists ? prev.filter((r) => r._id !== request._id) : prev;
+        }
+        if (exists) return prev.map((r) => (r._id === request._id ? request : r));
+        return [request, ...prev];
+      });
+    };
+
+    socket.on('resource:sportsRequest:created', onCreated);
+    socket.on('resource:sportsRequest:updated', onUpdated);
+
+    return () => {
+      socket.off('resource:sportsRequest:created', onCreated);
+      socket.off('resource:sportsRequest:updated', onUpdated);
+    };
+  }, [statusFilter]);
 
   const handleApprove = async (id) => {
     setProcessingId(id);

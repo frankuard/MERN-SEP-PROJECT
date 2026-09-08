@@ -8,6 +8,7 @@ import eventsApi from '../../../api/eventsApi';
 import volunteerApi from '../../../api/volunteerApi';
 import volunteerOpportunityApi from '../../../api/volunteerOpportunityApi';
 import toast from 'react-hot-toast';
+import { getSocket } from '../../../socket/socket';
 
 const SUB_TABS = [
   { id: 'reports', label: 'Report Requests', icon: FileText },
@@ -340,6 +341,45 @@ const VolunteerOpportunitiesPanel = ({ t }) => {
   };
 
   useEffect(() => { load(); }, []);
+
+  // ── Real-time WebSocket listeners so the admin list stays in sync ──────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCreated = ({ opportunity }) => {
+      if (!opportunity) return;
+      setOpportunities((prev) => {
+        if (prev === null) return prev;
+        if (prev.some((o) => o._id === opportunity._id)) return prev;
+        return [opportunity, ...prev];
+      });
+    };
+
+    const onUpdated = ({ opportunity }) => {
+      if (!opportunity) return;
+      setOpportunities((prev) => {
+        if (prev === null) return prev;
+        const exists = prev.some((o) => o._id === opportunity._id);
+        if (exists) return prev.map((o) => (o._id === opportunity._id ? opportunity : o));
+        return [opportunity, ...prev];
+      });
+    };
+
+    const onDeleted = ({ _id }) => {
+      if (!_id) return;
+      setOpportunities((prev) => (prev === null ? prev : prev.filter((o) => o._id !== _id)));
+    };
+
+    socket.on('volunteerOpportunity:created', onCreated);
+    socket.on('volunteerOpportunity:updated', onUpdated);
+    socket.on('volunteerOpportunity:deleted', onDeleted);
+
+    return () => {
+      socket.off('volunteerOpportunity:created', onCreated);
+      socket.off('volunteerOpportunity:updated', onUpdated);
+      socket.off('volunteerOpportunity:deleted', onDeleted);
+    };
+  }, []);
 
   // Populates the "link to existing event" dropdown
   useEffect(() => {

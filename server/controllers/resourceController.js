@@ -82,6 +82,13 @@ const requestBorrow = async (req, res) => {
       status: 'pending',
     });
 
+    const populatedRequest = await BorrowRequest.findById(request._id)
+      .populate('book', 'name author shelf cover')
+      .populate('requestedBy', 'username email');
+
+    // Broadcast real-time update so admin's request list updates live
+    emitToAll('resource:borrowRequest:created', { request: populatedRequest });
+
     res.status(201).json(request);
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid book ID' });
@@ -223,6 +230,14 @@ const approveBorrowRequest = async (req, res) => {
     request.approvedAt = new Date();
     await request.save();
 
+    const populatedRequest = await BorrowRequest.findById(request._id)
+      .populate('book', 'name author shelf cover')
+      .populate('requestedBy', 'username email')
+      .populate('approvedBy', 'username');
+
+    // Broadcast real-time update
+    emitToAll('resource:borrowRequest:updated', { request: populatedRequest });
+
     createNotification(request.requestedBy, {
       type: 'book_request',
       title: 'Book Request Approved',
@@ -250,6 +265,14 @@ const rejectBorrowRequest = async (req, res) => {
     request.approvedAt = new Date();
     await request.save();
 
+    const populatedRequest = await BorrowRequest.findById(request._id)
+      .populate('book', 'name author shelf cover')
+      .populate('requestedBy', 'username email')
+      .populate('approvedBy', 'username');
+
+    // Broadcast real-time update
+    emitToAll('resource:borrowRequest:updated', { request: populatedRequest });
+
     createNotification(request.requestedBy, {
       type: 'book_request',
       title: 'Book Request Rejected',
@@ -275,6 +298,14 @@ const markReturned = async (req, res) => {
     request.status = 'returned';
     request.returnedAt = new Date();
     await request.save();
+
+    const populatedRequest = await BorrowRequest.findById(request._id)
+      .populate('book', 'name author shelf cover')
+      .populate('requestedBy', 'username email')
+      .populate('approvedBy', 'username');
+
+    // Broadcast real-time update
+    emitToAll('resource:borrowRequest:updated', { request: populatedRequest });
 
     res.status(200).json(request);
   } catch (err) {
@@ -331,6 +362,13 @@ const requestSportsItem = async (req, res) => {
       note: note?.trim() || '',
       status: 'pending',
     });
+
+    const populatedRequest = await SportsRequest.findById(request._id)
+      .populate('item', 'name icon')
+      .populate('requestedBy', 'username email');
+
+    // Broadcast real-time update
+    emitToAll('resource:sportsRequest:created', { request: populatedRequest });
 
     res.status(201).json(request);
   } catch (err) {
@@ -462,6 +500,14 @@ const approveSportsRequest = async (req, res) => {
     request.approvedAt = new Date();
     await request.save();
 
+    const populatedRequest = await SportsRequest.findById(request._id)
+      .populate('item', 'name icon')
+      .populate('requestedBy', 'username email')
+      .populate('approvedBy', 'username');
+
+    // Broadcast real-time update
+    emitToAll('resource:sportsRequest:updated', { request: populatedRequest });
+
     createNotification(request.requestedBy, {
       type: 'sports_request',
       title: 'Sports Request Approved',
@@ -489,6 +535,14 @@ const rejectSportsRequest = async (req, res) => {
     request.approvedAt = new Date();
     await request.save();
 
+    const populatedRequest = await SportsRequest.findById(request._id)
+      .populate('item', 'name icon')
+      .populate('requestedBy', 'username email')
+      .populate('approvedBy', 'username');
+
+    // Broadcast real-time update
+    emitToAll('resource:sportsRequest:updated', { request: populatedRequest });
+
     createNotification(request.requestedBy, {
       type: 'sports_request',
       title: 'Sports Request Rejected',
@@ -514,6 +568,14 @@ const markSportsReturned = async (req, res) => {
     request.status = 'returned';
     request.returnedAt = new Date();
     await request.save();
+
+    const populatedRequest = await SportsRequest.findById(request._id)
+      .populate('item', 'name icon')
+      .populate('requestedBy', 'username email')
+      .populate('approvedBy', 'username');
+
+    // Broadcast real-time update
+    emitToAll('resource:sportsRequest:updated', { request: populatedRequest });
 
     res.status(200).json(request);
   } catch (err) {

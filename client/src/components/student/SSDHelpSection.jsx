@@ -8,6 +8,7 @@ import attendanceApi from '../../api/attendanceApi';
 import volunteerApi from '../../api/volunteerApi';
 import volunteerOpportunityApi from '../../api/volunteerOpportunityApi';
 import eventsApi from '../../api/eventsApi';
+import { getSocket } from '../../socket/socket';
 
 const SUB_TABS = [
   { id: 'attendance', label: 'Attendance Records', icon: CheckCircle2 },
@@ -128,6 +129,48 @@ const SSDHelpSection = ({ t, user, studentName }) => {
     loadOpportunities();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ssdActiveSubTab]);
+
+  // ── Real-time WebSocket listeners for volunteer opportunities ──────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onCreated = ({ opportunity }) => {
+      if (!opportunity || !opportunity.isOpen) return;
+      setOpportunities((prev) => {
+        if (prev === null) return prev;
+        if (prev.some((o) => o._id === opportunity._id)) return prev;
+        return [opportunity, ...prev];
+      });
+    };
+
+    const onUpdated = ({ opportunity }) => {
+      if (!opportunity) return;
+      setOpportunities((prev) => {
+        if (prev === null) return prev;
+        if (!opportunity.isOpen) return prev.filter((o) => o._id !== opportunity._id);
+        const exists = prev.some((o) => o._id === opportunity._id);
+        if (exists) {
+          return prev.map((o) => (o._id === opportunity._id ? { ...opportunity, applied: o.applied } : o));
+        }
+        return [opportunity, ...prev];
+      });
+    };
+
+    const onDeleted = ({ _id }) => {
+      if (!_id) return;
+      setOpportunities((prev) => (prev === null ? prev : prev.filter((o) => o._id !== _id)));
+    };
+
+    socket.on('volunteerOpportunity:created', onCreated);
+    socket.on('volunteerOpportunity:updated', onUpdated);
+    socket.on('volunteerOpportunity:deleted', onDeleted);
+
+    return () => {
+      socket.off('volunteerOpportunity:created', onCreated);
+      socket.off('volunteerOpportunity:updated', onUpdated);
+      socket.off('volunteerOpportunity:deleted', onDeleted);
+    };
+  }, []);
 
   const handleToggleApply = async (opportunity) => {
     setApplyingId(opportunity._id);

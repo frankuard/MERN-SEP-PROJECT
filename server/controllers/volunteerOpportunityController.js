@@ -2,6 +2,7 @@ const VolunteerOpportunity = require('../models/VolunteerOpportunity');
 const VolunteerApplication = require('../models/VolunteerApplication');
 const Event = require('../models/Event');
 const { createNotificationForRole, createNotificationForUsers } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 
 
 // ========================================================
@@ -125,6 +126,9 @@ const createOpportunity = async (req, res) => {
 
     const opportunity = await VolunteerOpportunity.create(payload);
 
+    // Broadcast real-time update to all connected clients
+    emitToAll('volunteerOpportunity:created', { opportunity });
+
     createNotificationForRole('student', {
       type: 'volunteer_opportunity',
       title: 'New Volunteer Opportunity',
@@ -163,6 +167,9 @@ const updateOpportunity = async (req, res) => {
 
     const updated = await opportunity.save();
 
+    // Broadcast real-time update to all connected clients
+    emitToAll('volunteerOpportunity:updated', { opportunity: updated });
+
     if (wasOpen && updated.isOpen === false) {
       const applications = await VolunteerApplication.find({
         opportunity: updated._id,
@@ -189,6 +196,10 @@ const deleteOpportunity = async (req, res) => {
     const opportunity = await VolunteerOpportunity.findByIdAndDelete(req.params.id);
     if (!opportunity) return res.status(404).json({ message: 'Opportunity not found' });
     await VolunteerApplication.deleteMany({ opportunity: opportunity._id });
+
+    // Broadcast real-time deletion to all connected clients
+    emitToAll('volunteerOpportunity:deleted', { _id: opportunity._id });
+
     res.status(200).json({ message: 'Opportunity deleted' });
   } catch (err) {
     if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid opportunity ID' });
