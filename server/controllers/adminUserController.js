@@ -121,8 +121,9 @@ const deleteUser = async (req, res) => {
 };
 
 // POST /api/admin/users/staff  (super admin only)
-// Creates either a teacher or an admin account. Admin accounts require
-// adminSection; teacher accounts use department instead.
+// Creates a teacher, admin, or community (staff) account. Admin accounts
+// require adminSection; teacher accounts use department. Community
+// accounts use the 'staff' role and require no department.
 const createStaffAccount = async (req, res) => {
   try {
     const { username, email, password, role, department, adminSection } = req.body;
@@ -131,8 +132,8 @@ const createStaffAccount = async (req, res) => {
       return res.status(400).json({ message: 'username, email and password are required' });
     }
 
-    if (!['teacher', 'admin'].includes(role)) {
-      return res.status(400).json({ message: "role must be 'teacher' or 'admin'" });
+    if (!['teacher', 'staff', 'admin'].includes(role)) {
+      return res.status(400).json({ message: "role must be 'teacher', 'staff', or 'admin'" });
     }
 
     if (role === 'admin' && !ADMIN_SECTIONS.includes(adminSection)) {
@@ -173,10 +174,11 @@ const createStaffAccount = async (req, res) => {
 
     if (role === 'teacher') {
       userData.department = (department || '').trim();
-    } else {
+    } else if (role === 'admin') {
       userData.department = 'Administration';
       userData.adminSection = adminSection;
     }
+    // role === 'staff' (Community): no department, no adminSection required.
 
     const user = await User.create(userData);
 

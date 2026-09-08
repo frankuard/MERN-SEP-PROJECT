@@ -12,6 +12,8 @@ const ADMIN_SECTIONS = [
   { value: 'resources', label: 'Resources Admin' },
 ];
 
+const COMMUNITY_ROLE = 'staff';
+
 const CreateStaffModal = ({ t, onClose, onCreated }) => {
   const [role, setRole] = useState('teacher');
   const [form, setForm] = useState({
@@ -62,7 +64,7 @@ const CreateStaffModal = ({ t, onClose, onCreated }) => {
       };
       if (role === 'teacher') {
         payload.department = form.department;
-      } else {
+      } else if (role === 'admin') {
         payload.adminSection = form.adminSection;
       }
 
@@ -173,7 +175,7 @@ const CreateStaffModal = ({ t, onClose, onCreated }) => {
           className="mt-4 inline-flex w-full items-center gap-1 rounded-full border p-1"
           style={{ borderColor: t.border }}
         >
-          {['teacher', 'admin'].map((r) => (
+          {['teacher', COMMUNITY_ROLE, 'admin'].map((r) => (
             <button
               key={r}
               type="button"
@@ -280,7 +282,7 @@ const CreateStaffModal = ({ t, onClose, onCreated }) => {
             style={{ backgroundColor: t.accentPrimary }}
           >
             <UserPlus size={13} />
-            {saving ? 'Creating...' : `Create ${role === 'admin' ? 'Admin' : 'Teacher'} Account`}
+            {saving ? 'Creating...' : `Create ${role === 'admin' ? 'Admin' : role === COMMUNITY_ROLE ? 'Community' : 'Teacher'} Account`}
           </button>
         </div>
       </div>

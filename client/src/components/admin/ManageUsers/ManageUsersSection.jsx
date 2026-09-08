@@ -20,7 +20,7 @@ import ResetPasswordModal from './ResetPasswordModal';
 import { DEPARTMENTS, getSemesterOptions } from '../../../data/departmentSemesters';
 import { getLevelForSemester, getCohortGroupOptions, buildGroupCode, buildGroupLabel, parseGroupCode } from '../../../data/levelGroups';
 
-const ROLE_FILTERS = ['All', 'student', 'teacher', 'admin'];
+const ROLE_FILTERS = ['All', 'student', 'teacher', 'staff', 'admin'];
 
 // Sentinel value for "department not in the known list" — covers users
 // with a custom/admin-set department so they remain filterable instead of
