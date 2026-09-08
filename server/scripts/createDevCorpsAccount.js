@@ -25,6 +25,7 @@ const USERNAME = 'devcorps BIC';
 const EMAIL = 'devcorps@bicnepal.edu.np';
 const ROLE = 'staff'; // Community role value already used across the system
 const PORTAL = 'devcorpsCommunity';
+const PORTAL_ROLE = 'admin'; // DevCorps moderates the Community portal (Manage Events)
 
 async function main() {
   const [, , passwordArg] = process.argv;
@@ -45,8 +46,13 @@ async function main() {
       await existing.save();
       console.log('Portal identifier updated on the existing account.');
     }
+    if (existing.portalRole !== PORTAL_ROLE) {
+      existing.portalRole = PORTAL_ROLE;
+      await existing.save();
+      console.log('DevCorps portal admin role assigned to the existing account.');
+    }
     console.log('DevCorps account already exists:');
-    console.log({ id: existing._id, username: existing.username, email: existing.email, role: existing.role, portal: existing.portal });
+    console.log({ id: existing._id, username: existing.username, email: existing.email, role: existing.role, portal: existing.portal, portalRole: existing.portalRole });
     await mongoose.disconnect();
     process.exit(0);
   }
@@ -60,10 +66,11 @@ async function main() {
     role: ROLE,
     status: 'approved',
     portal: PORTAL,
+    portalRole: PORTAL_ROLE,
   });
 
   console.log('DevCorps account created:');
-  console.log({ id: user._id, username: user.username, email: user.email, role: user.role, portal: user.portal });
+  console.log({ id: user._id, username: user.username, email: user.email, role: user.role, portal: user.portal, portalRole: user.portalRole });
 
   await mongoose.disconnect();
   process.exit(0);

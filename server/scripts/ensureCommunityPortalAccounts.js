@@ -10,9 +10,11 @@
  * portal-aware routing key off this single identifier — nothing is per-email).
  *
  * This script fills that gap the same way devcorps BIC was provisioned:
- *   role    -> 'staff'            (Community)
- *   status  -> 'approved'
- *   portal  -> 'devcorpsCommunity'
+ *   role        -> 'staff'             (Community)
+ *   status      -> 'approved'
+ *   portal      -> 'devcorpsCommunity'
+ *   portalRole  -> 'member'            (no moderation powers — only devcorps BIC
+ *                                       is portalRole 'admin' and may Manage Events)
  *
  * Unlike ensureDevCorpsAccount.js, it NEVER touches the password — the
  * existing password/authentication mechanism is preserved for every account.
@@ -32,6 +34,7 @@ dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 const ROLE = 'staff';
 const PORTAL = 'devcorpsCommunity';
+const PORTAL_ROLE = 'member';
 
 const ACCOUNTS = [
   { email: 'ai.horizon@bicnepal.edu.np' },
@@ -64,6 +67,7 @@ async function main() {
     if (user.role !== ROLE) { user.role = ROLE; changes.push(`role -> "${ROLE}"`); }
     if (user.status !== 'approved') { user.status = 'approved'; changes.push('status -> "approved"'); }
     if (user.portal !== PORTAL) { user.portal = PORTAL; changes.push(`portal -> "${PORTAL}"`); }
+    if (user.portalRole !== PORTAL_ROLE) { user.portalRole = PORTAL_ROLE; changes.push(`portalRole -> "${PORTAL_ROLE}"`); }
 
     if (changes.length === 0) {
       console.log(`OK    ${account.email} — already provisioned as devcorps Community account`);

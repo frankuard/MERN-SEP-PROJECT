@@ -23,6 +23,7 @@ const USERNAME = 'devcorps BIC';
 const EMAIL = 'devcorps@bicnepal.edu.np';
 const ROLE = 'staff';
 const PORTAL = 'devcorpsCommunity';
+const PORTAL_ROLE = 'admin'; // DevCorps moderates the Community portal (Manage Events)
 
 async function main() {
   const [, , passwordArg] = process.argv;
@@ -52,11 +53,12 @@ async function main() {
     if (user.role !== ROLE) { user.role = ROLE; changed = true; }
     if (user.status !== 'approved') { user.status = 'approved'; changed = true; }
     if (user.username !== USERNAME) { user.username = USERNAME; changed = true; }
+    if (user.portalRole !== PORTAL_ROLE) { user.portalRole = PORTAL_ROLE; changed = true; }
     user.password = hashedPassword;
     changed = true;
     await user.save();
     console.log('Existing account updated:', JSON.stringify({ changed: true }));
-    console.log('Account:', JSON.stringify({ id: user._id, username: user.username, email: user.email, role: user.role, portal: user.portal, status: user.status }));
+    console.log('Account:', JSON.stringify({ id: user._id, username: user.username, email: user.email, role: user.role, portal: user.portal, portalRole: user.portalRole, status: user.status }));
     await mongoose.disconnect();
     process.exit(0);
   }
@@ -68,9 +70,10 @@ async function main() {
     role: ROLE,
     status: 'approved',
     portal: PORTAL,
+    portalRole: PORTAL_ROLE,
   });
 
-  console.log('Account created:', JSON.stringify({ id: user._id, username: user.username, email: user.email, role: user.role, portal: user.portal }));
+  console.log('Account created:', JSON.stringify({ id: user._id, username: user.username, email: user.email, role: user.role, portal: user.portal, portalRole: user.portalRole }));
 
   await mongoose.disconnect();
   process.exit(0);

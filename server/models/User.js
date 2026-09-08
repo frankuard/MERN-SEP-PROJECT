@@ -59,6 +59,15 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Role inside a dedicated community portal. 'admin' grants moderation
+    // powers (e.g. DevCorps' exclusive Manage Events); 'member'/null are
+    // regular portal members with no moderation authority.
+    portalRole: {
+      type: String,
+      enum: ['admin', 'member'],
+      default: null,
+    },
+
     semester: {
       type: String,
       default: '',

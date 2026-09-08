@@ -22,6 +22,7 @@ const PAGE_TITLES = {
   profile: 'My Profile',
   rte: 'Routine & Timetable',
   documentation: 'Documentation',
+  'manage-events': 'Manage Events',
   // Teacher tabs
   announcements: 'Announcements',
   requests: 'Student Requests',

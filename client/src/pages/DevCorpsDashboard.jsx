@@ -14,6 +14,7 @@ import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import EventsSection from '../components/student/EventsSection';
 import ChatSection from '../components/student/ChatSection';
 import ProfileSection from '../components/student/ProfileSection';
+import ManageEventsSection from '../components/admin/ManageEvents/ManageEventsSection';
 
 // DevCorps-specific sections
 import DevCorpsDashboardHome from '../components/devcorps/DevCorpsDashboardHome';
@@ -23,7 +24,9 @@ import DevCorpsDocumentation from '../components/devcorps/DevCorpsDocumentation'
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'.
 // 'profile' is intentionally NOT in the sidebar — it exists only so the
 // shared Chat/Profile sections keep their "view profile" round-trip.
-const VALID_DEV_CORPS_TABS = ['dashboard', 'events', 'chat', 'documentation', 'profile'];
+// 'manage-events' is exclusive to the DevCorps portal admin (portalRole
+// 'admin') — members are redirected to the Events tab below.
+const VALID_DEV_CORPS_TABS = ['dashboard', 'events', 'chat', 'documentation', 'profile', 'manage-events'];
 
 const DevCorpsDashboard = () => {
   const { user, logout } = useAuth();
@@ -33,12 +36,17 @@ const DevCorpsDashboard = () => {
   const { tab } = useParams();
   const navigate = useNavigate();
 
+  // Manage Events (and all event moderation powers) is exclusive to the
+  // DevCorps portal admin — regular community members get the plain Events tab.
+  const isDevCorpsAdmin = user?.portalRole === 'admin';
+
   const [viewingProfileId, setViewingProfileId] = useState(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [autoOpenRequests, setAutoOpenRequests] = useState(false);
 
-  const activeTab = VALID_DEV_CORPS_TABS.includes(tab) ? tab : 'dashboard';
+  const requestedTab = VALID_DEV_CORPS_TABS.includes(tab) ? tab : 'dashboard';
+  const activeTab = requestedTab === 'manage-events' && !isDevCorpsAdmin ? 'events' : requestedTab;
   const setActiveTab = (nextTab) => navigate(`/devcorps/${nextTab}`);
 
   const handleSidebarTabChange = (tabId) => setActiveTab(tabId);
@@ -184,6 +192,13 @@ const DevCorpsDashboard = () => {
             {/* Events — exact reuse of the student Events section */}
             {activeTab === 'events' && (
               <EventsSection t={t} />
+            )}
+
+            {/* Manage Events — exclusive to the DevCorps portal admin; full
+                authority over all events (create/edit/delete, approve/reject
+                via status, publish/unpublish via the Published toggle). */}
+            {activeTab === 'manage-events' && isDevCorpsAdmin && (
+              <ManageEventsSection t={t} />
             )}
 
             {/* Documentation — DevCorps-specific, backend-gated */}

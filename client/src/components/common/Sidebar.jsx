@@ -62,7 +62,12 @@ const Sidebar = ({
   // Optional override so a scoped panel (e.g. a department admin's own
   // mini nav) can pass its own short item list — falls back to the
   // untouched role-based lookup everywhere else, unchanged.
-  const items = navItems || navConfig[role] || navConfig.student;
+  // Items flagged `devcorpsAdminOnly` (e.g. DevCorps Manage Events) are
+  // hidden unless the signed-in user is a portal admin.
+  const allItems = navItems || navConfig[role] || navConfig.student;
+  const items = allItems.filter(
+    (item) => !item.devcorpsAdminOnly || user?.portalRole === 'admin'
+  );
   const username = user?.username || '';
   // Second line under the name: admin accounts show their department
   // ("Resource Admin", "SSD Admin"...), everyone else shows nothing here

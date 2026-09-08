@@ -34,6 +34,9 @@ const navConfig = {
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'documentation', label: 'Documentation', icon: FileText },
+    // Exclusive to the DevCorps portal admin (user.portalRole === 'admin').
+    // Sidebar hides this item for regular community members.
+    { id: 'manage-events', label: 'Manage Events', icon: Calendar, devcorpsAdminOnly: true },
   ],
 
     admin: [
