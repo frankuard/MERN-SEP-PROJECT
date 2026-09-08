@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const documentationTaskSchema = new mongoose.Schema(
   {
     key: { type: String, required: true },
-    label: { type: String, required: true },
+    label: { type: String, default: '' },
     completed: { type: Boolean, default: false },
     points: { type: Number, default: 0 },
     maxPoints: { type: Number, default: 10 },
