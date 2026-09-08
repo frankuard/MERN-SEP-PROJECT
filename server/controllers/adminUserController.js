@@ -216,6 +216,34 @@ const resetStaffPassword = async (req, res) => {
   }
 };
 
+// PATCH /api/admin/users/:id/portal  (super admin only)
+// Assigns or clears a portal identifier on a user account. Setting
+// portal: null removes the user from the dedicated portal (reverting
+// them to their normal role-based dashboard).
+const VALID_PORTALS = ['devcorpsCommunity'];
+
+const setPortal = async (req, res) => {
+  try {
+    const { portal } = req.body;
+
+    if (portal !== null && portal !== '' && !VALID_PORTALS.includes(portal)) {
+      return res.status(400).json({ message: `portal must be one of: ${VALID_PORTALS.join(', ')}, or null to clear` });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.portal = portal || null;
+    await user.save();
+
+    const { password: _pw, ...safeUser } = user.toObject();
+    res.status(200).json({ message: `Portal ${portal ? `set to "${portal}"` : 'cleared'}`, user: safeUser });
+  } catch (err) {
+    if (err.name === 'CastError') return res.status(400).json({ message: 'Invalid user ID' });
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -223,4 +251,5 @@ module.exports = {
   deleteUser,
   createStaffAccount,
   resetStaffPassword,
+  setPortal,
 };

@@ -17,6 +17,7 @@ const uploadRoutes = require('./routes/upload.routes')
 const authRoutes = require('./routes/auth.routes');
 const authMiddleware = require('./middleware/authMiddleware');
 const roleMiddleware = require('./middleware/roleMiddleware');
+const devcorpsRoutes = require('./routes/devcorps.routes');
 const lostFoundRoutes = require('./routes/lostFound.routes');
 const eventRoutes = require('./routes/event.routes');
 const canteenRoutes = require('./routes/canteen.routes');
@@ -76,6 +77,8 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/upload', uploadRoutes);
 app.use('/api/auth', authRoutes);
+
+app.use('/api/devcorps', devcorpsRoutes);
 
 app.use('/api/lost-found', lostFoundRoutes);
 

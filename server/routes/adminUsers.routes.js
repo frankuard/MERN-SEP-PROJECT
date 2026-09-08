@@ -12,12 +12,14 @@ const {
   deleteUser,
   createStaffAccount,
   resetStaffPassword,
+  setPortal,
 } = require('../controllers/adminUserController');
 
 const adminOnly = roleMiddleware('admin');
 
 router.post('/staff', authMiddleware, superAdminOnly, createStaffAccount);
 router.patch('/:id/reset-password', authMiddleware, superAdminOnly, resetStaffPassword);
+router.patch('/:id/portal', authMiddleware, superAdminOnly, setPortal);
 
 router.get('/', authMiddleware, adminOnly, getAllUsers);
 

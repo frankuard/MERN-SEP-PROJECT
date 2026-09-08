@@ -87,6 +87,7 @@ const register = async (req, res) => {
       department: user.department,
       semester: user.semester,
       group: user.group,
+      portal: user.portal,
       createdAt: user.createdAt,
     };
 
@@ -165,6 +166,7 @@ const loginUser = async (req, res) => {
         semester: user.semester,
         group: user.group,
         adminSection: user.adminSection,
+        portal: user.portal,
         profileImage: user.profileImage,
       },
     });
@@ -209,6 +211,7 @@ const getMe = async (req, res) => {
         semester: req.user.semester,
         group: req.user.group,
         adminSection: req.user.adminSection,
+        portal: req.user.portal,
         profileImage: req.user.profileImage,
         coverPhoto: req.user.coverPhoto,
         bio: req.user.bio,

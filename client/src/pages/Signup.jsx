@@ -40,7 +40,7 @@ const Signup = () => {
   }
 
   if (isAuthenticated && user) {
-    return <Navigate to={getDashboardPath(user.role)} replace />;
+    return <Navigate to={getDashboardPath(user)} replace />;
   }
 
   const updateField = (field, value) => {
@@ -138,13 +138,13 @@ const Signup = () => {
       toast.success(data.message || 'Account created successfully');
 
       if (data.devMode && data.user) {
-        navigate(getDashboardPath(data.user.role), { replace: true });
+        navigate(getDashboardPath(data.user), { replace: true });
         return;
       }
 
       try {
         const loginData = await login(formData.email.trim(), formData.password);
-        navigate(getDashboardPath(loginData.user.role), { replace: true });
+        navigate(getDashboardPath(loginData.user), { replace: true });
       } catch (loginError) {
         const loginMessage = getErrorMessage(loginError);
         toast.error(loginMessage);

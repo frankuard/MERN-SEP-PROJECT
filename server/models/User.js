@@ -50,6 +50,15 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Secure backend identifier for dedicated community portals. Only
+    // accounts that explicitly have this set are routed to a specialized
+    // portal (e.g. portal: 'devcorpsCommunity' → DevCorps Community Portal).
+    // All other accounts keep their normal role-based dashboard untouched.
+    portal: {
+      type: String,
+      default: null,
+    },
+
     semester: {
       type: String,
       default: '',

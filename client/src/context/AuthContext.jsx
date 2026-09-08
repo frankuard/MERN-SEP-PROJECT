@@ -9,10 +9,16 @@ import {
 
 import axiosInstance from '../api/axiosInstance';
 import { connectSocket, disconnectSocket } from '../socket/socket';
+import { DEV_CORPS_PORTAL_ID } from '../data/devcorpsConfig';
 
 const AuthContext = createContext(null);
 
-export const getDashboardPath = (role) => {
+export const getDashboardPath = (user) => {
+  // Dedicated community portals take precedence over the role-based routes.
+  if (user?.portal === DEV_CORPS_PORTAL_ID) {
+    return '/devcorps/dashboard';
+  }
+
   const routes = {
     student: '/student/dashboard',
     teacher: '/teacher/dashboard',
@@ -20,7 +26,7 @@ export const getDashboardPath = (role) => {
     admin: '/admin/dashboard',
   };
 
-  return routes[role] || '/login';
+  return routes[user?.role] || '/login';
 };
 
 const AuthProvider = ({ children }) => {

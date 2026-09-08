@@ -29,6 +29,13 @@ const navConfig = {
     { id: 'campus-help', label: 'Help', icon: HelpCircle },
   ],
 
+  devcorpsCommunity: [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'events', label: 'Events', icon: Calendar },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'documentation', label: 'Documentation', icon: FileText },
+  ],
+
     admin: [
   { id: "dashboard", label: "Dashboard", icon: Home },
   { id: "manage-announcements", label: "Manage Announcements", icon: Megaphone },

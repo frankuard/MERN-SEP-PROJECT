@@ -21,6 +21,7 @@ const PAGE_TITLES = {
   chat: 'Chat',
   profile: 'My Profile',
   rte: 'Routine & Timetable',
+  documentation: 'Documentation',
   // Teacher tabs
   announcements: 'Announcements',
   requests: 'Student Requests',
