@@ -490,7 +490,7 @@ const placeOrder = async (req, res) => {
 
     // If Credit Due, also create a credit request record
     if (paymentMethod === 'Credit Due') {
-      await CanteenCreditRequest.create({
+      const creditRequest = await CanteenCreditRequest.create({
         user: req.user._id,
         userRole: req.user.role,
         userName: req.user.username || '',
@@ -498,6 +498,9 @@ const placeOrder = async (req, res) => {
         amount: totalAmount,
         status: 'Pending',
       });
+
+      // Real-time: broadcast new credit request to admin panel
+      emitToAll('canteen:credit-request:new', { creditRequest });
 
       // Notify all admins
       createNotificationForRole('admin', {
@@ -515,6 +518,9 @@ const placeOrder = async (req, res) => {
       message: `Your order #${order._id.toString().slice(-6).toUpperCase()} has been placed. Total: NPR ${totalAmount}. Table: ${tableNumber}`,
       link: 'canteen',
     });
+
+    // Real-time: broadcast new order to all clients (admin panel picks this up)
+    emitToAll('canteen:order:new', { order });
 
     res.status(201).json({ message: 'Order placed successfully', order });
   } catch (error) {
@@ -632,6 +638,9 @@ const updateOrderStatus = async (req, res) => {
       link: 'canteen',
     });
 
+    // Real-time: broadcast order status change (user panel + admin panel sync)
+    emitToAll('canteen:order:updated', { order });
+
     res.status(200).json({ message: 'Order status updated', order });
   } catch (error) {
     res.status(500).json({ message: 'Failed to update order status', error: error.message });
@@ -667,6 +676,9 @@ const confirmCounterPayment = async (req, res) => {
       message: `Payment for order #${order._id.toString().slice(-6).toUpperCase()} (NPR ${order.totalAmount}) has been confirmed at counter.`,
       link: 'canteen',
     });
+
+    // Real-time: broadcast order payment confirmation (user + admin sync)
+    emitToAll('canteen:order:updated', { order });
 
     res.status(200).json({ message: 'Payment confirmed', order });
   } catch (error) {
@@ -773,7 +785,7 @@ const reviewCreditRequest = async (req, res) => {
     creditRequest.reviewedAt = new Date();
     await creditRequest.save();
 
-    // Update the order's credit request status
+    // Update the order's credit request status (approved/rejected)
     const order = await CanteenOrder.findById(creditRequest.order._id);
     if (order) {
       order.creditRequestStatus = status;
@@ -812,6 +824,14 @@ const reviewCreditRequest = async (req, res) => {
 
       // Broadcast so the student's dashboard/credit card updates live
       emitToAll('canteen:credit:updated', { userId: creditRequest.user, credit });
+    }
+
+    // Real-time: broadcast credit request status (user + admin panel sync)
+    emitToAll('canteen:credit-request:updated', { creditRequest });
+
+    // Real-time: broadcast the order status change (user panel syncs live)
+    if (order) {
+      emitToAll('canteen:order:updated', { order });
     }
 
     // Notify user

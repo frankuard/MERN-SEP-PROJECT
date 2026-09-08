@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ShoppingBag, ChevronDown, Loader2, ReceiptText, CheckCircle2, XCircle, Clock3 } from 'lucide-react';
 import canteenApi from '../../../api/canteenApi';
+import { getSocket } from '../../../socket/socket';
 
 const STATUS_BADGE = {
   Pending: { bg: '#fef3c7', color: '#b45309' },
@@ -50,6 +51,40 @@ const MyOrdersPanel = ({ t, onStartOrdering }) => {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Real-time: admin status changes and credit request reviews update instantly
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onOrderUpdated = ({ order }) => {
+      if (!order || !order._id) return;
+      setOrders((prev) => {
+        const existing = prev.find((o) => o._id === order._id);
+        if (existing) {
+          return prev.map((o) => (o._id === order._id ? order : o));
+        }
+        return [order, ...prev];
+      });
+    };
+
+    const onCreditRequestUpdated = ({ creditRequest }) => {
+      if (!creditRequest || !creditRequest._id) return;
+      setCreditRequests((prev) => {
+        const existing = prev.find((r) => r._id === creditRequest._id);
+        if (existing) {
+          return prev.map((r) => (r._id === creditRequest._id ? creditRequest : r));
+        }
+        return [creditRequest, ...prev];
+      });
+    };
+
+    socket.on('canteen:order:updated', onOrderUpdated);
+    socket.on('canteen:credit-request:updated', onCreditRequestUpdated);
+    return () => {
+      socket.off('canteen:order:updated', onOrderUpdated);
+      socket.off('canteen:credit-request:updated', onCreditRequestUpdated);
+    };
+  }, []);
 
   const { textPrimary, textMuted, cardBg, border } = t;
 
