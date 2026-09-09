@@ -2,12 +2,10 @@ import { useEffect, useState } from 'react';
 import {
   Building2,
   ClipboardList,
-  Info,
   Loader2,
   Pencil,
   RefreshCw,
   Save,
-  ScrollText,
   Search,
   Send,
   UserCheck,
@@ -18,7 +16,6 @@ import {
 import toast from 'react-hot-toast';
 import communityPortalApi from '../../api/communityPortalApi';
 import CommunityAboutPanel from './CommunityAboutPanel';
-import { ManageConstitution } from './CommunityConstitutionSection';
 
 const ACCENT = '#9333ea';
 
@@ -80,14 +77,15 @@ const PROFILE_FIELDS = [
 
 // ── About Community ─────────────────────────────────────────────────────────
 // Reads the shared CommunityProfile record (the single source of truth the
-// DevCorps Communities Portal dropdowns render too). With `editable` it also
-// lets the account edit it here (the DevCorps portal admin, from the
-// Communities menu). The five member community accounts render it read-only
-// (editable={false}) and cannot edit their own profile.
+// DevCorps Communities Portal dropdowns render too) and lets the community
+// edit it (own community via the sidebar, or the DevCorps portal admin via
+// the Communities menu). Saving updates the DB and broadcasts the change, so
+// the Communities Portal shows the new content immediately.
 //
 // Exported so the DevCorps Communities section (clicking a community in the
-// sidebar) renders the EXACT same About Community screen as this Manage User
-// tab — same header, same About content, same member/pending counts.
+// sidebar) renders the EXACT same About Community screen as the community's
+// own sidebar entry — same header, same About content, same member/pending
+// counts.
 export const AboutCommunity = ({ community, t, editable = true }) => {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState(null);
@@ -607,9 +605,12 @@ const MemberRequests = ({ community, t }) => {
   );
 };
 
-// ── Manage User shell — exactly three sections ───────────────────────────────
+// ── Manage User shell — Members Management + Member Requests only ──────────
+// About Community and Constitution live as their own sidebar entries
+// (/devcorps/about-community, /devcorps/constitution) — each scoped to this
+// account's own community — and are intentionally NOT tabs in here.
 const CommunityPortalManageUser = ({ community, t }) => {
-  const [activeTab, setActiveTab] = useState('about');
+  const [activeTab, setActiveTab] = useState('members');
 
   if (!community) {
     return (
@@ -629,10 +630,8 @@ const CommunityPortalManageUser = ({ community, t }) => {
   }
 
   const tabs = [
-    { id: 'about', label: 'About Community', icon: Info },
     { id: 'members', label: 'Members Management', icon: Users },
     { id: 'requests', label: 'Member Requests', icon: UserPlus },
-    { id: 'constitution', label: 'Constitution', icon: ScrollText },
   ];
 
   return (
@@ -684,10 +683,8 @@ const CommunityPortalManageUser = ({ community, t }) => {
         })}
       </div>
 
-      {activeTab === 'about' && <AboutCommunity community={community} t={t} editable={false} />}
       {activeTab === 'members' && <MembersManagement community={community} t={t} />}
       {activeTab === 'requests' && <MemberRequests community={community} t={t} />}
-      {activeTab === 'constitution' && <ManageConstitution community={community} t={t} editable={false} />}
     </div>
   );
 };

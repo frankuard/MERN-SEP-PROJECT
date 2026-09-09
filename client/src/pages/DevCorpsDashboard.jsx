@@ -23,8 +23,9 @@ import EventRequestSection from '../components/devcorps/EventRequestSection';
 import CommunitiesSection from '../components/devcorps/CommunitiesSection';
 
 // Community Portal new features — Manage User + Workshop Release
-import CommunityPortalManageUser from '../components/community/CommunityPortalManageUser';
+import CommunityPortalManageUser, { AboutCommunity } from '../components/community/CommunityPortalManageUser';
 import CommunityPortalWorkshopRelease from '../components/community/CommunityPortalWorkshopRelease';
+import { ManageConstitution } from '../components/community/CommunityConstitutionSection';
 
 import { communityByAccount, communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data/devcorpsConfig';
 
@@ -36,10 +37,11 @@ import { communityByAccount, communityByNavId, communityNavId, DEV_CORPS_COMMUNI
 // 'admin') — members are redirected to the Events tab below.
 const VALID_DEV_CORPS_TABS = [
   'dashboard', 'events', 'chat', 'documentation', 'profile', 'manage-events',
-  // Manage User + Workshop Release — the five member community portals only.
-  // About Community + Constitution are reached INSIDE Manage User (read-only
-  // tabs), not as their own sidebar entries.
+  // Manage User + Workshop Release — the five member community portals only
   'manage-user', 'workshop-release',
+  // Dedicated About Community + Constitution sidebar screens (member
+  // communities only, each scoped to its own account)
+  'about-community', 'constitution',
   // 'communities' overview + one tab per member community (admin-only menu)
   'communities',
   ...DEV_CORPS_COMMUNITIES.map(communityNavId),
@@ -294,9 +296,20 @@ onNavigateTab={setActiveTab}
               <DevCorpsDocumentation t={t} />
             )}
 
-            {/* Manage User — replacement for the communities sidebar menu in
-                the five community portals (About read-only / Members /
-                Requests / Constitution read-only). */}
+            {/* About Community — each member community edits its own About profile
+                from the sidebar (scoped to its own account only). */}
+            {activeTab === 'about-community' && activeCommunityAccount && (
+              <AboutCommunity community={activeCommunityAccount} t={t} />
+            )}
+
+            {/* Constitution — each member community manages its own uploaded
+                constitution (upload / replace / delete) from the sidebar. */}
+            {activeTab === 'constitution' && activeCommunityAccount && (
+              <ManageConstitution community={activeCommunityAccount} t={t} />
+            )}
+
+            {/* Manage User — the five community portals manage only their
+                members here (Members Management + Member Requests). */}
             {activeTab === 'manage-user' && (
               <CommunityPortalManageUser community={activeCommunityAccount} t={t} />
             )}
