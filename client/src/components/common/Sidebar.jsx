@@ -392,12 +392,14 @@ const Sidebar = ({
                                   if (!isChildActive) e.currentTarget.style.backgroundColor = 'transparent';
                                 }}
                               >
-                                <span
-                                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                                  style={{
-                                    backgroundColor: isChildActive ? t.sidebarActiveText : t.sidebarMuted,
-                                  }}
-                                />
+                                {child.id.startsWith('community-') ? null : (
+                                  <span
+                                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                    style={{
+                                      backgroundColor: isChildActive ? t.sidebarActiveText : t.sidebarMuted,
+                                    }}
+                                  />
+                                )}
                                 <span className="truncate">{child.label}</span>
                               </button>
                             );
