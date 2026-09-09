@@ -90,11 +90,10 @@ const useConstitutionLoader = (communityId, fetchApi) => {
 };
 
 // ── Manage (community account / DevCorps portal admin) ─────────────────────
-// Upload, replace, and delete the community's own constitution when `editable`
-// (the DevCorps portal admin, from the Communities menu). The five member
-// community accounts render it read-only (editable={false}) — they can open
-// and download their constitution but never replace/delete it. Member/reader
-// views never render management controls either.
+// Upload, replace, and delete the community's own constitution. Each of the
+// five member communities manages ONLY its own constitution from its sidebar
+// entry; the DevCorps portal admin manages any community from the Communities
+// menu. Member/reader views never render management controls.
 export const ManageConstitution = ({ community, t, editable = true }) => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -210,7 +209,7 @@ export const ManageConstitution = ({ community, t, editable = true }) => {
             )}
             {editable ? (
               <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
-                Members can read — only an admin can edit
+                Members can read — only this community&apos;s account can edit
               </span>
             ) : (
               <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
