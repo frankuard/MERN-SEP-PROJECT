@@ -2,6 +2,8 @@ const express = require('express');
 
 const authMiddleware = require('../middleware/authMiddleware');
 const devcorpsMiddleware = require('../middleware/devcorpsMiddleware');
+const { uploadDocument } = require('../middleware/upload');
+const devcorpsDocumentationController = require('../controllers/devcorpsDocumentationController');
 
 const router = express.Router();
 
@@ -73,5 +75,87 @@ router.get('/portal', authMiddleware, devcorpsMiddleware, (req, res) => {
     documentation: DEV_CORPS_DOCUMENTATION,
   });
 });
+
+// ── Community Documentation boards + per-community file storage ────────────
+// The DevCorps admin can read every community's records. A community member
+// (the five member communities) is scoped to their OWN community only —
+// matched by the account's specific community name. The member community
+// itself can manage its own cards and sections and its workshop count; the
+// checkboxes and points (the DevCorps marking/point system) and file
+// management stay admin-only.
+
+// Overall summary for DevCorps to track all five communities. Registered
+// BEFORE the :communityId routes so "summary" is never parsed as an id.
+router.get(
+  '/documentation/summary',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.getSummary
+);
+
+// Checklist board
+router.get(
+  '/documentation/:communityId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.getBoard
+);
+router.post(
+  '/documentation/:communityId/events',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.addEvent
+);
+router.delete(
+  '/documentation/:communityId/events/:order',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.removeEvent
+);
+router.patch(
+  '/documentation/:communityId/events/:order',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.renameEvent
+);
+router.patch(
+  '/documentation/:communityId/events/:order/tasks/:key',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.updateTask
+);
+router.patch(
+  '/documentation/:communityId/workshops',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.updateWorkshops
+);
+
+// File storage (per-community, only reachable through this portal)
+router.get(
+  '/documentation/:communityId/files',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsDocumentationController.listFiles
+);
+router.post(
+  '/documentation/:communityId/files',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  uploadDocument.single('file'),
+  devcorpsDocumentationController.uploadFile
+);
+router.patch(
+  '/documentation/files/:fileId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.updateFilePoints
+);
+router.delete(
+  '/documentation/files/:fileId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  devcorpsDocumentationController.deleteFile
+);
 
 module.exports = router;

@@ -3,11 +3,20 @@ import { MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
+import { DEV_CORPS_PORTAL_ID } from '../../data/devcorpsConfig';
 
 const ChatButton = ({ t }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const role = user?.role || 'student';
+
+  // DevCorps Community Portal accounts (the DevCorps admin + the five member
+  // communities) use the DevCorps chat page — their role is 'staff', but they
+  // must never land on the staff dashboard.
+  const chatPath = user?.portal === DEV_CORPS_PORTAL_ID
+    ? '/devcorps/chat'
+    : `/${role}/chat`;
+
   const {
     totalUnread,
     pendingGroupInviteCount,
@@ -22,7 +31,7 @@ const ChatButton = ({ t }) => {
   return (
     <button
       type="button"
-      onClick={() => navigate(`/${role}/chat`)}
+      onClick={() => navigate(chatPath)}
       className="relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-black/5 dark:hover:bg-white/5"
       style={{ color: t.textPrimary }}
     >

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Calendar, Clock, MapPin, Users, CalendarOff, RefreshCw, ArrowLeft,
+  Calendar, Clock, MapPin, Users, CalendarOff, RefreshCw, ArrowLeft, MessageCircle,
 } from 'lucide-react';
 import eventsApi from '../../api/eventsApi';
 import { DEV_CORPS_COMMUNITIES } from '../../data/devcorpsConfig';
@@ -26,27 +26,43 @@ const belongsToCommunity = (event, community) => {
   return organizerName.includes(community.name.toLowerCase());
 };
 
-const CommunityCard = ({ community, t, onOpen }) => (
-  <button
-    type="button"
-    onClick={() => onOpen(community)}
-    className="flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-200 hover:shadow-md sm:p-5"
+const CommunityCard = ({ community, t, onOpen, onOpenChat }) => (
+  <div
+    className="flex w-full items-center gap-4 rounded-2xl border p-4 transition-all duration-200 hover:shadow-md sm:p-5"
     style={{ backgroundColor: t.cardBg, borderColor: t.border }}
   >
-    <div
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-extrabold"
-      style={{ backgroundColor: `${COMMUNITY_ACCENT}1A`, color: COMMUNITY_ACCENT }}
+    <button
+      type="button"
+      onClick={() => onOpen(community)}
+      className="flex min-w-0 flex-1 items-center gap-4 text-left"
     >
-      {community.name.charAt(0)}
-    </div>
-    <div className="min-w-0 flex-1">
-      <p className="font-extrabold" style={{ color: t.textPrimary }}>{community.name}</p>
-      <p className="mt-0.5 text-xs font-medium" style={{ color: t.textMuted }}>
-        View community events
-      </p>
-    </div>
-    <Users size={18} style={{ color: t.textMuted }} />
-  </button>
+      <div
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-extrabold"
+        style={{ backgroundColor: `${COMMUNITY_ACCENT}1A`, color: COMMUNITY_ACCENT }}
+      >
+        {community.name.charAt(0)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-extrabold" style={{ color: t.textPrimary }}>{community.name}</p>
+        <p className="mt-0.5 text-xs font-medium" style={{ color: t.textMuted }}>
+          View community events
+        </p>
+      </div>
+    </button>
+
+    {/* Chat icon — jumps straight to the existing Chat page so the six
+        DevCorps communities can message each other directly. */}
+    <button
+      type="button"
+      onClick={() => onOpenChat(community)}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+      style={{ color: COMMUNITY_ACCENT }}
+      aria-label={`Open chat for ${community.name}`}
+      title="Open chat"
+    >
+      <MessageCircle size={17} />
+    </button>
+  </div>
 );
 
 const CommunityEventCard = ({ event, t }) => {
@@ -136,7 +152,7 @@ const CommunityEventCard = ({ event, t }) => {
 };
 
 // Overview of all five member communities.
-const CommunityOverview = ({ t, onOpen }) => (
+const CommunityOverview = ({ t, onOpen, onOpenChat }) => (
   <div className="space-y-6 animate-in fade-in duration-200">
     <div>
       <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
@@ -149,14 +165,14 @@ const CommunityOverview = ({ t, onOpen }) => (
 
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {DEV_CORPS_COMMUNITIES.map((community) => (
-        <CommunityCard key={community.id} community={community} t={t} onOpen={onOpen} />
+        <CommunityCard key={community.id} community={community} t={t} onOpen={onOpen} onOpenChat={onOpenChat} />
       ))}
     </div>
   </div>
 );
 
 // Events belonging to a single selected community.
-const CommunityEventsView = ({ t, community, onBack }) => {
+const CommunityEventsView = ({ t, community, onBack, onOpenChat }) => {
   const [events, setEvents] = useState([]);
   const [fetchStatus, setFetchStatus] = useState('loading');
 
@@ -206,6 +222,19 @@ const CommunityEventsView = ({ t, community, onBack }) => {
             </div>
           </div>
         </div>
+
+        {/* Chat icon — opens the existing Chat page so the six DevCorps
+            communities can message each other directly. */}
+        <button
+          type="button"
+          onClick={() => onOpenChat(community)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+          style={{ borderColor: t.border, color: COMMUNITY_ACCENT }}
+          aria-label={`Open chat for ${community.name}`}
+          title="Open chat"
+        >
+          <MessageCircle size={16} />
+        </button>
       </div>
 
       {fetchStatus === 'loading' && (
@@ -269,12 +298,12 @@ const CommunityEventsView = ({ t, community, onBack }) => {
   );
 };
 
-const CommunitiesSection = ({ t, community, onNavigateCommunity, onBack }) => {
+const CommunitiesSection = ({ t, community, onNavigateCommunity, onBack, onOpenChat }) => {
   if (community) {
-    return <CommunityEventsView t={t} community={community} onBack={onBack} />;
+    return <CommunityEventsView t={t} community={community} onBack={onBack} onOpenChat={onOpenChat} />;
   }
 
-  return <CommunityOverview t={t} onOpen={onNavigateCommunity} onBack={onBack} />;
+  return <CommunityOverview t={t} onOpen={onNavigateCommunity} onBack={onBack} onOpenChat={onOpenChat} />;
 };
 
 export default CommunitiesSection;

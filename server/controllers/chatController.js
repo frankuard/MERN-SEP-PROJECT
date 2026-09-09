@@ -129,12 +129,18 @@ const getOrCreateDM = async (req, res) => {
     const myId = resolveUserId(req);
     if (userId === myId) return res.status(400).json({ message: "You can't start a chat with yourself" });
 
-    const otherUser = await User.findById(userId).select('username email role');
+    const otherUser = await User.findById(userId).select('username email role portal');
     if (!otherUser) return res.status(404).json({ message: 'User not found' });
 
     const friends = await areFriends(myId, userId);
     const isTeacherParty = req.user?.role === 'teacher' || otherUser.role === 'teacher';
-    if (!friends && !isTeacherParty) {
+    // DevCorps Community Portal accounts (the DevCorps admin + the five member
+    // communities) can DM each other directly — no friendship needed. Only
+    // this portal is affected; everyone else keeps the friendship gate.
+    const isCommunityPortalPair =
+      req.user?.portal === DEV_CORPS_PORTAL_ID &&
+      otherUser?.portal === DEV_CORPS_PORTAL_ID;
+    if (!friends && !isTeacherParty && !isCommunityPortalPair) {
       return res.status(403).json({
         message: 'You need to be friends before you can message this person. Send a friend request first.',
       });

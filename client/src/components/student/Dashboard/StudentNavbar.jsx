@@ -42,8 +42,11 @@ const StudentNavbar = ({
   profileMenuContent,
   onOpenMobileMenu,
   onOpenFriendRequests,
+  customPageTitle,
 }) => {
-const pageTitle = PAGE_TITLES[activeTab] || 'Dashboard';
+const pageTitle = customPageTitle !== undefined
+  ? customPageTitle
+  : (PAGE_TITLES[activeTab] || 'Dashboard');
   const initial = (studentName || username || 'S').charAt(0).toUpperCase();
 
   return (
