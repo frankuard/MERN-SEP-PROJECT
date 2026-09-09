@@ -10,43 +10,35 @@ export const DEV_CORPS_PORTAL_NAME = 'DevCorps Community Portal';
 // events). Communities without a stored logo intentionally fall back to the
 // letter-tile avatar — no generic icons are substituted for real ones.
 //
-// `about` is the short "About Community" blurb shown on the DevCorps
-// Communities card, written specifically for each community's own field.
+// About Community content is NOT duplicated here: it lives in the shared
+// CommunityProfile collection (server), which BOTH the Managed Users About
+// screen and the DevCorps Communities dropdowns read — so edits made in
+// Managed Users show up everywhere automatically.
 export const DEV_CORPS_COMMUNITIES = [
   {
     id: 'ai-horizon',
     name: 'AI Horizon',
     logo: 'https://ik.imagekit.io/ltf9bjszh/logos/bicaihorizon.jpg',
-    about:
-      'AI community focused on practical AI learning, workshops, AI tools, automation, innovation, projects, and AI events — helping members understand and apply AI in real-world situations.',
   },
   {
     id: 'devsphere',
     name: 'DevSphere',
     logo: '',
-    about:
-      'Web and software development community focused on coding, web technologies, programming, software projects, workshops, and modern development practices.',
   },
   {
     id: 'bic-converge',
     name: 'BIC Converge',
     logo: '',
-    about:
-      'Business and entrepreneurship community focused on business ideas, startups, marketing, management, leadership, strategy, networking, and practical entrepreneurial knowledge.',
   },
   {
     id: 'lenspire',
     name: 'Lenspire',
     logo: '',
-    about:
-      'Social media and content community focused on content creation, video, storytelling, digital branding, design, social media strategy, and audience engagement.',
   },
   {
     id: 'incognitous',
     name: 'Incognitous',
     logo: '',
-    about:
-      'Cybersecurity community focused on digital security, cyber threats, ethical security, vulnerability awareness, cybersecurity workshops, challenges, and responsible security practices.',
   },
 ];
 

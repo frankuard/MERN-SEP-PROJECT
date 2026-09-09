@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const CommunityMembership = require('../models/CommunityMembership');
 const CommunityWorkshop = require('../models/CommunityWorkshop');
+const CommunityProfile = require('../models/CommunityProfile');
 const {
   createNotification,
   createNotificationForUsers,
@@ -28,23 +29,163 @@ const escapeRegex = (value) =>
   String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Broadcast each community's real-time Total Members count (the number of
- * ACCEPTED CommunityMembership records) to every connected client, so e.g.
- * the DevCorps Communities cards refresh the moment a request is approved.
- * Never throws — a real-time hiccup must not fail the approval that triggered
- * it.
+ * Broadcast each community's real-time member stats to every connected
+ * client — the ACCEPTED member count plus the PENDING request count — so the
+ * DevCorps Communities cards (which mirror each community portal's About
+ * Community screen) refresh the moment a request is sent, approved, or
+ * rejected. Never throws — a real-time hiccup must not fail the action that
+ * triggered it.
  */
 const emitMemberCounts = async () => {
   try {
-    const counts = await CommunityMembership.aggregate([
-      { $match: { status: 'accepted' } },
-      { $group: { _id: '$communityId', count: { $sum: 1 } } },
+    const [accepted, pending] = await Promise.all([
+      CommunityMembership.aggregate([
+        { $match: { status: 'accepted' } },
+        { $group: { _id: '$communityId', count: { $sum: 1 } } },
+      ]),
+      CommunityMembership.aggregate([
+        { $match: { status: 'pending' } },
+        { $group: { _id: '$communityId', count: { $sum: 1 } } },
+      ]),
     ]);
-    const byCommunity = {};
-    for (const row of counts) byCommunity[row._id] = row.count;
-    emitToAll('community:memberCount', { counts: byCommunity });
+    const byAccepted = {};
+    const byPending = {};
+    for (const row of accepted) byAccepted[row._id] = row.count;
+    for (const row of pending) byPending[row._id] = row.count;
+    emitToAll('community:memberCount', { counts: byAccepted, pendingCounts: byPending });
   } catch (err) {
     console.error('Failed to broadcast member counts (non-fatal):', err.message);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────
+// Community About Community profiles (single source of truth)
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * The About Community content that was already configured for each community
+ * (previously held on the client). These seed values are written into the
+ * CommunityProfile collection on first read, after which Managed Users edits
+ * are the single source of truth — the same collection the DevCorps
+ * Communities Portal dropdowns render.
+ */
+const COMMUNITY_ABOUT_SEEDS = {
+  'ai-horizon': {
+    description:
+      'AI community focused on practical AI learning — AI tools, automation, intelligent projects, and AI events that help members understand and apply artificial intelligence in real-world situations.',
+  },
+  devsphere: {
+    description:
+      'Web and software development community focused on coding, web technologies, programming, software projects, hands-on workshops, and modern development practices.',
+  },
+  'bic-converge': {
+    description:
+      'Business and entrepreneurship community focused on business ideas, startups, marketing, management, strategy, networking, and practical entrepreneurial knowledge.',
+  },
+  lenspire: {
+    description:
+      'Social media and content community focused on content creation, storytelling, digital branding, design, social media strategy, and audience engagement.',
+  },
+  incognitous: {
+    description:
+      'Cybersecurity community focused on digital security, cyber threats, ethical security practices, vulnerability awareness, security workshops, challenges, and responsible defense.',
+  },
+};
+
+/**
+ * Ensure the CommunityProfile docs exist for all five communities, creating
+ * any that are missing from the seed values above. Idempotent and safe to run
+ * on every read — new environments get the same about content that was already
+ * configured, while existing deployments keep whatever Managed Users edited.
+ */
+const ensureCommunityProfiles = async () => {
+  const existing = await CommunityProfile.find({
+    communityId: { $in: Object.keys(COMMUNITY_NAMES) },
+  }).lean();
+  const existingIds = new Set(existing.map((p) => p.communityId));
+  const toCreate = Object.keys(COMMUNITY_NAMES)
+    .filter((id) => !existingIds.has(id))
+    .map((id) => ({
+      communityId: id,
+      communityName: COMMUNITY_NAMES[id],
+      ...COMMUNITY_ABOUT_SEEDS[id],
+    }));
+  if (toCreate.length) {
+    await CommunityProfile.insertMany(toCreate);
+  }
+  return CommunityProfile.find({ communityId: { $in: Object.keys(COMMUNITY_NAMES) } }).lean();
+};
+
+/**
+ * Full About Community content for every community, straight from the
+ * CommunityProfile collection (created from the originally configured text on
+ * first access). This is what both the Managed Users About tab and the
+ * DevCorps Communities Portal dropdowns render — one source, no duplication.
+ *
+ * GET /api/community-portal/communities
+ * Requires: any authenticated approved user.
+ */
+const getCommunityProfiles = async (req, res) => {
+  try {
+    const profiles = await ensureCommunityProfiles();
+    res.status(200).json({ profiles });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const normalizeProfileList = (value) => {
+  if (!Array.isArray(value)) {
+    value = String(value || '').split(/[\n,;]+/);
+  }
+  return value
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+};
+
+/**
+ * Edit one community's About Community content from Managed Users. The change
+ * lands in the shared CommunityProfile collection and is broadcast in
+ * real time, so the DevCorps Communities Portal dropdown for that community
+ * updates immediately — no refresh needed.
+ *
+ * PUT /api/community-portal/communities/:communityId
+ * Body: { description?, purpose?, activities?, workshops?, learningAreas? }
+ * Requires: devcorpsMemberScope (community members edit their own community;
+ * the DevCorps admin can edit any).
+ */
+const updateCommunityProfile = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    if (!isValidCommunityId(communityId)) {
+      return res.status(400).json({ message: 'Invalid community id' });
+    }
+
+    const profile = await CommunityProfile.findOne({ communityId });
+    if (!profile) {
+      return res.status(404).json({ message: 'Community profile not found' });
+    }
+
+    const { description, purpose, activities, workshops, learningAreas } = req.body || {};
+    if (typeof description === 'string') profile.description = description.trim();
+    if (typeof purpose === 'string') profile.purpose = purpose.trim();
+    if (activities !== undefined) {
+      profile.activities = normalizeProfileList(activities);
+    }
+    if (workshops !== undefined) {
+      profile.workshops = normalizeProfileList(workshops);
+    }
+    if (learningAreas !== undefined) {
+      profile.learningAreas = normalizeProfileList(learningAreas);
+    }
+    profile.updatedBy = req.user.id;
+
+    await profile.save();
+    await emitToAll('community:profile', { communityId, profile });
+
+    res.status(200).json({ profile });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -53,29 +194,42 @@ const emitMemberCounts = async () => {
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
- * Live Total Members per community, straight from the database (accepted
- * CommunityMembership records). Backs the DevCorps Communities cards; every
- * community is included so clients can render 0 for the ones with no members.
+ * Live member stats per community, straight from the database — accepted
+ * members (Total Members) and pending requests. Drives the DevCorps
+ * Communities cards, which render the same content as each community portal's
+ * About Community screen. Every community is included so clients can render
+ * 0 for the ones with no activity.
  *
  * GET /api/community-portal/counts
  * Requires: any authenticated approved user.
  */
 const getCommunityMemberCounts = async (req, res) => {
   try {
-    const counts = await CommunityMembership.aggregate([
-      { $match: { status: 'accepted' } },
-      { $group: { _id: '$communityId', count: { $sum: 1 } } },
+    const [accepted, pending] = await Promise.all([
+      CommunityMembership.aggregate([
+        { $match: { status: 'accepted' } },
+        { $group: { _id: '$communityId', count: { $sum: 1 } } },
+      ]),
+      CommunityMembership.aggregate([
+        { $match: { status: 'pending' } },
+        { $group: { _id: '$communityId', count: { $sum: 1 } } },
+      ]),
     ]);
 
     const countsByCommunity = {};
+    const pendingByCommunity = {};
     for (const communityId of Object.keys(COMMUNITY_NAMES)) {
       countsByCommunity[communityId] = 0;
+      pendingByCommunity[communityId] = 0;
     }
-    for (const row of counts) {
+    for (const row of accepted) {
       if (isValidCommunityId(row._id)) countsByCommunity[row._id] = row.count;
     }
+    for (const row of pending) {
+      if (isValidCommunityId(row._id)) pendingByCommunity[row._id] = row.count;
+    }
 
-    res.status(200).json({ counts: countsByCommunity });
+    res.status(200).json({ counts: countsByCommunity, pendingCounts: pendingByCommunity });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -238,6 +392,9 @@ const sendMembershipRequest = async (req, res) => {
       },
     });
 
+    // Real-time: pending request count for this community changed.
+    await emitMemberCounts();
+
     res.status(201).json({ membership, message: `Membership request sent to ${target.username}` });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -335,16 +492,16 @@ const respondToMembershipRequest = async (req, res) => {
           },
         }
       );
-
-      // Real-time: refresh the accepted member count for this community on
-      // every connected client (no polling / no page refresh). The count is
-      // recomputed from the DB so it always reflects the true number of
-      // approved memberships — duplicates can never double-count.
-      await emitMemberCounts();
     } else {
       membership.status = 'rejected';
       await membership.save();
     }
+
+    // Real-time: accepted member / pending request counts changed for this
+    // community — broadcast fresh values to every connected client (no polling
+    // / no page refresh). Counts are recomputed from the DB so they always
+    // reflect the true number of memberships — duplicates can never double-count.
+    await emitMemberCounts();
 
     if (membership.requestedBy) {
       await createNotification(membership.requestedBy, {
@@ -514,6 +671,8 @@ const deleteWorkshop = async (req, res) => {
 
 module.exports = {
   getCommunityMemberCounts,
+  getCommunityProfiles,
+  updateCommunityProfile,
   searchUsers,
   getMemberships,
   sendMembershipRequest,
