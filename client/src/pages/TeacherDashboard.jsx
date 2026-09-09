@@ -23,10 +23,18 @@ import TimetableSection from '../components/student/TimetableSection';
 // Teacher-specific dashboard home (greeting hero + announcements + events + canteen)
 import TeacherDashboardHome from '../components/teacher/TeacherDashboardHome';
 
+// Community Portal (user side) — membership approval + community workshops
+import MembershipRequestsSection from '../components/community/MembershipRequestsSection';
+import UserCommunitySection from '../components/community/UserCommunitySection';
+import { communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data/devcorpsConfig';
+
 // Every valid URL segment for /teacher/:tab
 const VALID_TEACHER_TABS = [
   'dashboard', 'events', 'chat', 'canteen', 'lost-found',
   'campus-help', 'rte', 'resources', 'profile',
+  // Community membership approval + one tab per approved community
+  'community-requests',
+  ...DEV_CORPS_COMMUNITIES.map(communityNavId),
 ];
 
 // Teacher-specific page titles shown in the sticky navbar
@@ -57,6 +65,10 @@ const TeacherDashboard = () => {
 
   const activeTab  = VALID_TEACHER_TABS.includes(tab) ? tab : 'dashboard';
   const setActiveTab = (nextTab) => navigate(`/teacher/${nextTab}`);
+
+  // A sidebar community nav id (e.g. 'community-ai-horizon') resolves to the
+  // actual community, so the user-side Community section knows what to render.
+  const activeCommunity = communityByNavId(activeTab);
 
   const handleSidebarTabChange = (tabId) => setActiveTab(tabId);
 
@@ -246,6 +258,16 @@ const TeacherDashboard = () => {
                 autoOpenRequests={autoOpenRequests}
                 onAutoOpenRequestsHandled={() => setAutoOpenRequests(false)}
               />
+            )}
+
+            {/* Community membership requests — approval overlay lives here */}
+            {activeTab === 'community-requests' && (
+              <MembershipRequestsSection t={t} />
+            )}
+
+            {/* Approved community — events + Community Workshops tab */}
+            {activeCommunity && (
+              <UserCommunitySection community={activeCommunity} t={t} />
             )}
 
           </div>

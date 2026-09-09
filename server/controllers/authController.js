@@ -89,6 +89,7 @@ const register = async (req, res) => {
       group: user.group,
       portal: user.portal,
       portalRole: user.portalRole,
+      communityMemberships: user.communityMemberships,
       createdAt: user.createdAt,
     };
 
@@ -166,10 +167,11 @@ const loginUser = async (req, res) => {
         department: user.department,
         semester: user.semester,
         group: user.group,
-        adminSection: user.adminSection,
+adminSection: user.adminSection,
         portal: user.portal,
         portalRole: user.portalRole,
         profileImage: user.profileImage,
+        communityMemberships: user.communityMemberships,
       },
     });
 
@@ -218,6 +220,7 @@ const getMe = async (req, res) => {
         profileImage: req.user.profileImage,
         coverPhoto: req.user.coverPhoto,
         bio: req.user.bio,
+        communityMemberships: req.user.communityMemberships,
       },
     });
   } catch (err) {

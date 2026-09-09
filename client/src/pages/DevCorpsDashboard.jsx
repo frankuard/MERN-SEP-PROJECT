@@ -22,7 +22,11 @@ import DevCorpsDocumentation from '../components/devcorps/DevCorpsDocumentation'
 import EventRequestSection from '../components/devcorps/EventRequestSection';
 import CommunitiesSection from '../components/devcorps/CommunitiesSection';
 
-import { communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data/devcorpsConfig';
+// Community Portal new features — Manage User + Workshop Release
+import CommunityPortalManageUser from '../components/community/CommunityPortalManageUser';
+import CommunityPortalWorkshopRelease from '../components/community/CommunityPortalWorkshopRelease';
+
+import { communityByAccount, communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data/devcorpsConfig';
 
 // Every valid URL segment for /devcorps/:tab. Anything else in the URL
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'.
@@ -32,7 +36,9 @@ import { communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data
 // 'admin') — members are redirected to the Events tab below.
 const VALID_DEV_CORPS_TABS = [
   'dashboard', 'events', 'chat', 'documentation', 'profile', 'manage-events',
-  // 'communities' overview + one tab per member community
+  // Manage User + Workshop Release — the five member community portals only
+  'manage-user', 'workshop-release',
+  // 'communities' overview + one tab per member community (admin-only menu)
   'communities',
   ...DEV_CORPS_COMMUNITIES.map(communityNavId),
 ];
@@ -62,6 +68,11 @@ const DevCorpsDashboard = () => {
   // A sidebar community nav id (e.g. 'community-ai-horizon') resolves to the
   // actual community, so the Communities view can filter its events.
   const activeCommunity = communityByNavId(activeTab);
+
+  // The member community this account belongs to (AI Horizon, DevSphere, ...)
+  // — used by Manage User + Workshop Release so each community only manages
+  // its own data. Null for the DevCorps portal admin.
+  const activeCommunityAccount = communityByAccount(user);
 
   const handleSidebarTabChange = (tabId) => setActiveTab(tabId);
 
@@ -279,6 +290,18 @@ onNavigateTab={setActiveTab}
             {/* Documentation — DevCorps-specific, backend-gated */}
             {activeTab === 'documentation' && (
               <DevCorpsDocumentation t={t} />
+            )}
+
+            {/* Manage User — replacement for the communities sidebar menu in
+                the five community portals (About / Members / Requests). */}
+            {activeTab === 'manage-user' && (
+              <CommunityPortalManageUser community={activeCommunityAccount} t={t} />
+            )}
+
+            {/* Workshop Release — the five community portals release and
+                manage their own workshops here. */}
+            {activeTab === 'workshop-release' && (
+              <CommunityPortalWorkshopRelease community={activeCommunityAccount} t={t} />
             )}
 
             {/* Chat — full reuse */}

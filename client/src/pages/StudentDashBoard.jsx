@@ -37,12 +37,20 @@ import ChatSection from '../components/student/ChatSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
 import lostFoundApi from '../api/lostFoundApi';
 
+// Community Portal (user side) — membership approval + community workshops
+import MembershipRequestsSection from '../components/community/MembershipRequestsSection';
+import UserCommunitySection from '../components/community/UserCommunitySection';
+import { communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data/devcorpsConfig';
+
 // Every valid section for /student/:tab. Anything else in the URL
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'
 // without forcing a redirect.
 const VALID_STUDENT_TABS = [
   'dashboard', 'resources', 'lost-found', 'canteen', 'ssd-help',
   'events', 'rte', 'campus-help', 'profile', 'chat',
+  // Community membership approval + one tab per approved community
+  'community-requests',
+  ...DEV_CORPS_COMMUNITIES.map(communityNavId),
 ];
 
 
@@ -58,6 +66,10 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const [viewingProfileId, setViewingProfileId] = useState(null);
   const activeTab = VALID_STUDENT_TABS.includes(tab) ? tab : 'dashboard';
+
+  // A sidebar community nav id (e.g. 'community-ai-horizon') resolves to the
+  // actual community, so the user-side Community section knows what to render.
+  const activeCommunity = communityByNavId(activeTab);
 
   // Same name/signature as before (`setActiveTab('lost-found')`), so every
   // existing caller — Sidebar, StudentNavbar, DashboardHome's onNavigateTab,
@@ -589,6 +601,16 @@ const StudentDashboard = () => {
                 announcements={announcements}
                 onNavigateTab={setActiveTab}
               />
+            )}
+
+            {/* Community membership requests — approval overlay lives here */}
+            {activeTab === 'community-requests' && (
+              <MembershipRequestsSection t={t} />
+            )}
+
+            {/* Approved community — events + Community Workshops tab */}
+            {activeCommunity && (
+              <UserCommunitySection community={activeCommunity} t={t} />
             )}
 
       

@@ -3,6 +3,7 @@ import { Bell, Menu } from 'lucide-react';
 import NavbarMeta from './NavbarMeta';
 import NotificationBell from '../../common/NotificationBell';
 import ChatButton from '../../common/ChatButton';
+import { communityByNavId } from '../../../data/devcorpsConfig';
 
 
 const PAGE_TITLES = {
@@ -23,6 +24,9 @@ const PAGE_TITLES = {
   rte: 'Routine & Timetable',
   documentation: 'Documentation',
   'manage-events': 'Manage Events',
+  'manage-user': 'Manage User',
+  'workshop-release': 'Workshop Release',
+  'community-requests': 'Community Requests',
   // Teacher tabs
   announcements: 'Announcements',
   requests: 'Student Requests',
@@ -44,9 +48,12 @@ const StudentNavbar = ({
   onOpenFriendRequests,
   customPageTitle,
 }) => {
+// Resolve a dynamic title for approved-community tabs (e.g. 'community-ai-horizon').
+  const community = communityByNavId(activeTab);
+  const communityTitle = community ? community.name : undefined;
 const pageTitle = customPageTitle !== undefined
   ? customPageTitle
-  : (PAGE_TITLES[activeTab] || 'Dashboard');
+  : (PAGE_TITLES[activeTab] || communityTitle || 'Dashboard');
   const initial = (studentName || username || 'S').charAt(0).toUpperCase();
 
   return (

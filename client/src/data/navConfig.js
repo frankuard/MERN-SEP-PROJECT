@@ -3,7 +3,8 @@ import {
   Megaphone, Calendar, Inbox, BarChart3, MessageSquare, BookOpen,
   AlertTriangle, ClipboardList, Settings, LogOut,
    PlusCircle, TrendingUp, Bell,
-  Building2, School, GraduationCap, Clock, Video, UtensilsCrossed, Users    // ← add UtensilsCrossed here
+  Building2, School, GraduationCap, Clock, Video, UtensilsCrossed, Users,
+  UserCog, Presentation,    // ← Manage User + Workshop Release (community portal)
 } from "lucide-react";
 
 const navConfig = {
@@ -34,12 +35,15 @@ const navConfig = {
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'documentation', label: 'Documentation', icon: FileText },
-    // Communities — DevCorps-only expandable item. Clicking it reveals the
-    // five member communities as their own navigation items.
+    // Communities — DevCorps ADMIN ONLY. The five member communities'
+    // portals had their sidebar "Community" section replaced by "Manage
+    // User" (see below), so this expandable menu stays visible just for the
+    // portal admin who oversees all five communities.
     {
       id: 'communities',
       label: 'Communities',
       icon: Users,
+      devcorpsAdminOnly: true,
       children: [
         { id: 'community-ai-horizon', label: 'AI Horizon' },
         { id: 'community-devsphere', label: 'DevSphere' },
@@ -48,6 +52,11 @@ const navConfig = {
         { id: 'community-incognitous', label: 'Incognitous' },
       ],
     },
+    // The five member communities (portalRole 'member') get Manage User in
+    // place of the old Communities menu, plus a dedicated Workshop Release
+    // screen. None of it is shown to the DevCorps portal admin.
+    { id: 'manage-user', label: 'Manage User', icon: UserCog, devcorpsMemberOnly: true },
+    { id: 'workshop-release', label: 'Workshop Release', icon: Presentation, devcorpsMemberOnly: true },
     // Exclusive to the DevCorps portal admin (user.portalRole === 'admin').
     // Sidebar hides this item for regular community members.
     { id: 'manage-events', label: 'Manage Events', icon: Calendar, devcorpsAdminOnly: true },
