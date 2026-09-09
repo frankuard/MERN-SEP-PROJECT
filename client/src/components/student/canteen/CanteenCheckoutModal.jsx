@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import canteenApi from '../../../api/canteenApi';
+import CanteenTableMap from './CanteenTableMap';
 
 const CanteenCheckoutModal = ({ t, cart, onClose, onSuccess }) => {
   const [step, setStep] = useState(1);
@@ -97,7 +98,7 @@ const CanteenCheckoutModal = ({ t, cart, onClose, onSuccess }) => {
             </div>
           )}
 
-          {/* STEP 1 — TABLE SELECTION */}
+          {/* STEP 1 — TABLE SELECTION (interactive canteen map) */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -105,43 +106,16 @@ const CanteenCheckoutModal = ({ t, cart, onClose, onSuccess }) => {
                   <Table2 size={18} style={{ color: t.textPrimary }} />
                 </div>
                 <div>
-                  <p className="text-sm font-extrabold" style={{ color: t.textPrimary }}>Select Table Number</p>
-                  <p className="text-xs" style={{ color: t.textMuted }}>Choose where your food will be served.</p>
+                  <p className="text-sm font-extrabold" style={{ color: t.textPrimary }}>Select Your Table</p>
+                  <p className="text-xs" style={{ color: t.textMuted }}>Tap a table on the canteen map below.</p>
                 </div>
               </div>
 
-              <div>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>Table Number</label>
-                <select
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  className="w-full rounded-xl border bg-transparent px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-offset-1"
-                  style={{ ...inputStyle, ['--tw-ring-color']: t.accentPrimary }}
-                >
-                  <option value="">Select a table...</option>
-                  {Array.from({ length: 9 }, (_, i) => i + 1).map((num) => (
-                    <option key={num} value={num}>Table {num}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {Array.from({ length: 9 }, (_, i) => i + 1).map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => setTableNumber(String(num))}
-                    className="rounded-xl border py-3 text-sm font-extrabold transition-all"
-                    style={{
-                      backgroundColor: tableNumber === String(num) ? t.accentPrimary : t.pageBg,
-                      color: tableNumber === String(num) ? t.pageBg : t.textPrimary,
-                      borderColor: tableNumber === String(num) ? t.accentPrimary : t.border,
-                    }}
-                  >
-                    {num}
-                  </button>
-                ))}
-              </div>
+              <CanteenTableMap
+                selectedTable={tableNumber}
+                onSelect={(num) => setTableNumber(num)}
+                t={t}
+              />
             </div>
           )}
 
