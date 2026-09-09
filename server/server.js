@@ -42,6 +42,7 @@ const notificationRoutes = require('./routes/notification.routes');
 const friendRoutes = require('./routes/friend.routes');
 const aiChatRoutes = require('./routes/aiChat.routes');
 const userRoutes = require('./routes/user.routes');
+const courseworkRoutes = require('./routes/coursework.routes');
 const app = express();
 
 
@@ -121,6 +122,7 @@ app.use('/api/chat', require('./routes/chat.routes'));
 app.use('/api/friends', friendRoutes);
 app.use('/api/ai', aiChatRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/coursework', courseworkRoutes);
 
 connectDB();
 

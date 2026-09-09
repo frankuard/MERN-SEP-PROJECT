@@ -27,6 +27,7 @@ const NOTIFICATION_TYPES = [
   'message',                // someone sent you a message / a message in a group you're in
   'community_membership',  // a community invited you / your response was noted
   'community_workshop',    // a community you joined released a new workshop
+  'coursework',            // new coursework assigned or submission graded
   'general',               // fallback / anything not covered above
 ];
 

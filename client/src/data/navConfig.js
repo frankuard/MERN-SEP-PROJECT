@@ -4,12 +4,13 @@ import {
   AlertTriangle, ClipboardList, Settings, LogOut,
    PlusCircle, TrendingUp, Bell,
   Building2, School, GraduationCap, Clock, Video, UtensilsCrossed, Users,
-  UserCog, Presentation,    // ← Manage User + Workshop Release (community portal)
+  UserCog, Presentation, BookMarked,
 } from "lucide-react";
 
 const navConfig = {
   student: [
     { id: "dashboard", label: "Dashboard", icon: Home },
+    { id: "coursework", label: "Coursework", icon: BookMarked },
     { id: "events", label: "Events", icon: Calendar },
     { id: "chat", label: "Chat", icon: MessageSquare },
     { id: "canteen", label: "Canteen", icon: Coffee },
@@ -21,6 +22,7 @@ const navConfig = {
   ],
   teacher: [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'coursework', label: 'Coursework', icon: BookMarked },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'canteen', label: 'Canteen', icon: Coffee },

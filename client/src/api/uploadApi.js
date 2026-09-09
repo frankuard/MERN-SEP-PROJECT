@@ -16,10 +16,10 @@ const uploadApi = {
 
   // Images or documents (PDF, Word, Excel, TXT, MD) — used for chat attachments.
   // Routed into a per-user folder on the backend: /chat-attachments/{username}/
-  uploadDocument: async (file) => {
+  uploadDocument: async (file, folder = 'coursework') => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('folder', 'chat-attachment');
+    formData.append('folder', folder);
     const res = await axiosInstance.post('/upload/document', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

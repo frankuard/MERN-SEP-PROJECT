@@ -19,6 +19,7 @@ import CanteenSection   from '../components/student/CanteenSection';
 import LostFoundSection from '../components/student/LostFoundSection';
 import CampusHelpSection from '../components/student/CampusHelpSection';
 import TimetableSection from '../components/student/TimetableSection';
+import TeacherCourseworkSection from '../components/teacher/coursework/TeacherCourseworkSection';
 
 // Teacher-specific dashboard home (greeting hero + announcements + events + canteen)
 import TeacherDashboardHome from '../components/teacher/TeacherDashboardHome';
@@ -30,7 +31,7 @@ import { communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data
 
 // Every valid URL segment for /teacher/:tab
 const VALID_TEACHER_TABS = [
-  'dashboard', 'events', 'chat', 'canteen', 'lost-found',
+  'dashboard', 'coursework', 'events', 'chat', 'canteen', 'lost-found',
   'campus-help', 'rte', 'resources', 'profile',
   // Community membership approval + one tab per approved community
   'community-requests',
@@ -40,6 +41,7 @@ const VALID_TEACHER_TABS = [
 // Teacher-specific page titles shown in the sticky navbar
 const TEACHER_PAGE_TITLES = {
   dashboard:   'Dashboard',
+  coursework:  'Coursework',
   events:      'Campus Events',
   chat:        'Chat',
   canteen:     'Canteen',
@@ -108,6 +110,7 @@ const TeacherDashboard = () => {
         <StudentNavbar
           t={t}
           activeTab={activeTab}
+          customPageTitle={TEACHER_PAGE_TITLES[activeTab]}
           onNavigateHome={() => setActiveTab('dashboard')}
           studentName={teacherName}
           username={user?.username || ''}
@@ -207,6 +210,11 @@ const TeacherDashboard = () => {
                 teacherName={teacherName}
                 onNavigateTab={setActiveTab}
               />
+            )}
+
+            {/* Coursework & Assignments */}
+            {activeTab === 'coursework' && (
+              <TeacherCourseworkSection t={t} user={user} />
             )}
 
             {/* Events — full reuse */}

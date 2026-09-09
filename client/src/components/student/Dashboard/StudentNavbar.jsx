@@ -9,6 +9,7 @@ import { communityByNavId } from '../../../data/devcorpsConfig';
 const PAGE_TITLES = {
   // Student tabs
   dashboard: 'Dashboard',
+  coursework: 'Coursework',
   events: 'Campus Events',
   'lost-found': 'Lost & Found',
   resources: 'Resources',

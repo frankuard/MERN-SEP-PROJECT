@@ -35,6 +35,7 @@ import CampusHelpSection from '../components/student/CampusHelpSection';
 import ProfileSection from '../components/student/ProfileSection';
 import ChatSection from '../components/student/ChatSection';
 import StudentNavbar from '../components/student/Dashboard/StudentNavbar';
+import StudentCourseworkSection from '../components/student/coursework/StudentCourseworkSection';
 import lostFoundApi from '../api/lostFoundApi';
 
 // Community Portal (user side) — membership approval + community workshops
@@ -46,7 +47,7 @@ import { communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data
 // (typo, stale bookmark, etc.) silently falls back to rendering 'dashboard'
 // without forcing a redirect.
 const VALID_STUDENT_TABS = [
-  'dashboard', 'resources', 'lost-found', 'canteen', 'ssd-help',
+  'dashboard', 'coursework', 'resources', 'lost-found', 'canteen', 'ssd-help',
   'events', 'rte', 'campus-help', 'profile', 'chat',
   // Community membership approval + one tab per approved community
   'community-requests',
@@ -510,6 +511,11 @@ const StudentDashboard = () => {
               ? 'flex flex-1 flex-col p-4 sm:p-6'
               : `mx-auto space-y-8 ${activeTab === 'dashboard' ? 'max-w-5xl' : 'max-w-6xl'}`
           } style={activeTab === 'dashboard' ? { fontFamily: '"Nunito", sans-serif' } : undefined}>
+            {/* 0. Coursework Section */}
+            {activeTab === 'coursework' && (
+              <StudentCourseworkSection t={t} user={user} />
+            )}
+
             {/* 1. Resources Section */}
             {activeTab === 'resources' && (
   <ResourcesSection

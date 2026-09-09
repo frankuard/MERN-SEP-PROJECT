@@ -6,6 +6,7 @@ const { getImageKit, isImageKitConfigured } = require('../config/imagekit');
 const ALLOWED_FOLDERS = {
   'profile-photo': '/profile-photos',
   'cover-photo': '/cover-photos',
+  'coursework': '/coursework',
 };
 
 // Sanitize a username into something safe to use as a folder name — strips
