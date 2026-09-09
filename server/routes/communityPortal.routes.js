@@ -33,6 +33,22 @@ router.get(
   communityPortalController.getCommunityMemberCounts
 );
 
+// ── About Community profiles (single source of truth) ──────────────────────
+// GET is the shared read for both the Managed Users About tab and the DevCorps
+// Communities Portal dropdowns. PUT edits from Managed Users and feeds every
+// consumer automatically.
+router.get(
+  '/communities',
+  authMiddleware,
+  communityPortalController.getCommunityProfiles
+);
+router.put(
+  '/communities/:communityId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  communityPortalController.updateCommunityProfile
+);
+
 // ── User side — the signed-in user's own requests / memberships ────────────
 router.get(
   '/my/requests',

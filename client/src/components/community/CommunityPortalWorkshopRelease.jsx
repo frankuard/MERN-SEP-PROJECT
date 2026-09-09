@@ -202,9 +202,6 @@ const CommunityPortalWorkshopRelease = ({ community, t }) => {
           <h2 className="text-2xl font-bold tracking-tight sm:text-[26px]" style={{ color: t.textPrimary }}>
             Workshop Release
           </h2>
-          <p className="mt-0.5 text-sm" style={{ color: t.textMuted }}>
-            {community.name} · release a workshop for your community members
-          </p>
         </div>
       </div>
 

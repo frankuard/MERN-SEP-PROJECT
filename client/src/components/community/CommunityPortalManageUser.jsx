@@ -4,15 +4,19 @@ import {
   ClipboardList,
   Info,
   Loader2,
+  Pencil,
   RefreshCw,
+  Save,
   Search,
   Send,
   UserCheck,
   UserPlus,
   Users,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import communityPortalApi from '../../api/communityPortalApi';
+import CommunityAboutPanel from './CommunityAboutPanel';
 
 const ACCENT = '#9333ea';
 
@@ -24,18 +28,93 @@ const STATUS_BADGE = {
 
 const statusBadge = (status) => STATUS_BADGE[status] || STATUS_BADGE.pending;
 
+const formatUpdated = (isoString) => {
+  if (!isoString) return null;
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const listToText = (items) => (Array.isArray(items) ? items.join('\n') : '');
+
+const splitText = (value) =>
+  String(value || '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const PROFILE_FIELDS = [
+  {
+    key: 'description',
+    label: 'Description',
+    hint: 'What this community is about',
+    placeholder: 'Describe the community — its field, focus, and what members do here...',
+  },
+  {
+    key: 'purpose',
+    label: 'Purpose',
+    hint: 'Why this community exists',
+    placeholder: 'The goal and mission of the community...',
+  },
+  {
+    key: 'activities',
+    label: 'Activities',
+    hint: 'One activity per line',
+    placeholder: 'Hackathons\nGuest talks\nSeminars',
+  },
+  {
+    key: 'workshops',
+    label: 'Workshops',
+    hint: 'One workshop per line',
+    placeholder: 'Workshop name 1\nWorkshop name 2',
+  },
+  {
+    key: 'learningAreas',
+    label: 'Learning Areas',
+    hint: 'One learning area per line',
+    placeholder: 'Area 1\nArea 2',
+  },
+];
+
 // ── About Community ─────────────────────────────────────────────────────────
-const AboutCommunity = ({ community, t }) => {
+// Reads the shared CommunityProfile record (the single source of truth the
+// DevCorps Communities Portal dropdowns render too) and lets the community
+// account edit it here. Saving updates the DB and broadcasts the change, so
+// the Communities Portal shows the new content immediately.
+//
+// Exported so the DevCorps Communities section (clicking a community in the
+// sidebar) renders the EXACT same About Community screen as this Manage User
+// tab — same header, same About content, same member/pending counts.
+export const AboutCommunity = ({ community, t }) => {
+  const [profile, setProfile] = useState(null);
+  const [form, setForm] = useState(null);
   const [stats, setStats] = useState({ members: 0, pending: 0, total: 0 });
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    communityPortalApi
-      .getMemberships(community.id)
-      .then((data) => {
-        const list = Array.isArray(data?.memberships) ? data.memberships : [];
+    Promise.all([
+      communityPortalApi.getCommunityProfiles(),
+      communityPortalApi.getMemberships(community.id),
+    ])
+      .then(([profilesData, membershipsData]) => {
         if (!mounted) return;
+        const list = Array.isArray(membershipsData?.memberships) ? membershipsData.memberships : [];
+        const found = (profilesData?.profiles || []).find((p) => p.communityId === community.id);
+        setProfile(found || null);
+        setForm(
+          found
+            ? {
+                description: found.description || '',
+                purpose: found.purpose || '',
+                activities: listToText(found.activities),
+                workshops: listToText(found.workshops),
+                learningAreas: listToText(found.learningAreas),
+              }
+            : null
+        );
         setStats({
           total: list.length,
           members: list.filter((m) => m.status === 'accepted').length,
@@ -47,13 +126,40 @@ const AboutCommunity = ({ community, t }) => {
     return () => { mounted = false; };
   }, [community.id]);
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const data = await communityPortalApi.updateCommunityProfile(community.id, {
+        description: (form?.description || '').trim(),
+        purpose: (form?.purpose || '').trim(),
+        activities: splitText(form?.activities),
+        workshops: splitText(form?.workshops),
+        learningAreas: splitText(form?.learningAreas),
+      });
+      setProfile(data.profile);
+      setForm({
+        description: data.profile.description || '',
+        purpose: data.profile.purpose || '',
+        activities: listToText(data.profile.activities),
+        workshops: listToText(data.profile.workshops),
+        learningAreas: listToText(data.profile.learningAreas),
+      });
+      setEditing(false);
+      toast.success('About Community updated');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not save About Community');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div
         className="flex flex-col rounded-2xl border p-5 sm:col-span-2 sm:p-6"
         style={{ backgroundColor: t.cardBg, borderColor: t.border }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           {community.logo ? (
             <img
               src={community.logo}
@@ -70,7 +176,7 @@ const AboutCommunity = ({ community, t }) => {
               {community.name.charAt(0)}
             </div>
           )}
-          <div>
+          <div className="min-w-0 flex-1">
             <h3 className="text-xl font-extrabold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
               {community.name}
             </h3>
@@ -78,10 +184,75 @@ const AboutCommunity = ({ community, t }) => {
               Community account · DevCorps Community Portal
             </p>
           </div>
+          {!loading && (
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
+              style={{ backgroundColor: ACCENT }}
+            >
+              {editing ? <X size={13} /> : <Pencil size={13} />}
+              {editing ? 'Cancel' : 'Edit About'}
+            </button>
+          )}
         </div>
-        <p className="mt-4 text-sm leading-relaxed sm:text-[15px]" style={{ color: t.textSecondary }}>
-          {community.about}
-        </p>
+
+        {loading ? (
+          <div className="mt-5 flex items-center gap-2 text-sm font-semibold" style={{ color: t.textMuted }}>
+            <Loader2 size={15} className="animate-spin" /> Loading About Community...
+          </div>
+        ) : editing ? (
+          <div className="mt-5 space-y-4">
+            {PROFILE_FIELDS.map(({ key, label, hint, placeholder }) => (
+              <div key={key}>
+                <label className="block text-xs font-extrabold uppercase tracking-wider" style={{ color: t.textMuted }}>
+                  {label}
+                  <span className="ml-2 normal-case font-semibold" style={{ color: t.textMuted }}>
+                    {hint}
+                  </span>
+                </label>
+                <textarea
+                  value={form?.[key] || ''}
+                  onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                  rows={key === 'description' || key === 'purpose' ? 3 : 2}
+                  placeholder={placeholder}
+                  className="mt-2 w-full rounded-xl border px-4 py-3 text-sm"
+                  style={{ backgroundColor: t.pageBg, borderColor: t.border, color: t.textPrimary }}
+                />
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 rounded-xl bg-black px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Save About Community
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEditing(false); }}
+                className="flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-bold transition-opacity hover:opacity-80"
+                style={{ borderColor: t.border, color: t.textSecondary }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mt-5">
+              <CommunityAboutPanel profile={profile} t={t} />
+            </div>
+            {profile?.updatedAt && (
+              <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide" style={{ color: t.textMuted }}>
+                Updated {formatUpdated(profile.updatedAt)}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div
