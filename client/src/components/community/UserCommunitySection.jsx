@@ -3,12 +3,15 @@ import {
   Calendar,
   CalendarDays,
   CalendarOff,
+  ClipboardList,
   Clock,
+  Info,
   Loader2,
   Lock,
   MapPin,
   Presentation,
   RefreshCw,
+  UserCheck,
   UserRound,
   Users,
   X,
@@ -16,6 +19,8 @@ import {
 import eventsApi from '../../api/eventsApi';
 import communityPortalApi from '../../api/communityPortalApi';
 import { useAuth } from '../../context/AuthContext';
+import { getSocket } from '../../socket/socket';
+import CommunityAboutPanel from './CommunityAboutPanel';
 
 const ACCENT = '#9333ea';
 
@@ -345,10 +350,140 @@ const CommunityEventsView = ({ community, t }) => {
   );
 };
 
+// ── About Community tab ─────────────────────────────────────────────────────
+// Renders the community's About Community content from the SAME shared
+// CommunityProfile the community edits under Manage User → About Community.
+// When a community updates its About content there, the change lands in the
+// DB and is broadcast over WebSocket ('community:profile'), so this user tab
+// reflects the edit immediately — no refresh needed.
+const CommunityAboutView = ({ community, t }) => {
+  const [profile, setProfile] = useState(null);
+  const [counts, setCounts] = useState({});
+  const [pendingCounts, setPendingCounts] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([
+      communityPortalApi.getCommunityProfiles(),
+      communityPortalApi.getMemberCounts(),
+    ])
+      .then(([profilesData, countsData]) => {
+        if (!active) return;
+        setProfile((profilesData?.profiles || []).find((p) => p.communityId === community.id) || null);
+        if (countsData?.counts) setCounts(countsData.counts);
+        if (countsData?.pendingCounts) setPendingCounts(countsData.pendingCounts);
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setLoading(false); });
+
+    const socket = getSocket();
+    const onProfile = (payload) => {
+      if (payload && typeof payload === 'object' && payload.communityId === community.id && payload.profile) {
+        setProfile(payload.profile);
+      }
+    };
+    const onMemberCount = (payload) => {
+      if (!payload || typeof payload !== 'object') return;
+      if (payload.counts && typeof payload.counts === 'object') {
+        setCounts((prev) => ({ ...prev, ...payload.counts }));
+      }
+      if (payload.pendingCounts && typeof payload.pendingCounts === 'object') {
+        setPendingCounts((prev) => ({ ...prev, ...payload.pendingCounts }));
+      }
+    };
+    socket.on('community:profile', onProfile);
+    socket.on('community:memberCount', onMemberCount);
+
+    return () => {
+      active = false;
+      socket.off('community:profile', onProfile);
+      socket.off('community:memberCount', onMemberCount);
+    };
+  }, [community.id]);
+
+  const memberCount = counts[community.id] ?? 0;
+  const pendingCount = pendingCounts[community.id] ?? 0;
+
+  return (
+    <div className="space-y-4">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-12" style={{ borderColor: t.border }}>
+          <Loader2 size={20} className="animate-spin" style={{ color: t.textMuted }} />
+          <p className="text-sm font-semibold" style={{ color: t.textMuted }}>Loading About Community...</p>
+        </div>
+      ) : (
+        <>
+          {/* Same About content the community manages, shown verbatim — with
+              the community's own stored logo up top (how it appears in that
+              community's Manage User → About Community screen). */}
+          <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+            <div className="flex items-center gap-3">
+              {community.logo ? (
+                <img
+                  src={community.logo}
+                  alt={`${community.name} logo`}
+                  className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+                  style={{ border: `1px solid ${t.border}` }}
+                  loading="lazy"
+                />
+              ) : (
+                <div
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-extrabold"
+                  style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+                >
+                  {community.name.charAt(0)}
+                </div>
+              )}
+              <div>
+                <h3 className="text-xl font-extrabold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
+                  {community.name}
+                </h3>
+                <p className="text-sm font-medium" style={{ color: t.textMuted }}>
+                  Community account · DevCorps Community Portal
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <CommunityAboutPanel profile={profile} t={t} />
+            </div>
+          </div>
+
+          {/* Live stats from the database (same cards as About Community) */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <div className="flex items-center gap-2 text-sm font-bold" style={{ color: t.textMuted }}>
+                <UserCheck size={16} style={{ color: ACCENT }} />
+                Community Members
+              </div>
+              <p className="mt-3 text-3xl font-extrabold" style={{ color: t.textPrimary }}>{memberCount}</p>
+              <p className="mt-1 text-xs font-medium" style={{ color: t.textMuted }}>
+                Approved members with the Community section in their sidebar
+              </p>
+            </div>
+            <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <div className="flex items-center gap-2 text-sm font-bold" style={{ color: t.textMuted }}>
+                <ClipboardList size={16} style={{ color: ACCENT }} />
+                Pending Requests
+              </div>
+              <p className="mt-3 text-3xl font-extrabold" style={{ color: t.textPrimary }}>{pendingCount}</p>
+              <p className="mt-1 text-xs font-medium" style={{ color: t.textMuted }}>
+                Invitations waiting for the user&apos;s decision
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 // ── User Community section shell ─────────────────────────────────────────────
 const UserCommunitySection = ({ community, t }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('events');
+  const [activeTab, setActiveTab] = useState('about');
 
   const isMember = Array.isArray(user?.communityMemberships)
     && user.communityMemberships.some((m) => m.communityId === community.id);
@@ -368,9 +503,8 @@ const UserCommunitySection = ({ community, t }) => {
     );
   }
 
-  const workshopsTab = <CommunityWorkshopsView community={community} t={t} />;
-
   const tabs = [
+    { id: 'about', label: 'About Community', icon: Info },
     { id: 'events', label: 'Community Events', icon: Calendar },
     { id: 'workshops', label: 'Community Workshops', icon: Presentation },
   ];
@@ -427,8 +561,9 @@ const UserCommunitySection = ({ community, t }) => {
         })}
       </div>
 
+      {activeTab === 'about' && <CommunityAboutView community={community} t={t} />}
       {activeTab === 'events' && <CommunityEventsView community={community} t={t} />}
-      {activeTab === 'workshops' && workshopsTab}
+      {activeTab === 'workshops' && <CommunityWorkshopsView community={community} t={t} />}
     </div>
   );
 };
