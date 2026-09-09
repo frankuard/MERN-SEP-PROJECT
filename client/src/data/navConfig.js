@@ -4,7 +4,7 @@ import {
   AlertTriangle, ClipboardList, Settings, LogOut,
    PlusCircle, TrendingUp, Bell,
   Building2, School, GraduationCap, Clock, Video, UtensilsCrossed, Users,
-  UserCog, Presentation, BookMarked, Info, ScrollText,
+  UserCog, Presentation, BookMarked,
 } from "lucide-react";
 
 const navConfig = {
@@ -56,11 +56,10 @@ const navConfig = {
     },
     // The five member communities (portalRole 'member') get Manage User in
     // place of the old Communities menu, plus a dedicated Workshop Release
-    // screen. None of it is shown to the DevCorps portal admin. About Community
-    // and Constitution are their own sidebar entries so each community can
-    // reach its profile edit screen and its uploaded constitution directly.
-    { id: 'about-community', label: 'About Community', icon: Info, devcorpsMemberOnly: true },
-    { id: 'constitution', label: 'Constitution', icon: ScrollText, devcorpsMemberOnly: true },
+    // screen. None of it is shown to the DevCorps portal admin. The About
+    // Community + Constitution content lives INSIDE Manage User as read-only
+    // tabs — these community accounts cannot edit their profile or replace/
+    // delete their constitution (admin-only, from the Communities menu).
     { id: 'manage-user', label: 'Manage User', icon: UserCog, devcorpsMemberOnly: true },
     { id: 'workshop-release', label: 'Workshop Release', icon: Presentation, devcorpsMemberOnly: true },
     // Exclusive to the DevCorps portal admin (user.portalRole === 'admin').

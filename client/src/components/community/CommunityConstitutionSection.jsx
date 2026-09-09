@@ -90,9 +90,12 @@ const useConstitutionLoader = (communityId, fetchApi) => {
 };
 
 // ── Manage (community account / DevCorps portal admin) ─────────────────────
-// Upload, replace, and delete the community's own constitution. Only this
-// section exposes management controls; member/reader views never render them.
-export const ManageConstitution = ({ community, t }) => {
+// Upload, replace, and delete the community's own constitution when `editable`
+// (the DevCorps portal admin, from the Communities menu). The five member
+// community accounts render it read-only (editable={false}) — they can open
+// and download their constitution but never replace/delete it. Member/reader
+// views never render management controls either.
+export const ManageConstitution = ({ community, t, editable = true }) => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const { constitution, status, retry } = useConstitutionLoader(
@@ -167,27 +170,33 @@ export const ManageConstitution = ({ community, t }) => {
               No constitution uploaded yet
             </p>
             <p className="mx-auto mt-1 max-w-sm text-xs font-medium leading-relaxed" style={{ color: t.textMuted }}>
-              Upload {community.name}&apos;s constitution (PDF, DOC or DOCX) so members can read it from their Community section.
+              {editable
+                ? `Upload ${community.name}'s constitution (PDF, DOC or DOCX) so members can read it from their Community section.`
+                : 'The DevCorps portal admin publishes the constitution here. When it is uploaded, you can read and download it.'}
             </p>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            className="hidden"
-            onChange={handleUpload}
-            disabled={uploading}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-            {uploading ? 'Uploading…' : 'Upload Constitution'}
-          </button>
+          {editable && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: ACCENT }}
+              >
+                {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                {uploading ? 'Uploading…' : 'Upload Constitution'}
+              </button>
+            </>
+          )}
         </StatusBox>
       )}
 
@@ -199,45 +208,53 @@ export const ManageConstitution = ({ community, t }) => {
                 Updated {formatUpdated(constitution.updatedAt)}
               </span>
             )}
-            <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
-              Members can read — only this account can edit
-            </span>
+            {editable ? (
+              <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
+                Members can read — only an admin can edit
+              </span>
+            ) : (
+              <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
+                Community constitution — read & download
+              </span>
+            )}
           </div>
 
           <DocumentViewer file={constitution} t={t} />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ backgroundColor: ACCENT }}
-            >
-              {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-              {uploading ? 'Uploading…' : 'Replace Constitution'}
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors hover:bg-red-50"
-              style={{ borderColor: t.border, color: '#ef4444' }}
-            >
-              <Trash2 size={15} />
-              Delete Constitution
-            </button>
-            <p className="w-full text-xs font-medium sm:w-auto sm:flex-1" style={{ color: t.textMuted }}>
-              Uploading a new file replaces the current constitution (new version).
-            </p>
-          </div>
+          {editable && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: ACCENT }}
+              >
+                {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                {uploading ? 'Uploading…' : 'Replace Constitution'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors hover:bg-red-50"
+                style={{ borderColor: t.border, color: '#ef4444' }}
+              >
+                <Trash2 size={15} />
+                Delete Constitution
+              </button>
+              <p className="w-full text-xs font-medium sm:w-auto sm:flex-1" style={{ color: t.textMuted }}>
+                Uploading a new file replaces the current constitution (new version).
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>
