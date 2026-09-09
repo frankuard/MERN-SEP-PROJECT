@@ -96,6 +96,22 @@ const userSchema = new mongoose.Schema(
       maxlength: [280, 'Bio cannot exceed 280 characters'],
     },
 
+    // Approved community memberships (from the Community Portal's Manage
+    // User workflow). Only communities the user has accepted appear here —
+    // this is the source of truth the sidebar reads to decide whether to
+    // show its Community section. Pending/rejected requests live in the
+    // CommunityMembership collection, never here.
+    communityMemberships: {
+      type: [
+        {
+          communityId: { type: String, trim: true },
+          communityName: { type: String, trim: true },
+          approvedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+
     lastLogin: {
       type: Date,
       default: Date.now,

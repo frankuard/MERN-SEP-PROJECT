@@ -1,6 +1,6 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import navConfig from '../../data/navConfig';
@@ -63,11 +63,47 @@ const Sidebar = ({
   // mini nav) can pass its own short item list — falls back to the
   // untouched role-based lookup everywhere else, unchanged.
   // Items flagged `devcorpsAdminOnly` (e.g. DevCorps Manage Events) are
-  // hidden unless the signed-in user is a portal admin.
-  const allItems = navItems || navConfig[role] || navConfig.student;
-  const items = allItems.filter(
-    (item) => !item.devcorpsAdminOnly || user?.portalRole === 'admin'
+  // hidden unless the signed-in user is a portal admin; items flagged
+  // `devcorpsMemberOnly` (Manage User, Workshop Release) are hidden from the
+  // portal admin and shown only to the five community member accounts.
+  const isPortalMember = role === 'devcorpsCommunity' && user?.portalRole === 'member';
+  const isDevCorpsAdmin = role === 'devcorpsCommunity' && user?.portalRole === 'admin';
+
+  const baseItems = navItems || navConfig[role] || navConfig.student;
+  let items = baseItems.filter(
+    (item) =>
+      (!item.devcorpsAdminOnly || isDevCorpsAdmin) &&
+      (!item.devcorpsMemberOnly || isPortalMember)
   );
+
+  // Dynamic "Community" section — the user panel equivalent of the community
+  // portal's Manage User. Only appears once the user has at least one
+  // APPROVED community membership (guaranteed by the backend, which decides
+  // what lands in user.communityMemberships). Each approved community is a
+  // child item; rejected/pending requests never show up here.
+  const approvedCommunities = Array.isArray(user?.communityMemberships)
+    ? user.communityMemberships
+    : [];
+  // The Community section is a feature of the Student/Teacher user panels
+  // (the community-* and community-requests routes live in those dashboards).
+  const supportsCommunityPanel = role === 'student' || role === 'teacher';
+  if (supportsCommunityPanel && approvedCommunities.length > 0) {
+    const communitySection = {
+      id: 'community',
+      label: 'Community',
+      icon: Users,
+      children: approvedCommunities.map((membership) => ({
+        id: `community-${membership.communityId}`,
+        label: membership.communityName,
+      })),
+    };
+    const insertAt = items.findIndex((item) => item.id === 'dashboard') + 1 || 1;
+    items = [
+      ...items.slice(0, insertAt),
+      communitySection,
+      ...items.slice(insertAt),
+    ];
+  }
   const username = user?.username || '';
   // Second line under the name: admin accounts show their department
   // ("Resource Admin", "SSD Admin"...), everyone else shows nothing here
@@ -80,7 +116,7 @@ const Sidebar = ({
   // directly on /devcorps/community-ai-horizon keeps the menu open).
   const [expandedGroups, setExpandedGroups] = useState(() => {
     const initial = new Set();
-    allItems.forEach((item) => {
+    items.forEach((item) => {
       if (
         Array.isArray(item.children) &&
         item.children.some((c) => c.id === activeId)
@@ -106,6 +142,24 @@ const Sidebar = ({
     };
   }, [items, collapsed]);
 
+  // If the active tab is inside an expandable group, keep that group open.
+  // Dynamic items (e.g. the user's Community section loading after /auth/me)
+  // need this so the active child is visible even on a hard refresh.
+  useEffect(() => {
+    if (!activeId) return;
+    const owningGroup = items.find(
+      (item) => Array.isArray(item.children) && item.children.some((c) => c.id === activeId)
+    );
+    if (owningGroup) {
+      setExpandedGroups((prev) => {
+        if (prev.has(owningGroup.id)) return prev;
+        const next = new Set(prev);
+        next.add(owningGroup.id);
+        return next;
+      });
+    }
+  }, [items, activeId]);
+
   // Close the mobile drawer automatically if the viewport grows into desktop size
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -130,8 +184,9 @@ const Sidebar = ({
   const handleItemClick = (id) => {
     if (controlledActiveTab === undefined) setInternalActiveId(id);
     // Keep the expandable group open when one of its children is activated
-    // (e.g. a DevCorps community under the "Communities" item).
-    const owningGroup = allItems.find(
+    // (e.g. a DevCorps community under the "Communities" item, or an approved
+    // community under the user's dynamic Community section).
+    const owningGroup = items.find(
       (item) => Array.isArray(item.children) && item.children.some((c) => c.id === id)
     );
     if (owningGroup) {

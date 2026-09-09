@@ -25,6 +25,8 @@ const NOTIFICATION_TYPES = [
   'friend',                // friend request received / accepted
   'group',                 // group invite received / accepted
   'message',                // someone sent you a message / a message in a group you're in
+  'community_membership',  // a community invited you / your response was noted
+  'community_workshop',    // a community you joined released a new workshop
   'general',               // fallback / anything not covered above
 ];
 

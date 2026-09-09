@@ -101,6 +101,23 @@ const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Re-fetch the authenticated user from the backend (e.g. right after the
+  // user approves a community membership, so the sidebar's Community section
+  // appears immediately). Returns the fresh user or null on failure.
+  const refreshUser = useCallback(async () => {
+    try {
+      const response = await axiosInstance.get('/auth/me');
+      if (response.data?.user) {
+        setUser(response.data.user);
+        return response.data.user;
+      }
+      return null;
+    } catch (error) {
+      console.error('Refresh user error:', error);
+      return null;
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -110,8 +127,9 @@ const AuthProvider = ({ children }) => {
       login,
       register,
       logout,
+      refreshUser,
     }),
-    [user, loading, login, register, logout]
+    [user, loading, login, register, logout, refreshUser]
   );
 
   return (
