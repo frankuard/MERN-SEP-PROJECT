@@ -35,9 +35,10 @@ router.get(
 );
 
 // ── About Community profiles (single source of truth) ──────────────────────
-// GET is the shared read for both the Managed Users About tab and the DevCorps
-// Communities Portal dropdowns. PUT edits from Managed Users and feeds every
-// consumer automatically.
+// GET is the shared read for both the Manage Users About tab and the DevCorps
+// Communities Portal dropdowns. PUT edits the community's About profile and
+// feeds every consumer automatically — DEV CORPS ADMIN ONLY. The five member
+// community accounts may read their About but never edit their community.
 router.get(
   '/communities',
   authMiddleware,
@@ -46,7 +47,7 @@ router.get(
 router.put(
   '/communities/:communityId',
   authMiddleware,
-  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
   communityPortalController.updateCommunityProfile
 );
 

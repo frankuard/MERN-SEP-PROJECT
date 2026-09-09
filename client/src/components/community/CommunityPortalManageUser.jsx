@@ -80,14 +80,15 @@ const PROFILE_FIELDS = [
 
 // ── About Community ─────────────────────────────────────────────────────────
 // Reads the shared CommunityProfile record (the single source of truth the
-// DevCorps Communities Portal dropdowns render too) and lets the community
-// account edit it here. Saving updates the DB and broadcasts the change, so
-// the Communities Portal shows the new content immediately.
+// DevCorps Communities Portal dropdowns render too). With `editable` it also
+// lets the account edit it here (the DevCorps portal admin, from the
+// Communities menu). The five member community accounts render it read-only
+// (editable={false}) and cannot edit their own profile.
 //
 // Exported so the DevCorps Communities section (clicking a community in the
 // sidebar) renders the EXACT same About Community screen as this Manage User
 // tab — same header, same About content, same member/pending counts.
-export const AboutCommunity = ({ community, t }) => {
+export const AboutCommunity = ({ community, t, editable = true }) => {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState(null);
   const [stats, setStats] = useState({ members: 0, pending: 0, total: 0 });
@@ -186,7 +187,7 @@ export const AboutCommunity = ({ community, t }) => {
               Community account · DevCorps Community Portal
             </p>
           </div>
-          {!loading && (
+          {editable && !loading && (
             <button
               type="button"
               onClick={() => setEditing((v) => !v)}
@@ -203,7 +204,7 @@ export const AboutCommunity = ({ community, t }) => {
           <div className="mt-5 flex items-center gap-2 text-sm font-semibold" style={{ color: t.textMuted }}>
             <Loader2 size={15} className="animate-spin" /> Loading About Community...
           </div>
-        ) : editing ? (
+        ) : editable && editing ? (
           <div className="mt-5 space-y-4">
             {PROFILE_FIELDS.map(({ key, label, hint, placeholder }) => (
               <div key={key}>
@@ -683,10 +684,10 @@ const CommunityPortalManageUser = ({ community, t }) => {
         })}
       </div>
 
-      {activeTab === 'about' && <AboutCommunity community={community} t={t} />}
+      {activeTab === 'about' && <AboutCommunity community={community} t={t} editable={false} />}
       {activeTab === 'members' && <MembersManagement community={community} t={t} />}
       {activeTab === 'requests' && <MemberRequests community={community} t={t} />}
-      {activeTab === 'constitution' && <ManageConstitution community={community} t={t} />}
+      {activeTab === 'constitution' && <ManageConstitution community={community} t={t} editable={false} />}
     </div>
   );
 };

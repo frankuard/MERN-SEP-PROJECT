@@ -161,9 +161,11 @@ router.delete(
 
 // ── Community Constitutions ────────────────────────────────────────────────
 // One constitution per community (unique on communityId). Uploading again
-// replaces the previous copy; deletion removes it entirely. Scoping is
-// enforced with devcorpsMemberScope: the DevCorps portal admin can manage any
-// community, while each of the five member accounts can only touch its own.
+// replaces the previous copy; deletion removes it entirely.
+//
+// The five member community accounts can READ their own constitution, but
+// WRITE (upload/replace) and DELETE are admin-only — the DevCorps portal
+// admin manages every community's constitution from the Communities menu.
 // Members (approved users) read via the community-portal route instead.
 
 // Every community's constitution — DevCorps admin overview.
@@ -182,20 +184,20 @@ router.get(
   communityConstitutionController.getConstitution
 );
 
-// Upload OR replace (multipart, field: 'file').
+// Upload OR replace (multipart, field: 'file') — DevCorps portal admin only.
 router.put(
   '/constitution/:communityId',
   authMiddleware,
-  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
   uploadDocument.single('file'),
   communityConstitutionController.upsertConstitution
 );
 
-// Delete the community's constitution.
+// Delete the community's constitution — DevCorps portal admin only.
 router.delete(
   '/constitution/:communityId',
   authMiddleware,
-  devcorpsMiddleware.devcorpsMemberScope,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
   communityConstitutionController.deleteConstitution
 );
 
