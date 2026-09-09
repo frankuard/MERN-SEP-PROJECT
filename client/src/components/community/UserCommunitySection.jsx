@@ -415,9 +415,40 @@ const CommunityAboutView = ({ community, t }) => {
         </div>
       ) : (
         <>
-          {/* Same About content the community manages, shown verbatim */}
+          {/* Same About content the community manages, shown verbatim — with
+              the community's own stored logo up top (how it appears in that
+              community's Manage User → About Community screen). */}
           <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-            <CommunityAboutPanel profile={profile} t={t} />
+            <div className="flex items-center gap-3">
+              {community.logo ? (
+                <img
+                  src={community.logo}
+                  alt={`${community.name} logo`}
+                  className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+                  style={{ border: `1px solid ${t.border}` }}
+                  loading="lazy"
+                />
+              ) : (
+                <div
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-extrabold"
+                  style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+                >
+                  {community.name.charAt(0)}
+                </div>
+              )}
+              <div>
+                <h3 className="text-xl font-extrabold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
+                  {community.name}
+                </h3>
+                <p className="text-sm font-medium" style={{ color: t.textMuted }}>
+                  Community account · DevCorps Community Portal
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <CommunityAboutPanel profile={profile} t={t} />
+            </div>
           </div>
 
           {/* Live stats from the database (same cards as About Community) */}
