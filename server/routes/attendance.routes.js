@@ -9,6 +9,8 @@ const {
   getMyReportRequests,
   getAllAttendanceAdmin,
   getAttendanceSummaryAdmin,
+  getSemesterConfigs,
+  setSemesterTotalDays,
   quickSetAttendance,
   markAttendance,
   updateAttendance,
@@ -28,6 +30,8 @@ router.get('/report-requests/mine', authMiddleware, allRoles, getMyReportRequest
 
 // -------- Admin (registered before '/:id') --------
 router.get('/admin/summary', authMiddleware, adminOnly, getAttendanceSummaryAdmin);
+router.get('/admin/semester-configs', authMiddleware, adminOnly, getSemesterConfigs);
+router.post('/admin/semester-total-days', authMiddleware, adminOnly, setSemesterTotalDays);
 router.get('/admin', authMiddleware, adminOnly, getAllAttendanceAdmin);
 router.post('/quick-set/:studentId', authMiddleware, adminOnly, quickSetAttendance);
 router.get('/report-requests/admin', authMiddleware, adminOnly, getAllReportRequestsAdmin);

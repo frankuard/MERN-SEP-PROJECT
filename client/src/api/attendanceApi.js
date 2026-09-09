@@ -27,8 +27,17 @@ const attendanceApi = {
   },
   // Per-student totals for the Manage Attendance table.
   // Replaces the old attendanceApi.getAllStudents().
-  getAttendanceSummaryAdmin: async () => {
-    const res = await axiosInstance.get('/attendance/admin/summary');
+  getAttendanceSummaryAdmin: async (params = {}) => {
+    const res = await axiosInstance.get('/attendance/admin/summary', { params });
+    return res.data;
+  },
+  getSemesterConfigs: async () => {
+    const res = await axiosInstance.get('/attendance/admin/semester-configs');
+    return res.data;
+  },
+  // payload: { semester, totalDays }
+  setSemesterTotalDays: async (payload) => {
+    const res = await axiosInstance.post('/attendance/admin/semester-total-days', payload);
     return res.data;
   },
   // payload: { totalDays, present, absent }

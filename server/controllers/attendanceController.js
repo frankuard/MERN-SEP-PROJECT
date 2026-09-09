@@ -1,6 +1,7 @@
 const Attendance = require('../models/Attendance');
 const AttendanceReportRequest = require('../models/AttendanceReportRequest');
 const User = require('../models/User');
+const SemesterConfig = require('../models/SemesterConfig');
 const { createNotification } = require('../utils/createNotification');
 const { emitToAll } = require('../utils/socketEmitter');
 
@@ -227,12 +228,32 @@ const updateReportRequest = async (req, res) => {
 
 const getAttendanceSummaryAdmin = async (req, res) => {
   try {
-    const students = await User.find({ role: 'student', status: 'approved' })
-      .select('username email department')
+    const filter = { role: 'student', status: 'approved' };
+    if (req.query.semester && req.query.semester !== 'All') {
+      filter.semester = req.query.semester;
+    }
+    if (req.query.department && req.query.department !== 'All') {
+      filter.department = req.query.department;
+    }
+
+    const students = await User.find(filter)
+      .select('username email department semester')
       .sort({ username: 1 })
       .lean();
 
     const records = await Attendance.find({}).select('student status').lean();
+    const configs = await SemesterConfig.find({}).lean();
+    const configMap = {};
+    configs.forEach((c) => {
+      const sem = String(c.semester || '').trim();
+      const dept = String(c.department || '').trim();
+      if (dept) {
+        configMap[`${dept}_${sem}`] = c.totalDays;
+      }
+      if (configMap[sem] === undefined) {
+        configMap[sem] = c.totalDays;
+      }
+    });
 
     const byStudent = {};
     records.forEach((r) => {
@@ -244,16 +265,26 @@ const getAttendanceSummaryAdmin = async (req, res) => {
 
     const summary = students.map((s) => {
       const stats = byStudent[s._id.toString()] || { present: 0, total: 0 };
-      const totalDays = stats.total;
-      const present = stats.present;
-      const absent = totalDays - present;
+      const semKey = s.semester ? String(s.semester).replace(/^semester\s*/i, '').trim() : '';
+      const deptKey = s.department ? String(s.department).trim() : '';
+
+      let totalDays = stats.total;
+      if (deptKey && semKey && configMap[`${deptKey}_${semKey}`] !== undefined) {
+        totalDays = configMap[`${deptKey}_${semKey}`];
+      } else if (semKey && configMap[semKey] !== undefined) {
+        totalDays = configMap[semKey];
+      }
+
+      const present = Math.min(stats.present, totalDays);
+      const absent = Math.max(0, totalDays - present);
       const percentage = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0;
 
       return {
         studentId: s._id,
         username: s.username,
         email: s.email,
-        department: s.department,
+        department: s.department || '',
+        semester: s.semester || '',
         present,
         absent,
         totalDays,
@@ -262,6 +293,105 @@ const getAttendanceSummaryAdmin = async (req, res) => {
     });
 
     res.status(200).json(summary);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getSemesterConfigs = async (req, res) => {
+  try {
+    const configs = await SemesterConfig.find({}).lean();
+    const configMap = {};
+    configs.forEach((c) => {
+      const sem = String(c.semester || '').trim();
+      const dept = String(c.department || '').trim();
+      if (dept) {
+        configMap[`${dept}_${sem}`] = c.totalDays;
+      }
+      if (configMap[sem] === undefined) {
+        configMap[sem] = c.totalDays;
+      }
+    });
+    res.status(200).json(configMap);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const setSemesterTotalDays = async (req, res) => {
+  try {
+    const { department, semester, totalDays } = req.body;
+    if (!semester || typeof totalDays !== 'number' || totalDays < 0) {
+      return res.status(400).json({ message: 'Valid semester and non-negative totalDays are required' });
+    }
+
+    const semKey = String(semester).replace(/^semester\s*/i, '').trim();
+    const deptKey = String(department || '').trim();
+
+    await SemesterConfig.findOneAndUpdate(
+      { department: deptKey, semester: semKey },
+      { department: deptKey, semester: semKey, totalDays },
+      { upsert: true, new: true }
+    );
+
+    const studentFilter = {
+      role: 'student',
+      status: 'approved',
+      $or: [{ semester: semKey }, { semester: `Semester ${semKey}` }],
+    };
+    if (deptKey && deptKey !== 'All') {
+      studentFilter.department = deptKey;
+    }
+
+    const students = await User.find(studentFilter).select('_id username department semester');
+
+    for (const student of students) {
+      const existingPresent = await Attendance.countDocuments({
+        student: student._id,
+        status: 'Present',
+      });
+      const present = Math.min(existingPresent, totalDays);
+      const absent = Math.max(0, totalDays - present);
+
+      await Attendance.deleteMany({ student: student._id });
+
+      const records = [];
+      for (let i = 0; i < present; i += 1) {
+        records.push({
+          student: student._id,
+          date: `Session ${i + 1}`,
+          status: 'Present',
+          markedBy: req.user._id,
+        });
+      }
+      for (let i = 0; i < absent; i += 1) {
+        records.push({
+          student: student._id,
+          date: `Session ${present + i + 1}`,
+          status: 'Absent',
+          markedBy: req.user._id,
+        });
+      }
+      if (records.length > 0) {
+        await Attendance.insertMany(records);
+      }
+
+      const summary = {
+        totalDays,
+        present,
+        absent,
+        percentage: totalDays > 0 ? Math.round((present / totalDays) * 100) : 0,
+      };
+
+      emitToAll('attendance:updated', { studentId: student._id, summary, logReplaced: true });
+    }
+
+    res.status(200).json({
+      message: `Total days for ${deptKey ? deptKey + ' ' : ''}Semester ${semKey} set to ${totalDays}`,
+      department: deptKey,
+      semester: semKey,
+      totalDays,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -350,6 +480,8 @@ module.exports = {
   getMyReportRequests,
   getAllAttendanceAdmin,
   getAttendanceSummaryAdmin,
+  getSemesterConfigs,
+  setSemesterTotalDays,
   quickSetAttendance,
   markAttendance,
   updateAttendance,
