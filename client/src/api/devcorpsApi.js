@@ -69,6 +69,33 @@ const devcorpsApi = {
     const res = await axiosInstance.delete(`/devcorps/documentation/files/${fileId}`);
     return res.data;
   },
+
+  // ── Community Constitutions ────────────────────────────────────────────
+  getConstitutions: async () => {
+    const res = await axiosInstance.get('/devcorps/constitutions');
+    return res.data;
+  },
+
+  getConstitution: async (communityId) => {
+    const res = await axiosInstance.get(`/devcorps/constitution/${communityId}`);
+    return res.data;
+  },
+
+  uploadConstitution: async (communityId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axiosInstance.put(
+      `/devcorps/constitution/${communityId}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return res.data;
+  },
+
+  deleteConstitution: async (communityId) => {
+    const res = await axiosInstance.delete(`/devcorps/constitution/${communityId}`);
+    return res.data;
+  },
 };
 
 export default devcorpsApi;

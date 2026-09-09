@@ -3,7 +3,6 @@ import {
   Calendar,
   CalendarDays,
   CalendarOff,
-  ClipboardList,
   Clock,
   Info,
   Loader2,
@@ -11,7 +10,7 @@ import {
   MapPin,
   Presentation,
   RefreshCw,
-  UserCheck,
+  ScrollText,
   UserRound,
   Users,
   X,
@@ -21,6 +20,7 @@ import communityPortalApi from '../../api/communityPortalApi';
 import { useAuth } from '../../context/AuthContext';
 import { getSocket } from '../../socket/socket';
 import CommunityAboutPanel from './CommunityAboutPanel';
+import { ReadConstitution } from './CommunityConstitutionSection';
 
 const ACCENT = '#9333ea';
 
@@ -358,22 +358,16 @@ const CommunityEventsView = ({ community, t }) => {
 // reflects the edit immediately — no refresh needed.
 const CommunityAboutView = ({ community, t }) => {
   const [profile, setProfile] = useState(null);
-  const [counts, setCounts] = useState({});
-  const [pendingCounts, setPendingCounts] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
 
-    Promise.all([
-      communityPortalApi.getCommunityProfiles(),
-      communityPortalApi.getMemberCounts(),
-    ])
-      .then(([profilesData, countsData]) => {
+    communityPortalApi
+      .getCommunityProfiles()
+      .then((profilesData) => {
         if (!active) return;
         setProfile((profilesData?.profiles || []).find((p) => p.communityId === community.id) || null);
-        if (countsData?.counts) setCounts(countsData.counts);
-        if (countsData?.pendingCounts) setPendingCounts(countsData.pendingCounts);
       })
       .catch(() => {})
       .finally(() => { if (active) setLoading(false); });
@@ -384,27 +378,13 @@ const CommunityAboutView = ({ community, t }) => {
         setProfile(payload.profile);
       }
     };
-    const onMemberCount = (payload) => {
-      if (!payload || typeof payload !== 'object') return;
-      if (payload.counts && typeof payload.counts === 'object') {
-        setCounts((prev) => ({ ...prev, ...payload.counts }));
-      }
-      if (payload.pendingCounts && typeof payload.pendingCounts === 'object') {
-        setPendingCounts((prev) => ({ ...prev, ...payload.pendingCounts }));
-      }
-    };
     socket.on('community:profile', onProfile);
-    socket.on('community:memberCount', onMemberCount);
 
     return () => {
       active = false;
       socket.off('community:profile', onProfile);
-      socket.off('community:memberCount', onMemberCount);
     };
   }, [community.id]);
-
-  const memberCount = counts[community.id] ?? 0;
-  const pendingCount = pendingCounts[community.id] ?? 0;
 
   return (
     <div className="space-y-4">
@@ -415,9 +395,6 @@ const CommunityAboutView = ({ community, t }) => {
         </div>
       ) : (
         <>
-          {/* Same About content the community manages, shown verbatim — with
-              the community's own stored logo up top (how it appears in that
-              community's Manage User → About Community screen). */}
           <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
             <div className="flex items-center gap-3">
               {community.logo ? (
@@ -448,30 +425,6 @@ const CommunityAboutView = ({ community, t }) => {
 
             <div className="mt-5">
               <CommunityAboutPanel profile={profile} t={t} />
-            </div>
-          </div>
-
-          {/* Live stats from the database (same cards as About Community) */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-              <div className="flex items-center gap-2 text-sm font-bold" style={{ color: t.textMuted }}>
-                <UserCheck size={16} style={{ color: ACCENT }} />
-                Community Members
-              </div>
-              <p className="mt-3 text-3xl font-extrabold" style={{ color: t.textPrimary }}>{memberCount}</p>
-              <p className="mt-1 text-xs font-medium" style={{ color: t.textMuted }}>
-                Approved members with the Community section in their sidebar
-              </p>
-            </div>
-            <div className="rounded-2xl border p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-              <div className="flex items-center gap-2 text-sm font-bold" style={{ color: t.textMuted }}>
-                <ClipboardList size={16} style={{ color: ACCENT }} />
-                Pending Requests
-              </div>
-              <p className="mt-3 text-3xl font-extrabold" style={{ color: t.textPrimary }}>{pendingCount}</p>
-              <p className="mt-1 text-xs font-medium" style={{ color: t.textMuted }}>
-                Invitations waiting for the user&apos;s decision
-              </p>
             </div>
           </div>
         </>
@@ -507,6 +460,7 @@ const UserCommunitySection = ({ community, t }) => {
     { id: 'about', label: 'About Community', icon: Info },
     { id: 'events', label: 'Community Events', icon: Calendar },
     { id: 'workshops', label: 'Community Workshops', icon: Presentation },
+    { id: 'constitution', label: 'Constitution', icon: ScrollText },
   ];
 
   return (
@@ -564,6 +518,7 @@ const UserCommunitySection = ({ community, t }) => {
       {activeTab === 'about' && <CommunityAboutView community={community} t={t} />}
       {activeTab === 'events' && <CommunityEventsView community={community} t={t} />}
       {activeTab === 'workshops' && <CommunityWorkshopsView community={community} t={t} />}
+      {activeTab === 'constitution' && <ReadConstitution community={community} t={t} />}
     </div>
   );
 };

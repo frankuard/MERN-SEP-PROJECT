@@ -70,6 +70,12 @@ const communityPortalApi = {
     const res = await axiosInstance.delete(`/community-portal/${communityId}/workshops/${workshopId}`);
     return res.data;
   },
+
+  // ── Constitution (read-only for approved members) ────────────────────
+  getCommunityConstitution: async (communityId) => {
+    const res = await axiosInstance.get(`/community-portal/${communityId}/constitution`);
+    return res.data;
+  },
 };
 
 export default communityPortalApi;

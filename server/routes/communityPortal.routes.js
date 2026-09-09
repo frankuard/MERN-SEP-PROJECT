@@ -3,6 +3,7 @@ const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const devcorpsMiddleware = require('../middleware/devcorpsMiddleware');
 const communityPortalController = require('../controllers/communityPortalController');
+const communityConstitutionController = require('../controllers/communityConstitutionController');
 
 const router = express.Router();
 
@@ -101,6 +102,17 @@ router.delete(
   authMiddleware,
   devcorpsMiddleware.devcorpsMemberScope,
   communityPortalController.deleteWorkshop
+);
+
+// ── Constitution (read-only for members) ─────────────────────────────────────
+// The community's approved members can read its constitution, but never
+// edit/delete it — membership is verified inside the controller. The owning
+// community account and the portal admin are allowed too (they manage via
+// /api/devcorps/constitution/:communityId).
+router.get(
+  '/:communityId/constitution',
+  authMiddleware,
+  communityConstitutionController.getMemberConstitution
 );
 
 module.exports = router;
