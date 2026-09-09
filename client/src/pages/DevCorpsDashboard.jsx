@@ -23,8 +23,9 @@ import EventRequestSection from '../components/devcorps/EventRequestSection';
 import CommunitiesSection from '../components/devcorps/CommunitiesSection';
 
 // Community Portal new features — Manage User + Workshop Release
-import CommunityPortalManageUser from '../components/community/CommunityPortalManageUser';
+import CommunityPortalManageUser, { AboutCommunity } from '../components/community/CommunityPortalManageUser';
 import CommunityPortalWorkshopRelease from '../components/community/CommunityPortalWorkshopRelease';
+import { ManageConstitution } from '../components/community/CommunityConstitutionSection';
 
 import { communityByAccount, communityByNavId, communityNavId, DEV_CORPS_COMMUNITIES } from '../data/devcorpsConfig';
 
@@ -38,6 +39,8 @@ const VALID_DEV_CORPS_TABS = [
   'dashboard', 'events', 'chat', 'documentation', 'profile', 'manage-events',
   // Manage User + Workshop Release — the five member community portals only
   'manage-user', 'workshop-release',
+  // Dedicated About Community + Constitution screens (member communities only)
+  'about-community', 'constitution',
   // 'communities' overview + one tab per member community (admin-only menu)
   'communities',
   ...DEV_CORPS_COMMUNITIES.map(communityNavId),
@@ -290,6 +293,19 @@ onNavigateTab={setActiveTab}
             {/* Documentation — DevCorps-specific, backend-gated */}
             {activeTab === 'documentation' && (
               <DevCorpsDocumentation t={t} />
+            )}
+
+            {/* About Community — the five member communities edit their
+                About profile directly from the sidebar (same screen as the
+                Manage User → About Community tab). */}
+            {activeTab === 'about-community' && activeCommunityAccount && (
+              <AboutCommunity community={activeCommunityAccount} t={t} />
+            )}
+
+            {/* Constitution — each member community manages its own uploaded
+                constitution (upload / replace / delete) from the sidebar. */}
+            {activeTab === 'constitution' && activeCommunityAccount && (
+              <ManageConstitution community={activeCommunityAccount} t={t} />
             )}
 
             {/* Manage User — replacement for the communities sidebar menu in

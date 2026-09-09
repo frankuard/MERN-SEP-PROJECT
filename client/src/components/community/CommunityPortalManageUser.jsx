@@ -7,6 +7,7 @@ import {
   Pencil,
   RefreshCw,
   Save,
+  ScrollText,
   Search,
   Send,
   UserCheck,
@@ -17,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import communityPortalApi from '../../api/communityPortalApi';
 import CommunityAboutPanel from './CommunityAboutPanel';
+import { ManageConstitution } from './CommunityConstitutionSection';
 
 const ACCENT = '#9333ea';
 
@@ -629,6 +631,7 @@ const CommunityPortalManageUser = ({ community, t }) => {
     { id: 'about', label: 'About Community', icon: Info },
     { id: 'members', label: 'Members Management', icon: Users },
     { id: 'requests', label: 'Member Requests', icon: UserPlus },
+    { id: 'constitution', label: 'Constitution', icon: ScrollText },
   ];
 
   return (
@@ -651,7 +654,7 @@ const CommunityPortalManageUser = ({ community, t }) => {
         </div>
       </div>
 
-      {/* Dedicated navigation — only these three sections */}
+      {/* Dedicated navigation — these Manage User sections */}
       <div
         className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1"
         style={{ backgroundColor: t.cardBg, borderColor: t.border }}
@@ -683,6 +686,7 @@ const CommunityPortalManageUser = ({ community, t }) => {
       {activeTab === 'about' && <AboutCommunity community={community} t={t} />}
       {activeTab === 'members' && <MembersManagement community={community} t={t} />}
       {activeTab === 'requests' && <MemberRequests community={community} t={t} />}
+      {activeTab === 'constitution' && <ManageConstitution community={community} t={t} />}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Clock, MapPin, Users, CalendarOff, RefreshCw, ArrowLeft, MessageCircle,
-  UserCheck, ClipboardList, ChevronDown, ArrowRight, Info,
+  UserCheck, ClipboardList, ChevronDown, ArrowRight, Info, ScrollText,
 } from 'lucide-react';
 import eventsApi from '../../api/eventsApi';
 import communityPortalApi from '../../api/communityPortalApi';
@@ -9,6 +9,7 @@ import { DEV_CORPS_COMMUNITIES } from '../../data/devcorpsConfig';
 import { getSocket } from '../../socket/socket';
 import CommunityAboutPanel from '../community/CommunityAboutPanel';
 import { AboutCommunity } from '../community/CommunityPortalManageUser';
+import { ManageConstitution } from '../community/CommunityConstitutionSection';
 
 const COMMUNITY_ACCENT = '#9333ea';
 
@@ -520,14 +521,14 @@ const CommunityAboutView = ({ t, community, onBack, onOpenChat }) => {
                 {community.name}
               </h2>
               <p className="mt-0.5 text-sm" style={{ color: t.textMuted }}>
-                {tab === 'about' ? 'About Community' : 'Community Events'}
+                {tab === 'about' ? 'About Community' : tab === 'constitution' ? 'Constitution' : 'Community Events'}
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* About / Events switcher */}
+          {/* About / Events / Constitution switcher */}
           <div
             className="inline-flex items-center gap-1 rounded-full border p-1"
             style={{ backgroundColor: t.cardBg, borderColor: t.border }}
@@ -562,6 +563,20 @@ const CommunityAboutView = ({ t, community, onBack, onOpenChat }) => {
               <Calendar size={15} />
               Events
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'constitution'}
+              onClick={() => setTab('constitution')}
+              className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-all duration-200"
+              style={{
+                backgroundColor: tab === 'constitution' ? COMMUNITY_ACCENT : 'transparent',
+                color: tab === 'constitution' ? '#ffffff' : t.textMuted,
+              }}
+            >
+              <ScrollText size={15} />
+              Constitution
+            </button>
           </div>
 
           {/* Chat icon — existing Chat page for the six DevCorps communities */}
@@ -582,6 +597,10 @@ const CommunityAboutView = ({ t, community, onBack, onOpenChat }) => {
         // Reused verbatim from the community's Manage User → About Community
         // portal — the exact About content and member counts.
         <AboutCommunity community={community} t={t} />
+      ) : tab === 'constitution' ? (
+        // The DevCorps portal admin oversees every community's constitution
+        // here (same manager the community's own Manage User tab uses).
+        <ManageConstitution community={community} t={t} />
       ) : (
         <CommunityEventsView t={t} community={community} onBack={onBack} onOpenChat={onOpenChat} embedded />
       )}

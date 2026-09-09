@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const devcorpsMiddleware = require('../middleware/devcorpsMiddleware');
 const { uploadDocument } = require('../middleware/upload');
 const devcorpsDocumentationController = require('../controllers/devcorpsDocumentationController');
+const communityConstitutionController = require('../controllers/communityConstitutionController');
 
 const router = express.Router();
 
@@ -156,6 +157,46 @@ router.delete(
   authMiddleware,
   devcorpsMiddleware.devcorpsAdminMiddleware,
   devcorpsDocumentationController.deleteFile
+);
+
+// ── Community Constitutions ────────────────────────────────────────────────
+// One constitution per community (unique on communityId). Uploading again
+// replaces the previous copy; deletion removes it entirely. Scoping is
+// enforced with devcorpsMemberScope: the DevCorps portal admin can manage any
+// community, while each of the five member accounts can only touch its own.
+// Members (approved users) read via the community-portal route instead.
+
+// Every community's constitution — DevCorps admin overview.
+router.get(
+  '/constitutions',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsAdminMiddleware,
+  communityConstitutionController.listConstitutions
+);
+
+// Read the community's own constitution (community account / portal admin).
+router.get(
+  '/constitution/:communityId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  communityConstitutionController.getConstitution
+);
+
+// Upload OR replace (multipart, field: 'file').
+router.put(
+  '/constitution/:communityId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  uploadDocument.single('file'),
+  communityConstitutionController.upsertConstitution
+);
+
+// Delete the community's constitution.
+router.delete(
+  '/constitution/:communityId',
+  authMiddleware,
+  devcorpsMiddleware.devcorpsMemberScope,
+  communityConstitutionController.deleteConstitution
 );
 
 module.exports = router;
