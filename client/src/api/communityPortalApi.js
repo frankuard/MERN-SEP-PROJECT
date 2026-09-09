@@ -43,6 +43,18 @@ const communityPortalApi = {
     return res.data;
   },
 
+  // ── About Community profiles (single source of truth, shared with
+  //    Managed Users → About Community) ────────────────────────────────────
+  getCommunityProfiles: async () => {
+    const res = await axiosInstance.get('/community-portal/communities');
+    return res.data;
+  },
+
+  updateCommunityProfile: async (communityId, data) => {
+    const res = await axiosInstance.put(`/community-portal/communities/${communityId}`, data);
+    return res.data;
+  },
+
   // ── Workshops ───────────────────────────────────────────────────────────
   getCommunityWorkshops: async (communityId) => {
     const res = await axiosInstance.get(`/community-portal/${communityId}/workshops`);
