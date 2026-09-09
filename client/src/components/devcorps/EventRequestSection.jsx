@@ -155,15 +155,13 @@ const RequestForm = ({ t, onDone }) => {
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label className={FIELD_LABEL} style={{ color: t.textMuted }}>Type</label>
-            <select
-              value={form.type}
-              onChange={(e) => handleChange('type', e.target.value)}
+            <input
+              type="text"
+              value="Community"
+              readOnly
               className={FIELD_INPUT}
-              style={inputStyle}
-            >
-              <option value="college">College Event</option>
-              <option value="community">Community</option>
-            </select>
+              style={{ ...inputStyle, opacity: 0.7, cursor: 'not-allowed' }}
+            />
           </div>
           <div className="grid grid-cols-2 gap-5">
             <div>
