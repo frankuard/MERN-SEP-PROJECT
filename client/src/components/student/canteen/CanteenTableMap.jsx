@@ -1,14 +1,9 @@
 /**
- * CanteenTableMap
- * ───────────────
- * Real aerial canteen photo with an SVG overlay.
- * Each table has a compact light pill showing its number
- * centered exactly on the table surface — easy to read at a glance.
- * Clicking selects the table; selected state shows a green ring + green pill.
+ * CanteenTableMap — fully transparent overlay.
+ * Numbers are rendered directly on each table with zero background.
+ * Only a selection ring appears when a table is clicked.
  */
 
-// ─── Table hit-area data (% of image width × height) ─────────────────────
-// Row 1: Tables 1, 2, 3  |  Row 2: Tables 4, 5, 6  |  Row 3: Tables 7, 8, 9
 const TABLE_AREAS = [
   { id: '1', x: 18.5, y: 27.0, w: 15.0, h: 15.0 },
   { id: '2', x: 37.5, y: 24.5, w: 15.5, h: 15.0 },
@@ -21,27 +16,10 @@ const TABLE_AREAS = [
   { id: '9', x: 57.5, y: 55.5, w: 15.5, h: 15.0 },
 ];
 
-// Pill size — tight enough to sit right on the table surface
-const PILL_W = 5.2;   // width  in SVG units (% of viewBox)
-const PILL_H = 3.0;   // height in SVG units
-const PILL_R = 0.8;   // corner radius
-
 const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
   return (
     <div className="w-full">
-      {/* Legend */}
-      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs font-bold" style={{ color: t.textMuted }}>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm border border-white/70 bg-white/80" />
-          Available
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm border border-green-500 bg-green-400" />
-          Selected
-        </span>
-      </div>
-
-      {/* Map container — aspect ratio preserved */}
+      {/* Map container */}
       <div
         className="relative w-full overflow-hidden rounded-2xl border"
         style={{ paddingBottom: '73%', borderColor: t.border, boxShadow: t.shadowSoft }}
@@ -54,7 +32,7 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
           draggable={false}
         />
 
-        {/* SVG overlay */}
+        {/* SVG overlay — fully transparent except selection ring */}
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox="0 0 100 100"
@@ -63,14 +41,8 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
         >
           {TABLE_AREAS.map((table) => {
             const isSelected = selectedTable === table.id;
-
-            // Centre of this table's hit-area
             const cx = table.x + table.w / 2;
             const cy = table.y + table.h / 2;
-
-            // Pill top-left corner (centred on the table)
-            const px = cx - PILL_W / 2;
-            const py = cy - PILL_H / 2;
 
             return (
               <g
@@ -82,7 +54,7 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(table.id); }}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Invisible click area covering whole table */}
+                {/* Transparent hit area — green ring only when selected */}
                 <rect
                   x={table.x}
                   y={table.y}
@@ -90,37 +62,28 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
                   height={table.h}
                   rx="1.2"
                   ry="1.2"
-                  fill="transparent"
+                  fill={isSelected ? 'rgba(34,197,94,0.18)' : 'transparent'}
                   stroke={isSelected ? '#22c55e' : 'transparent'}
-                  strokeWidth={isSelected ? '0.7' : '0'}
-                  style={{ transition: 'stroke 0.15s' }}
+                  strokeWidth={isSelected ? '0.8' : '0'}
+                  style={{ transition: 'fill 0.15s, stroke 0.15s' }}
                 />
 
-                {/* Light pill background */}
-                <rect
-                  x={px}
-                  y={py}
-                  width={PILL_W}
-                  height={PILL_H}
-                  rx={PILL_R}
-                  ry={PILL_R}
-                  fill={isSelected ? '#22c55e' : 'rgba(255,255,255,0.88)'}
-                  style={{ transition: 'fill 0.15s', filter: 'drop-shadow(0 0.3px 1px rgba(0,0,0,0.35))' }}
-                />
-
-                {/* Number text — dark on white, white on green */}
+                {/* Number — white with dark shadow, sits right on the table */}
                 <text
                   x={cx}
-                  y={cy + 0.15}
+                  y={cy + 0.2}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize="2.2"
-                  fontWeight="800"
-                  fill={isSelected ? '#ffffff' : '#1a1a1a'}
+                  fontSize={isSelected ? '4.5' : '3.8'}
+                  fontWeight="900"
+                  fill={isSelected ? '#22c55e' : '#ffffff'}
                   style={{
                     pointerEvents: 'none',
                     fontFamily: 'system-ui, sans-serif',
-                    letterSpacing: '0.01em',
+                    filter: isSelected
+                      ? 'drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1.5px #000)'
+                      : 'drop-shadow(0 0.5px 1.2px rgba(0,0,0,0.9)) drop-shadow(0 0 2px rgba(0,0,0,0.8))',
+                    transition: 'fill 0.15s, font-size 0.15s',
                   }}
                 >
                   {table.id}
@@ -130,7 +93,7 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
           })}
         </svg>
 
-        {/* Selected table floating badge */}
+        {/* Selected badge */}
         {selectedTable && (
           <div
             className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-extrabold shadow-lg"
