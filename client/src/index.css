@@ -23,6 +23,34 @@ body {
   display: none;
 }
 
+/* Explicit visible side scrollbar for Document / PDF viewer */
+.document-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.document-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 9999px !important;
+  margin: 6px 0 !important;
+}
+
+.document-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8 !important;
+  border-radius: 9999px !important;
+  border: 2px solid #f1f5f9 !important;
+}
+
+.document-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important;
+}
+
+.document-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: #94a3b8 #f1f5f9 !important;
+}
+
 /* Playful dashboard utilities */
 .dashboard-playful {
   font-family: "Nunito", sans-serif;
