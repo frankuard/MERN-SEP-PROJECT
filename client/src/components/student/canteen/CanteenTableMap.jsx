@@ -1,7 +1,6 @@
 /**
- * CanteenTableMap — fully transparent overlay.
- * Numbers are rendered directly on each table with zero background.
- * Only a selection ring appears when a table is clicked.
+ * CanteenTableMap — numbers stay tiny, fixed-size, 100% within each table cell.
+ * No expansion on select. Only colour + ring change when a table is picked.
  */
 
 const TABLE_AREAS = [
@@ -19,7 +18,7 @@ const TABLE_AREAS = [
 const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
   return (
     <div className="w-full">
-      {/* Map container */}
+      {/* Map container – aspect-ratio lock */}
       <div
         className="relative w-full overflow-hidden rounded-2xl border"
         style={{ paddingBottom: '73%', borderColor: t.border, boxShadow: t.shadowSoft }}
@@ -32,15 +31,15 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
           draggable={false}
         />
 
-        {/* SVG overlay — fully transparent except selection ring */}
+        {/* SVG overlay */}
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
-          aria-label="Canteen table map"
         >
           {TABLE_AREAS.map((table) => {
             const isSelected = selectedTable === table.id;
+            /* centre of the table cell */
             const cx = table.x + table.w / 2;
             const cy = table.y + table.h / 2;
 
@@ -51,39 +50,47 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
                 aria-label={`Table ${table.id}`}
                 tabIndex={0}
                 onClick={() => onSelect(table.id)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(table.id); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') onSelect(table.id);
+                }}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Transparent hit area — green ring only when selected */}
+                {/* ── Selection ring — inset by 0.4 so it never leaves the cell ── */}
+                <rect
+                  x={table.x + 0.4}
+                  y={table.y + 0.4}
+                  width={table.w - 0.8}
+                  height={table.h - 0.8}
+                  rx="1.0"
+                  ry="1.0"
+                  fill={isSelected ? 'rgba(34,197,94,0.15)' : 'transparent'}
+                  stroke={isSelected ? '#22c55e' : 'transparent'}
+                  strokeWidth="0.6"
+                  style={{ transition: 'fill 0.15s, stroke 0.15s' }}
+                />
+
+                {/* ── Invisible full-cell hit area on top ── */}
                 <rect
                   x={table.x}
                   y={table.y}
                   width={table.w}
                   height={table.h}
-                  rx="1.2"
-                  ry="1.2"
-                  fill={isSelected ? 'rgba(34,197,94,0.18)' : 'transparent'}
-                  stroke={isSelected ? '#22c55e' : 'transparent'}
-                  strokeWidth={isSelected ? '0.8' : '0'}
-                  style={{ transition: 'fill 0.15s, stroke 0.15s' }}
+                  fill="transparent"
                 />
 
-                {/* Number — white with dark shadow, sits right on the table */}
+                {/* ── Number label — fixed size, never changes on select ── */}
                 <text
                   x={cx}
                   y={cy + 0.2}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={isSelected ? '4.5' : '3.8'}
+                  fontSize="3.0"
                   fontWeight="900"
                   fill={isSelected ? '#22c55e' : '#ffffff'}
                   style={{
                     pointerEvents: 'none',
                     fontFamily: 'system-ui, sans-serif',
-                    filter: isSelected
-                      ? 'drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1.5px #000)'
-                      : 'drop-shadow(0 0.5px 1.2px rgba(0,0,0,0.9)) drop-shadow(0 0 2px rgba(0,0,0,0.8))',
-                    transition: 'fill 0.15s, font-size 0.15s',
+                    filter: 'drop-shadow(0 0.4px 1px rgba(0,0,0,1)) drop-shadow(0 0 2px rgba(0,0,0,0.9))',
                   }}
                 >
                   {table.id}
@@ -93,11 +100,16 @@ const CanteenTableMap = ({ selectedTable, onSelect, t }) => {
           })}
         </svg>
 
-        {/* Selected badge */}
+        {/* Selected floating badge */}
         {selectedTable && (
           <div
             className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-extrabold shadow-lg"
-            style={{ backgroundColor: '#22c55e', color: '#fff', pointerEvents: 'none', whiteSpace: 'nowrap' }}
+            style={{
+              backgroundColor: '#22c55e',
+              color: '#fff',
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+            }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
