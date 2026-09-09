@@ -162,7 +162,7 @@ const Sidebar = ({
 
   // Close the mobile drawer automatically if the viewport grows into desktop size
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
+    const mq = window.matchMedia('(min-width: 1280px)');
     const handleChange = (e) => {
       if (e.matches) setMobileOpen(false);
     };
@@ -216,7 +216,7 @@ const Sidebar = ({
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
-          className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-full shadow-md lg:hidden"
+          className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-full shadow-md xl:hidden"
           style={{
             backgroundColor: t.sidebarBg,
             color: t.sidebarText,
@@ -231,7 +231,7 @@ const Sidebar = ({
       {/* Backdrop — only rendered on mobile while the drawer is open */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 xl:hidden"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
@@ -240,9 +240,9 @@ const Sidebar = ({
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[260px] flex-col self-start
           transition-transform duration-300 select-none
-          lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 lg:transition-[width] lg:duration-300
+          xl:sticky xl:top-0 xl:z-auto xl:translate-x-0 xl:transition-[width] xl:duration-300
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-          ${collapsed ? 'lg:w-[4.5rem]' : 'lg:w-[260px]'}`}
+          ${collapsed ? 'xl:w-[4.5rem]' : 'xl:w-[260px]'}`}
         style={{
           backgroundColor: t.sidebarBg,
           borderRight: `1px solid ${t.sidebarBorder || t.border}`,
@@ -250,8 +250,8 @@ const Sidebar = ({
         }}
       >
         {/* Profile header */}
-        <div className={`px-4 pt-5 pb-4 ${collapsed ? 'lg:flex lg:flex-col lg:items-center' : ''}`}>
-          <div className={`flex items-center gap-3 ${collapsed ? 'lg:flex-col lg:gap-2' : ''}`}>
+        <div className={`px-4 pt-5 pb-4 ${collapsed ? 'xl:flex xl:flex-col xl:items-center' : ''}`}>
+          <div className={`flex items-center gap-3 ${collapsed ? 'xl:flex-col xl:gap-2' : ''}`}>
             {/* Chautari logo, filling the circle edge-to-edge */}
             <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-black">
               <img
@@ -260,7 +260,7 @@ const Sidebar = ({
                 className="h-full w-full object-cover object-center"
               />
             </div>
-            <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>
+            <div className={`min-w-0 flex-1 ${collapsed ? 'xl:hidden' : ''}`}>
               <p className="truncate text-[15px] font-extrabold" style={{ color: t.sidebarText }}>
                 CHAUTARI
               </p>
@@ -279,7 +279,7 @@ const Sidebar = ({
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
-                className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors lg:flex"
+                className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors xl:flex"
                 style={{ color: t.sidebarMuted, backgroundColor: t.sidebarHover }}
                 aria-label="Collapse sidebar"
               >
@@ -291,7 +291,7 @@ const Sidebar = ({
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors lg:hidden"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors xl:hidden"
               style={{ color: t.sidebarMuted, backgroundColor: t.sidebarHover }}
               aria-label="Close menu"
             >
@@ -302,7 +302,7 @@ const Sidebar = ({
             <button
               type="button"
               onClick={() => setCollapsed(false)}
-              className="mt-2 hidden h-7 w-7 items-center justify-center rounded-full lg:flex"
+              className="mt-2 hidden h-7 w-7 items-center justify-center rounded-full xl:flex"
               style={{ color: t.sidebarMuted, backgroundColor: t.sidebarHover }}
               aria-label="Expand sidebar"
             >
@@ -343,7 +343,7 @@ const Sidebar = ({
                         }}
                         title={collapsed ? item.label : undefined}
                         className={`flex items-center gap-3 rounded-full px-4 py-2.5 text-left text-[13px] font-bold transition-all duration-200 ${
-                          collapsed ? 'lg:justify-center lg:rounded-xl lg:px-2 lg:gap-0' : ''
+                          collapsed ? 'xl:justify-center xl:rounded-xl xl:px-2 xl:gap-0' : ''
                         }`}
                         style={{
                           backgroundColor: isActive ? t.sidebarActiveBg : 'transparent',
@@ -361,12 +361,12 @@ const Sidebar = ({
                           className="shrink-0"
                           style={{ color: isActive ? t.sidebarActiveText : t.sidebarMuted }}
                         />
-                        <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
+                        <span className={`truncate ${collapsed ? 'xl:hidden' : ''}`}>{item.label}</span>
                         <ChevronDown
                           size={14}
                           className={`ml-auto shrink-0 transition-transform duration-200 ${
                             isExpanded ? 'rotate-180' : ''
-                          } ${collapsed ? 'lg:hidden' : ''}`}
+                          } ${collapsed ? 'xl:hidden' : ''}`}
                           style={{ color: isActive ? t.sidebarActiveText : t.sidebarMuted }}
                         />
                       </button>
@@ -418,7 +418,7 @@ const Sidebar = ({
                     onClick={() => handleItemClick(item.id)}
                     title={collapsed ? item.label : undefined}
                     className={`flex items-center gap-3 rounded-full px-4 py-2.5 text-left text-[13px] font-bold transition-all duration-200 ${
-                      collapsed ? 'lg:justify-center lg:rounded-xl lg:px-2 lg:gap-0' : ''
+                      collapsed ? 'xl:justify-center xl:rounded-xl xl:px-2 xl:gap-0' : ''
                     }`}
                     style={{
                       backgroundColor: isActive ? t.sidebarActiveBg : 'transparent',
@@ -436,7 +436,7 @@ const Sidebar = ({
                       className="shrink-0"
                       style={{ color: isActive ? t.sidebarActiveText : t.sidebarMuted }}
                     />
-                    <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
+                    <span className={`truncate ${collapsed ? 'xl:hidden' : ''}`}>{item.label}</span>
                   </button>
                 );
               })}
@@ -459,7 +459,7 @@ const Sidebar = ({
             type="button"
             onClick={handleLogout}
             className={`flex w-full items-center gap-3 rounded-full px-4 py-2.5 text-sm font-bold transition-colors ${
-              collapsed ? 'lg:justify-center lg:gap-0' : ''
+              collapsed ? 'xl:justify-center xl:gap-0' : ''
             }`}
             style={{ color: t.sidebarMuted }}
             onMouseEnter={(e) => {
@@ -472,7 +472,7 @@ const Sidebar = ({
             }}
           >
             <LogOut size={17} />
-            <span className={collapsed ? 'lg:hidden' : ''}>Log out</span>
+            <span className={collapsed ? 'xl:hidden' : ''}>Log out</span>
           </button>
         </div>
       </aside>

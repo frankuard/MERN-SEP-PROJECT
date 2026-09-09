@@ -73,7 +73,7 @@ const pageTitle = customPageTitle !== undefined
         <button
           type="button"
           onClick={onOpenMobileMenu}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors lg:hidden"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors xl:hidden"
           style={{ color: t.textPrimary }}
           aria-label="Open menu"
         >
@@ -83,7 +83,7 @@ const pageTitle = customPageTitle !== undefined
         <img
           src="/bic-logo-full.png"
           alt="Biratnagar International College"
-          className="hidden -ml-[90.4px] h-[74.7px] w-auto shrink-0 object-contain sm:block lg:h-[83.7px]"
+          className="hidden h-[74.7px] w-auto shrink-0 object-contain sm:block xl:-ml-[90.4px] xl:h-[83.7px]"
           style={{ filter: 'brightness(0.94)' }}
         />
 
