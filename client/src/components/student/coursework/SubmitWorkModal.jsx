@@ -141,13 +141,23 @@ const SubmitWorkModal = ({ t, isOpen, onClose, coursework, onSubmitWork }) => {
 
           {/* Graded Notice */}
           {isGraded && (
-            <div className="rounded-2xl p-4 border bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs space-y-1">
-              <div className="flex items-center justify-between font-bold">
-                <span>Already Graded by {coursework.teacherName}</span>
-                <span className="text-sm">{coursework.mySubmission.grade} / {coursework.totalMarks} Marks</span>
+            <div
+              className="rounded-2xl p-4 border text-xs space-y-2"
+              style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+            >
+              <div className="flex items-center justify-between font-semibold" style={{ color: t.textPrimary }}>
+                <span>Graded by {coursework.teacherName}</span>
+                <span className="font-bold text-sm" style={{ color: t.textPrimary }}>
+                  {coursework.mySubmission.grade}/{coursework.totalMarks}
+                </span>
               </div>
               {coursework.mySubmission.feedback && (
-                <p className="italic mt-1">"{coursework.mySubmission.feedback}"</p>
+                <div className="pt-2 border-t" style={{ borderColor: t.border }}>
+                  <p className="text-[11px] font-medium" style={{ color: t.textMuted }}>Teacher Feedback:</p>
+                  <p className="mt-0.5 text-xs leading-relaxed" style={{ color: t.textPrimary }}>
+                    {coursework.mySubmission.feedback}
+                  </p>
+                </div>
               )}
             </div>
           )}

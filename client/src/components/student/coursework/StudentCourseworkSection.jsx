@@ -4,7 +4,6 @@ import {
   Search,
   CheckCircle2,
   Clock,
-  AlertCircle,
   FileText,
   User,
   ArrowRight,
@@ -116,18 +115,6 @@ const StudentCourseworkSection = ({ t, user }) => {
         </div>
       </section>
 
-      {/* No Group Warning if student doesn't have group in profile */}
-      {!studentGroup && !loading && (
-        <div className="rounded-2xl p-4 border bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-3">
-          <AlertCircle size={20} className="shrink-0" />
-          <div>
-            <p className="font-bold">No Cohort Group Registered</p>
-            <p>
-              Your account does not have a cohort group (e.g. L4CG2) assigned yet. Please go to your Profile or ask an administrator to assign your group so your coursework appears here.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* KPI Counters */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -304,7 +291,7 @@ const StudentCourseworkSection = ({ t, user }) => {
                 className="dashboard-card-lift flex flex-col justify-between rounded-[28px] border p-6 transition-all"
                 style={{
                   backgroundColor: t.cardBg,
-                  borderColor: isGraded ? 'rgba(34, 197, 94, 0.3)' : t.border,
+                  borderColor: t.border,
                   boxShadow: t.shadowSoft,
                 }}
               >
@@ -323,9 +310,15 @@ const StudentCourseworkSection = ({ t, user }) => {
 
                     {/* Status Badge */}
                     {isGraded ? (
-                      <span className="flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 size={12} />
-                        Graded: {sub.grade}/{coursework.totalMarks}
+                      <span
+                        className="rounded-lg px-2.5 py-0.5 text-xs font-bold"
+                        style={{
+                          backgroundColor: t.pageBg,
+                          color: t.textPrimary,
+                          border: `1px solid ${t.border}`,
+                        }}
+                      >
+                        {sub.grade}/{coursework.totalMarks}
                       </span>
                     ) : hasSubmitted ? (
                       <span className="flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-extrabold bg-purple-500/15 text-purple-600 dark:text-purple-400">
@@ -397,12 +390,15 @@ const StudentCourseworkSection = ({ t, user }) => {
 
                   {/* Feedback preview if graded */}
                   {isGraded && sub?.feedback && (
-                    <div className="mt-3 rounded-xl border p-2.5 text-xs bg-emerald-500/5 border-emerald-500/20">
-                      <p className="font-bold text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-0.5">
+                    <div
+                      className="mt-3 rounded-xl border p-2.5 text-xs"
+                      style={{ backgroundColor: t.pageBg, borderColor: t.border }}
+                    >
+                      <p className="font-semibold text-[11px]" style={{ color: t.textMuted }}>
                         Teacher Feedback:
                       </p>
-                      <p className="italic text-xs line-clamp-2" style={{ color: t.textPrimary }}>
-                        "{sub.feedback}"
+                      <p className="mt-0.5 text-xs leading-relaxed line-clamp-3" style={{ color: t.textPrimary }}>
+                        {sub.feedback}
                       </p>
                     </div>
                   )}
