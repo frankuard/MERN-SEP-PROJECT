@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { BookOpen, Calendar, User, LogOut } from 'lucide-react';
+import { BookOpen, Calendar, Plus, User, LogOut } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -53,6 +53,7 @@ const DevCorpsDashboard = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [autoOpenRequests, setAutoOpenRequests] = useState(false);
+  const [eventsSubTab, setEventsSubTab] = useState('events');
 
   const requestedTab = VALID_DEV_CORPS_TABS.includes(tab) ? tab : 'dashboard';
   const activeTab = requestedTab === 'manage-events' && !isDevCorpsAdmin ? 'events' : requestedTab;
@@ -204,11 +205,49 @@ onNavigateTab={setActiveTab}
             )}
 
             {/* Events — DevCorps admin sees the full Event Board; the five
-                member communities see their Event Request submission/tracking. */}
+                member communities see the student-style Events list plus a
+                "New Event Request" flow to submit events for approval. */}
             {activeTab === 'events' && (isDevCorpsAdmin ? (
               <EventsSection t={t} />
             ) : (
-              <EventRequestSection t={t} />
+              <div className="space-y-6">
+                <div
+                  className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1"
+                  style={{ backgroundColor: t.cardBg, borderColor: t.border }}
+                  role="tablist"
+                  aria-label="Event views"
+                >
+                  {[
+                    { id: 'events', label: 'Events', icon: Calendar },
+                    { id: 'requests', label: 'New Event Request', icon: Plus },
+                  ].map(({ id, label, icon: Icon }) => {
+                    const isActive = eventsSubTab === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        onClick={() => setEventsSubTab(id)}
+                        className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-all duration-200"
+                        style={{
+                          backgroundColor: isActive ? '#9333ea' : 'transparent',
+                          color: isActive ? '#ffffff' : t.textMuted,
+                        }}
+                      >
+                        <Icon size={15} />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {eventsSubTab === 'events' ? (
+                  <EventsSection t={t} />
+                ) : (
+                  <EventRequestSection t={t} />
+                )}
+              </div>
             ))}
 
             {/* Manage Events — exclusive to the DevCorps portal admin. Scoped
