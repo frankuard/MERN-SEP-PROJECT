@@ -24,6 +24,15 @@ router.get(
   communityPortalController.searchUsers
 );
 
+// ── Real-time Total Members (DevCorps Communities cards) ───────────────────
+// Public aggregate read for any authenticated user; static segment registered
+// before the ":communityId" routes below.
+router.get(
+  '/counts',
+  authMiddleware,
+  communityPortalController.getCommunityMemberCounts
+);
+
 // ── User side — the signed-in user's own requests / memberships ────────────
 router.get(
   '/my/requests',

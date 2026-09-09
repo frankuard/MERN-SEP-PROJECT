@@ -2,13 +2,52 @@ export const DEV_CORPS_PORTAL_ID = 'devcorpsCommunity';
 export const DEV_CORPS_PORTAL_NAME = 'DevCorps Community Portal';
 
 // The five member communities of the DevCorps Community Portal. Used by the
-// sidebar's "Communities" expandable menu and the DevCorps Communities view.
+// sidebar's "Communities" expandable menu, the DevCorps Communities view, and
+// the Manage User / Workshop Release flows.
+//
+// `logo` uses the community's actual stored logo where one exists in the
+// project (the ImageKit organizer logo already attached to that community's
+// events). Communities without a stored logo intentionally fall back to the
+// letter-tile avatar — no generic icons are substituted for real ones.
+//
+// `about` is the short "About Community" blurb shown on the DevCorps
+// Communities card, written specifically for each community's own field.
 export const DEV_CORPS_COMMUNITIES = [
-  { id: 'ai-horizon', name: 'AI Horizon' },
-  { id: 'devsphere', name: 'DevSphere' },
-  { id: 'bic-converge', name: 'BIC Converge' },
-  { id: 'lenspire', name: 'Lenspire' },
-  { id: 'incognitous', name: 'Incognitous' },
+  {
+    id: 'ai-horizon',
+    name: 'AI Horizon',
+    logo: 'https://ik.imagekit.io/ltf9bjszh/logos/bicaihorizon.jpg',
+    about:
+      'AI community focused on practical AI learning, workshops, AI tools, automation, innovation, projects, and AI events — helping members understand and apply AI in real-world situations.',
+  },
+  {
+    id: 'devsphere',
+    name: 'DevSphere',
+    logo: '',
+    about:
+      'Web and software development community focused on coding, web technologies, programming, software projects, workshops, and modern development practices.',
+  },
+  {
+    id: 'bic-converge',
+    name: 'BIC Converge',
+    logo: '',
+    about:
+      'Business and entrepreneurship community focused on business ideas, startups, marketing, management, leadership, strategy, networking, and practical entrepreneurial knowledge.',
+  },
+  {
+    id: 'lenspire',
+    name: 'Lenspire',
+    logo: '',
+    about:
+      'Social media and content community focused on content creation, video, storytelling, digital branding, design, social media strategy, and audience engagement.',
+  },
+  {
+    id: 'incognitous',
+    name: 'Incognitous',
+    logo: '',
+    about:
+      'Cybersecurity community focused on digital security, cyber threats, ethical security, vulnerability awareness, cybersecurity workshops, challenges, and responsible security practices.',
+  },
 ];
 
 // Sidebar nav id for a community (e.g. 'community-ai-horizon').

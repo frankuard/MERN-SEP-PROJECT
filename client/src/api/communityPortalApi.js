@@ -37,6 +37,12 @@ const communityPortalApi = {
     return res.data;
   },
 
+  // ── Real-time Total Members ──────────────────────────────────────────────
+  getMemberCounts: async () => {
+    const res = await axiosInstance.get('/community-portal/counts');
+    return res.data;
+  },
+
   // ── Workshops ───────────────────────────────────────────────────────────
   getCommunityWorkshops: async (communityId) => {
     const res = await axiosInstance.get(`/community-portal/${communityId}/workshops`);

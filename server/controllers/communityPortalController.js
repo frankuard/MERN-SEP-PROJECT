@@ -5,6 +5,7 @@ const {
   createNotification,
   createNotificationForUsers,
 } = require('../utils/createNotification');
+const { emitToAll } = require('../utils/socketEmitter');
 const {
   resolveCommunityIdForUser,
 } = require('../middleware/devcorpsMiddleware');
@@ -26,9 +27,59 @@ const isValidCommunityId = (id) => Boolean(COMMUNITY_NAMES[id]);
 const escapeRegex = (value) =>
   String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/**
+ * Broadcast each community's real-time Total Members count (the number of
+ * ACCEPTED CommunityMembership records) to every connected client, so e.g.
+ * the DevCorps Communities cards refresh the moment a request is approved.
+ * Never throws — a real-time hiccup must not fail the approval that triggered
+ * it.
+ */
+const emitMemberCounts = async () => {
+  try {
+    const counts = await CommunityMembership.aggregate([
+      { $match: { status: 'accepted' } },
+      { $group: { _id: '$communityId', count: { $sum: 1 } } },
+    ]);
+    const byCommunity = {};
+    for (const row of counts) byCommunity[row._id] = row.count;
+    emitToAll('community:memberCount', { counts: byCommunity });
+  } catch (err) {
+    console.error('Failed to broadcast member counts (non-fatal):', err.message);
+  }
+};
+
 // ──────────────────────────────────────────────────────────────────────────
 // User search + membership requests (community portal side)
 // ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Live Total Members per community, straight from the database (accepted
+ * CommunityMembership records). Backs the DevCorps Communities cards; every
+ * community is included so clients can render 0 for the ones with no members.
+ *
+ * GET /api/community-portal/counts
+ * Requires: any authenticated approved user.
+ */
+const getCommunityMemberCounts = async (req, res) => {
+  try {
+    const counts = await CommunityMembership.aggregate([
+      { $match: { status: 'accepted' } },
+      { $group: { _id: '$communityId', count: { $sum: 1 } } },
+    ]);
+
+    const countsByCommunity = {};
+    for (const communityId of Object.keys(COMMUNITY_NAMES)) {
+      countsByCommunity[communityId] = 0;
+    }
+    for (const row of counts) {
+      if (isValidCommunityId(row._id)) countsByCommunity[row._id] = row.count;
+    }
+
+    res.status(200).json({ counts: countsByCommunity });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 /**
  * Search approved campus users by name/email/department for the community's
@@ -284,6 +335,12 @@ const respondToMembershipRequest = async (req, res) => {
           },
         }
       );
+
+      // Real-time: refresh the accepted member count for this community on
+      // every connected client (no polling / no page refresh). The count is
+      // recomputed from the DB so it always reflects the true number of
+      // approved memberships — duplicates can never double-count.
+      await emitMemberCounts();
     } else {
       membership.status = 'rejected';
       await membership.save();
@@ -456,6 +513,7 @@ const deleteWorkshop = async (req, res) => {
 };
 
 module.exports = {
+  getCommunityMemberCounts,
   searchUsers,
   getMemberships,
   sendMembershipRequest,

@@ -54,12 +54,22 @@ const AboutCommunity = ({ community, t }) => {
         style={{ backgroundColor: t.cardBg, borderColor: t.border }}
       >
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-extrabold"
-            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
-          >
-            {community.name.charAt(0)}
-          </div>
+          {community.logo ? (
+            <img
+              src={community.logo}
+              alt={`${community.name} logo`}
+              className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+              style={{ border: `1px solid ${t.border}` }}
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-extrabold"
+              style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+            >
+              {community.name.charAt(0)}
+            </div>
+          )}
           <div>
             <h3 className="text-xl font-extrabold tracking-tight sm:text-2xl" style={{ color: t.textPrimary }}>
               {community.name}
@@ -70,11 +80,7 @@ const AboutCommunity = ({ community, t }) => {
           </div>
         </div>
         <p className="mt-4 text-sm leading-relaxed sm:text-[15px]" style={{ color: t.textSecondary }}>
-          {community.name} is one of the five member communities of the DevCorps Community
-          Portal. Use the Manage User screen to grow the community by inviting registered
-          campus users, keep track of pending membership requests, and manage approved
-          members. Released workshops automatically reach approved members through the
-          Community section in their user panel.
+          {community.about}
         </p>
       </div>
 
