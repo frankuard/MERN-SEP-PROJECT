@@ -726,12 +726,25 @@ const ChatPanel = ({ t, onClose }) => {
                 )}
                 {!loadingConversations && conversations.length === 0 && friendsWithoutChat.length === 0 && (
                   <div className="p-6 text-center">
-                    <MessageCircle size={28} className="mx-auto mb-2" style={{ color: t.textMuted }} />
-                    <p className="text-sm" style={{ color: t.textMuted }}>
-                      No friends yet — add some from a profile page to start chatting.
+                    <UserPlus size={28} className="mx-auto mb-2" style={{ color: t.textMuted }} />
+                    <p className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                      No friends on your chatbox yet
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed" style={{ color: t.textMuted }}>
+                      Add friends from their profile page. Once they accept your friend request, they will appear here so you can chat!
                     </p>
                   </div>
                 )}
+
+                {conversations.length > 0 && (
+                  <div
+                    className="px-3.5 py-2 text-[10px] font-extrabold uppercase tracking-wider"
+                    style={{ color: t.textMuted, backgroundColor: `${t.border}22` }}
+                  >
+                    Conversations
+                  </div>
+                )}
+
                 {conversations.map((conv) => {
                   const unread = unreadByConversation[conv._id] || 0;
                   const isActive = conv._id === activeConversationId;
@@ -773,6 +786,15 @@ const ChatPanel = ({ t, onClose }) => {
 
                 {/* Friends with no chat history yet — first tap lazily
                     creates the DM. */}
+                {friendsWithoutChat.length > 0 && (
+                  <div
+                    className="px-3.5 py-2 text-[10px] font-extrabold uppercase tracking-wider"
+                    style={{ color: t.textMuted, backgroundColor: `${t.border}22` }}
+                  >
+                    Friends ({friendsWithoutChat.length}) · Click to chat
+                  </div>
+                )}
+
                 {friendsWithoutChat.map((f) => (
                   <div
                     key={`friend-${f._id}`}
@@ -787,7 +809,7 @@ const ChatPanel = ({ t, onClose }) => {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{f.username}</p>
-                      <p className="truncate text-xs" style={{ color: t.textMuted }}>Say hi 👋</p>
+                      <p className="truncate text-xs" style={{ color: t.textMuted }}>Friend · Tap to chat 👋</p>
                     </div>
                   </div>
                 ))}

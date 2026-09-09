@@ -669,10 +669,24 @@ const ChatsTab = ({ t, onOpenNewChat, onViewProfile }) => {
           )}
           {!loadingConversations && filteredConversations.length === 0 && filteredFriendsWithoutChat.length === 0 && (
             <div className="p-6 text-center">
-              <MessageCircle size={28} className="mx-auto mb-2" style={{ color: t.textMuted }} />
-              <p className="text-sm" style={{ color: t.textMuted }}>
-                {sidebarSearch ? 'No matches found.' : 'No chats yet — click + to start one.'}
+              <UserPlus size={30} className="mx-auto mb-2" style={{ color: t.textMuted }} />
+              <p className="text-sm font-bold" style={{ color: t.textPrimary }}>
+                {sidebarSearch ? 'No matches found.' : 'No friends on your chatbox yet'}
               </p>
+              {!sidebarSearch && (
+                <p className="mt-1.5 text-xs leading-relaxed" style={{ color: t.textMuted }}>
+                  Add people from the <strong>Add Friends</strong> tab. Once they accept your friend request, they will appear right here so you can chat with them!
+                </p>
+              )}
+            </div>
+          )}
+
+          {filteredConversations.length > 0 && (
+            <div
+              className="px-3.5 py-2 text-[10px] font-extrabold uppercase tracking-wider"
+              style={{ color: t.textMuted, backgroundColor: `${t.border}22` }}
+            >
+              Conversations
             </div>
           )}
 
@@ -722,6 +736,15 @@ const ChatsTab = ({ t, onOpenNewChat, onViewProfile }) => {
             );
           })}
 
+          {filteredFriendsWithoutChat.length > 0 && (
+            <div
+              className="px-3.5 py-2 text-[10px] font-extrabold uppercase tracking-wider"
+              style={{ color: t.textMuted, backgroundColor: `${t.border}22` }}
+            >
+              Friends ({filteredFriendsWithoutChat.length}) · Click to chat
+            </div>
+          )}
+
           {filteredFriendsWithoutChat.map((f) => (
             <div
               key={`friend-${f._id}`}
@@ -741,7 +764,7 @@ const ChatsTab = ({ t, onOpenNewChat, onViewProfile }) => {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold" style={{ color: t.textPrimary }}>{f.username}</p>
-                <p className="truncate text-xs" style={{ color: t.textMuted }}>Say hi 👋</p>
+                <p className="truncate text-xs" style={{ color: t.textMuted }}>Friend · Tap to chat 👋</p>
               </div>
             </div>
           ))}
@@ -1283,31 +1306,40 @@ const AddFriendsTab = ({ t, onViewProfile, onStartChat }) => {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {!already && !sent && (
+                {already ? (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold"
+                      style={{ backgroundColor: '#ecfdf5', color: '#059669' }}
+                    >
+                      <Check size={12} /> Friends
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleMessage(person)}
+                      disabled={messagingTo === id}
+                      className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-extrabold text-white transition-opacity disabled:opacity-60"
+                      style={{ backgroundColor: t.accentPrimary }}
+                      title="Open chat with friend"
+                    >
+                      <MessageCircle size={13} />
+                      {messagingTo === id ? 'Opening…' : 'Chat'}
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => handleMessage(person)}
-                    disabled={messagingTo === id}
-                    className="flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-extrabold transition-opacity disabled:opacity-60"
-                    style={{ backgroundColor: t.pageBg, color: t.textPrimary, borderColor: t.border }}
-                    title="Start a conversation"
+                    disabled={sent}
+                    onClick={() => handleAddFriend(person)}
+                    className="shrink-0 cursor-pointer rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{
+                      backgroundColor: sent ? t.border : '#111',
+                      color: sent ? t.textMuted : '#fff',
+                    }}
                   >
-                    <MessageCircle size={13} />
-                    {messagingTo === id ? 'Starting…' : 'Message'}
+                    {sent ? 'Requested' : 'Add Friend'}
                   </button>
                 )}
-                <button
-                  type="button"
-                  disabled={already || sent}
-                  onClick={() => handleAddFriend(person)}
-                  className="shrink-0 rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors disabled:opacity-60"
-                  style={{
-                    backgroundColor: already || sent ? t.border : '#111',
-                    color: already || sent ? t.textMuted : '#fff',
-                  }}
-                >
-                  {already ? 'Friends' : sent ? 'Requested' : 'Add Friend'}
-                </button>
               </div>
             </div>
           );

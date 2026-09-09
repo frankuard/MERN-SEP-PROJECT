@@ -435,6 +435,24 @@ const sendMessage = async (req, res) => {
       return res.status(403).json({ message: 'Not a participant in this conversation' });
     }
 
+    // For 1-on-1 direct messages, enforce friendship unless teacher or community portal admin
+    if (!conversation.isGroup && conversation.participants.length === 2) {
+      const otherId = conversation.participants.map(String).find((p) => p !== myId);
+      if (otherId) {
+        const otherUser = await User.findById(otherId).select('role portal');
+        const isTeacherParty = req.user?.role === 'teacher' || otherUser?.role === 'teacher';
+        const isCommunityPortalPair =
+          req.user?.portal === DEV_CORPS_PORTAL_ID &&
+          otherUser?.portal === DEV_CORPS_PORTAL_ID;
+        const friends = await areFriends(myId, otherId);
+        if (!friends && !isTeacherParty && !isCommunityPortalPair) {
+          return res.status(403).json({
+            message: 'You need to be friends before you can message this person. Send a friend request first.',
+          });
+        }
+      }
+    }
+
     const message = await Message.create({
       conversation: id,
       sender: myId,

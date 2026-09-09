@@ -156,7 +156,10 @@ const getFriendRequests = async (req, res) => {
         .sort({ createdAt: -1 }),
     ]);
 
-    res.status(200).json({ incoming, outgoing });
+    const validIncoming = incoming.filter((r) => r.requester && r.requester._id);
+    const validOutgoing = outgoing.filter((r) => r.recipient && r.recipient._id);
+
+    res.status(200).json({ incoming: validIncoming, outgoing: validOutgoing });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -174,7 +177,12 @@ const getFriends = async (req, res) => {
       .populate('requester', 'username email department profileImage')
       .populate('recipient', 'username email department profileImage');
 
-    const friends = accepted.map((r) =>
+    // Filter out records where either participant was deleted or failed to populate
+    const validAccepted = accepted.filter(
+      (r) => r.requester && r.recipient && r.requester._id && r.recipient._id
+    );
+
+    const friends = validAccepted.map((r) =>
       r.requester._id.toString() === myId ? r.recipient : r.requester
     );
 
