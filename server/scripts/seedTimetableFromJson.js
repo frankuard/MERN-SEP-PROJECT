@@ -45,11 +45,25 @@ const moduleCache = new Map();
 const groupCache = new Map();
 const classroomCache = new Map();
 
-async function findOrCreateModule(code, name) {
+async function findOrCreateModule(code, name, defaultLevel = 4, defaultSemesters = [1, 2]) {
   const key = code.trim();
   if (moduleCache.has(key)) return moduleCache.get(key);
   let doc = await Module.findOne({ code: key });
-  if (!doc) doc = await Module.create({ code: key, name: name.trim() });
+  if (!doc) {
+    doc = await Module.create({
+      code: key,
+      name: name.trim(),
+      level: defaultLevel,
+      semesters: defaultSemesters,
+      department: 'BCS',
+    });
+  } else {
+    // If existing doc lacks level or semesters, update it
+    let changed = false;
+    if (!doc.level) { doc.level = defaultLevel; changed = true; }
+    if (!doc.semesters || doc.semesters.length === 0) { doc.semesters = defaultSemesters; changed = true; }
+    if (changed) await doc.save();
+  }
   moduleCache.set(key, doc);
   return doc;
 }
@@ -72,12 +86,12 @@ async function findOrCreateClassroom(name) {
   return doc;
 }
 
-async function importEntries(entries, label) {
+async function importEntries(entries, label, level = 4, semesters = [1, 2]) {
   let created = 0;
   for (const raw of entries) {
     const day = DAY_MAP[raw.day] || raw.day;
 
-    const moduleDoc = await findOrCreateModule(raw.moduleCode, raw.moduleTitle);
+    const moduleDoc = await findOrCreateModule(raw.moduleCode, raw.moduleTitle, level, semesters);
     const roomDoc = await findOrCreateClassroom(raw.room);
 
     const groupNames = (raw.group || '')
@@ -98,6 +112,8 @@ async function importEntries(entries, label) {
       module: moduleDoc._id,
       moduleCode: moduleDoc.code,
       moduleName: moduleDoc.name,
+      level: level,
+      department: 'BCS',
       lecturer: raw.lecturer.trim(),
       groups: groupDocs.map((g) => g._id),
       groupNames: groupDocs.map((g) => g.name),
@@ -128,8 +144,8 @@ async function run() {
     await Timetable.deleteMany({});
   }
 
-  await importEntries(level4, 'Level 4');
-  await importEntries(level5, 'Level 5');
+  await importEntries(level4, 'Level 4', 4, [1, 2]);
+  await importEntries(level5, 'Level 5', 5, [3, 4]);
 
   console.log('Done.');
   await mongoose.disconnect();

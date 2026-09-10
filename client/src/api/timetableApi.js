@@ -2,8 +2,8 @@ import axiosInstance from './axiosInstance';
 
 const timetableApi = {
   // -------- Student --------
-  getTimetable: async () => {
-    const res = await axiosInstance.get('/timetable');
+  getTimetable: async (params = {}) => {
+    const res = await axiosInstance.get('/timetable', { params });
     return res.data;
   },
   getScheduleChanges: async () => {
@@ -45,8 +45,8 @@ const timetableApi = {
   },
 
   // -------- Admin — Periods --------
-  getTimetableAdmin: async () => {
-    const res = await axiosInstance.get('/timetable/admin');
+  getTimetableAdmin: async (params = {}) => {
+    const res = await axiosInstance.get('/timetable/admin', { params });
     return res.data;
   },
   // payload: { day, startTime, endTime, classType, moduleId, lecturer, groupId, roomId, order }

@@ -8,27 +8,140 @@ const { emitToAll } = require('../utils/socketEmitter');
 const { normalizeName } = require('../utils/normalizeName');
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+// Helper for mapping department + semester to Level
+const BASE_LEVEL_BY_DEPARTMENT = {
+  'BCS': 4,
+  'B.Sc. Cybersecurity': 4,
+  'BIBM': 3,
+};
+
+const getLevelForSemester = (department = 'BCS', semester) => {
+  const sem = Number(semester);
+  if (!sem || Number.isNaN(sem)) return null;
+  if (department === 'MBA') {
+    if (sem === 1) return 7;
+    if (sem === 2) return 8;
+    return null;
+  }
+  const base = BASE_LEVEL_BY_DEPARTMENT[department] || 4;
+  return base + Math.floor((sem - 1) / 2);
+};
+
+// UK module code convention:
+// 4CS / 4MM -> Level 4 (Sem 1 & 2)
+// 5CS / 5MM -> Level 5 (Sem 3 & 4)
+// 6CS / 6MM -> Level 6 (Sem 5 & 6)
+const getLevelFromModuleCode = (moduleCode = '') => {
+  const clean = String(moduleCode).trim().toUpperCase();
+  if (clean.startsWith('4')) return 4;
+  if (clean.startsWith('5')) return 5;
+  if (clean.startsWith('6')) return 6;
+  if (clean.startsWith('7')) return 7;
+  if (clean.startsWith('8')) return 8;
+  if (clean.startsWith('3')) return 3;
+  return 4;
+};
+
+// Auto-backfill to ensure existing MongoDB records have level/semesters populated
+let backfillExecuted = false;
+const ensureTimetableAndModuleMetadata = async () => {
+  if (backfillExecuted) return;
+  backfillExecuted = true;
+  try {
+    const modulesToUpdate = await Module.find({
+      $or: [
+        { level: { $exists: false } },
+        { level: null },
+        { semesters: { $exists: false } },
+        { semesters: { $size: 0 } },
+      ],
+    });
+    for (const m of modulesToUpdate) {
+      const lvl = getLevelFromModuleCode(m.code);
+      const sems = lvl === 4 ? [1, 2] : lvl === 5 ? [3, 4] : lvl === 6 ? [5, 6] : [1, 2];
+      m.level = lvl;
+      m.semesters = sems;
+      if (!m.department) m.department = 'BCS';
+      await m.save();
+    }
+
+    const periodsToUpdate = await Timetable.find({
+      $or: [{ level: { $exists: false } }, { level: null }],
+    });
+    for (const p of periodsToUpdate) {
+      const lvl = getLevelFromModuleCode(p.moduleCode);
+      p.level = lvl;
+      if (!p.department) p.department = 'BCS';
+      await p.save();
+    }
+  } catch (err) {
+    console.error('Timetable/Module backfill error:', err.message);
+  }
+};
+
 // ========================================================
 // STUDENT — Timetable
 // ========================================================
 
 const getTimetable = async (req, res) => {
   try {
-    const periods = await Timetable.find({}).sort({ day: 1, order: 1, startTime: 1 });
+    await ensureTimetableAndModuleMetadata();
 
-    let visiblePeriods = periods;
+    const allPeriods = await Timetable.find({}).sort({ day: 1, order: 1, startTime: 1 });
+
+    let visiblePeriods = allPeriods;
 
     if (req.user?.role === 'teacher') {
-      // Match by normalized name so titles/case in the JSON don't matter,
-      // and across every level/department in one pass since they all
-      // live in the same Timetable collection.
+      // Match by normalized name so titles/case in the JSON don't matter
       const teacherKey = normalizeName(req.user.username || '');
-      visiblePeriods = periods.filter((p) => normalizeName(p.lecturer) === teacherKey);
+      visiblePeriods = allPeriods.filter((p) => normalizeName(p.lecturer) === teacherKey);
+    } else if (req.user?.role === 'student') {
+      const dept = req.user.department || 'BCS';
+      const requestedSemester = req.query.semester ? Number(req.query.semester) : null;
+      const studentSemester = requestedSemester || (req.user.semester ? Number(req.user.semester) : 2);
+      const studentLevel = req.query.level
+        ? Number(req.query.level)
+        : getLevelForSemester(dept, studentSemester);
+
+      const studentGroup = req.user.group || '';
+
+      visiblePeriods = allPeriods.filter((p) => {
+        const periodLevel = p.level || getLevelFromModuleCode(p.moduleCode);
+
+        // Strict level matching: Semester 2 (Level 4 / 4CS) MUST NOT see Level 5 / 5CS (Sem 3 & 4)
+        if (studentLevel && periodLevel !== studentLevel) {
+          return false;
+        }
+
+        // If period has an explicit semester specified, ensure it matches
+        if (p.semester && studentSemester && p.semester !== studentSemester) {
+          return false;
+        }
+
+        // If student has a cohort group (e.g. L4CG1)
+        if (studentGroup) {
+          const hasGroups = Array.isArray(p.groupNames) && p.groupNames.length > 0;
+          if (hasGroups && !p.groupNames.includes(studentGroup)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
     } else {
-      const studentGroup = req.user?.group || '';
-      visiblePeriods = studentGroup
-        ? periods.filter((p) => (p.groupNames || []).includes(studentGroup))
-        : periods; // staff/admin with no group set: unrestricted, unchanged
+      // Staff / Admin or unrestricted caller: allow optional query filtering
+      if (req.query.level) {
+        const lvl = Number(req.query.level);
+        visiblePeriods = visiblePeriods.filter((p) => (p.level || getLevelFromModuleCode(p.moduleCode)) === lvl);
+      }
+      if (req.query.semester) {
+        const sem = Number(req.query.semester);
+        visiblePeriods = visiblePeriods.filter((p) => {
+          if (p.semester) return p.semester === sem;
+          const lvl = p.level || getLevelFromModuleCode(p.moduleCode);
+          return lvl === getLevelForSemester(p.department || 'BCS', sem);
+        });
+      }
     }
 
     const grouped = DAY_ORDER.map((day) => {
@@ -42,6 +155,9 @@ const getTimetable = async (req, res) => {
           classType: p.classType,
           moduleCode: p.moduleCode,
           moduleName: p.moduleName,
+          level: p.level || getLevelFromModuleCode(p.moduleCode),
+          semester: p.semester || null,
+          department: p.department || 'BCS',
           lecturer: p.lecturer,
           group: (p.groupNames || []).join(' + '),
           room: p.roomName,
@@ -75,7 +191,14 @@ const getScheduleChanges = async (req, res) => {
 
 const getTimetableAdmin = async (req, res) => {
   try {
-    const periods = await Timetable.find({}).sort({ day: 1, order: 1, startTime: 1 });
+    await ensureTimetableAndModuleMetadata();
+
+    const filter = {};
+    if (req.query.day) filter.day = req.query.day;
+    if (req.query.level) filter.level = Number(req.query.level);
+    if (req.query.semester) filter.semester = Number(req.query.semester);
+
+    const periods = await Timetable.find(filter).sort({ day: 1, order: 1, startTime: 1 });
     res.status(200).json(periods);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -84,7 +207,20 @@ const getTimetableAdmin = async (req, res) => {
 
 const createPeriod = async (req, res) => {
   try {
-    const { day, startTime, endTime, classType, moduleId, lecturer, groupIds, roomId, order } = req.body;
+    const {
+      day,
+      startTime,
+      endTime,
+      classType,
+      moduleId,
+      lecturer,
+      groupIds,
+      roomId,
+      order,
+      level,
+      semester,
+      department,
+    } = req.body;
 
     if (!day || !startTime || !endTime || !classType || !moduleId || !lecturer || !roomId) {
       return res.status(400).json({
@@ -107,6 +243,16 @@ const createPeriod = async (req, res) => {
       }
     }
 
+    const parsedLevel =
+      level !== undefined && level !== null && level !== ''
+        ? Number(level)
+        : moduleDoc.level || getLevelFromModuleCode(moduleDoc.code);
+
+    const parsedSemester =
+      semester !== undefined && semester !== null && semester !== ''
+        ? Number(semester)
+        : null;
+
     const period = await Timetable.create({
       day,
       startTime: startTime.trim(),
@@ -115,6 +261,9 @@ const createPeriod = async (req, res) => {
       module: moduleDoc._id,
       moduleCode: moduleDoc.code,
       moduleName: moduleDoc.name,
+      level: parsedLevel,
+      semester: parsedSemester,
+      department: department ? department.trim() : moduleDoc.department || 'BCS',
       lecturer: lecturer.trim(),
       groups: groupDocs.map((g) => g._id),
       groupNames: groupDocs.map((g) => g.name),
@@ -126,7 +275,7 @@ const createPeriod = async (req, res) => {
     // Broadcast real-time update
     emitToAll('timetable:period:created', { period });
 
-        createNotificationForRole('student', {
+    createNotificationForRole('student', {
       type: 'timetable',
       title: 'New Class Added',
       message: `${period.moduleCode} (${period.classType}) added on ${period.day}, ${period.startTime}–${period.endTime}`,
@@ -145,7 +294,20 @@ const updatePeriod = async (req, res) => {
     const period = await Timetable.findById(req.params.id);
     if (!period) return res.status(404).json({ message: 'Period not found' });
 
-    const { day, startTime, endTime, classType, moduleId, lecturer, groupIds, roomId, order } = req.body;
+    const {
+      day,
+      startTime,
+      endTime,
+      classType,
+      moduleId,
+      lecturer,
+      groupIds,
+      roomId,
+      order,
+      level,
+      semester,
+      department,
+    } = req.body;
 
     if (day !== undefined) period.day = day;
     if (startTime !== undefined) period.startTime = startTime.trim();
@@ -153,6 +315,9 @@ const updatePeriod = async (req, res) => {
     if (classType !== undefined) period.classType = classType;
     if (lecturer !== undefined) period.lecturer = lecturer.trim();
     if (order !== undefined) period.order = Number(order);
+    if (level !== undefined && level !== null && level !== '') period.level = Number(level);
+    if (semester !== undefined) period.semester = semester ? Number(semester) : null;
+    if (department !== undefined) period.department = department.trim();
 
     if (moduleId !== undefined) {
       const moduleDoc = await Module.findById(moduleId);
@@ -160,6 +325,9 @@ const updatePeriod = async (req, res) => {
       period.module = moduleDoc._id;
       period.moduleCode = moduleDoc.code;
       period.moduleName = moduleDoc.name;
+      if (level === undefined) {
+        period.level = moduleDoc.level || getLevelFromModuleCode(moduleDoc.code);
+      }
     }
 
     if (roomId !== undefined) {

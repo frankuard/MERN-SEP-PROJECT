@@ -60,6 +60,27 @@ const timetableSchema = new mongoose.Schema(
       type: Number,
       default: 0, // controls card order within a day when times overlap/tie
     },
+
+    // Academic level (e.g. 4 for Level 4, 5 for Level 5, 6 for Level 6)
+    level: {
+      type: Number,
+      enum: [3, 4, 5, 6, 7, 8],
+      default: 4,
+    },
+
+    // Specific semester (e.g. 1, 2, 3, 4, 5, 6). If null, covers full level.
+    semester: {
+      type: Number,
+      min: 1,
+      max: 8,
+      default: null,
+    },
+
+    department: {
+      type: String,
+      default: 'BCS',
+      trim: true,
+    },
   },
   { timestamps: true }
 );

@@ -8,6 +8,9 @@ import timetableApi from '../../api/timetableApi';
 import classroomApi from '../../api/classroomApi';
 import classroomRequestApi from '../../api/classroomRequestApi';
 import { TIMETABLE_ROUTINE } from '../../data/studentDashboardData';
+import { useAuth } from '../../context/AuthContext';
+import { getSemesterOptions } from '../../data/departmentSemesters';
+import { getLevelForSemester } from '../../data/levelGroups';
 
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
@@ -133,6 +136,25 @@ function formatTimeUntil(totalSeconds) {
 // ─── component ────────────────────────────────────────────────────────────────
 
 const TimetableSection = ({ t }) => {
+  const { user } = useAuth();
+  const department = user?.department || 'BCS';
+  const enrolledSemester = user?.semester ? Number(user.semester) : 2;
+  const [selectedSemester, setSelectedSemester] = useState(enrolledSemester);
+
+  useEffect(() => {
+    if (user?.semester) {
+      setSelectedSemester(Number(user.semester));
+    }
+  }, [user?.semester]);
+
+  const rawSemOptions = getSemesterOptions(department);
+  const semesterOptions = rawSemOptions.length > 0 ? rawSemOptions : [1, 2, 3, 4, 5, 6];
+  const activeLevel =
+    getLevelForSemester(department, selectedSemester) ||
+    (selectedSemester <= 2 ? 4 : selectedSemester <= 4 ? 5 : 6);
+  const activeLevelPrefix =
+    activeLevel === 4 ? '4CS' : activeLevel === 5 ? '5CS' : activeLevel === 6 ? '6CS' : `L${activeLevel}`;
+
   const [subTab,    setSubTab]    = useState('schedule');
   const [activeDay, setActiveDay] = useState(DAY_ORDER[new Date().getDay()]);
   const [now,       setNow]       = useState(new Date());
@@ -162,20 +184,43 @@ const TimetableSection = ({ t }) => {
   // load schedule
   useEffect(() => {
     let mounted = true;
-    timetableApi.getTimetable()
-      .then((data) => { if (mounted) setRoutine(Array.isArray(data) && data.length > 0 ? data : TIMETABLE_ROUTINE); })
-      .catch(() => { if (mounted) setRoutine(TIMETABLE_ROUTINE); });
-    return () => { mounted = false; };
-  }, []);
+    timetableApi
+      .getTimetable({ semester: selectedSemester, level: activeLevel })
+      .then((data) => {
+        if (mounted) {
+          // If the API returns periods, use them. If empty, check if static fallback matches level
+          if (Array.isArray(data) && data.length > 0) {
+            setRoutine(data);
+          } else {
+            // For Level 4, fallback to TIMETABLE_ROUTINE. For other levels with no entries yet, show empty periods
+            if (activeLevel === 4) {
+              setRoutine(TIMETABLE_ROUTINE);
+            } else {
+              setRoutine(DAY_ORDER.map((day) => ({ day, isOffDay: true, periods: [] })));
+            }
+          }
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setRoutine(activeLevel === 4 ? TIMETABLE_ROUTINE : DAY_ORDER.map((day) => ({ day, isOffDay: true, periods: [] })));
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [selectedSemester, activeLevel]);
 
   // ── Real-time WebSocket listeners for timetable ────────────────────────────
   useEffect(() => {
     const socket = getSocket();
 
-    // Periods affect multiple day groups — easiest to refetch the structured data
     const refetchRoutine = () => {
-      timetableApi.getTimetable()
-        .then((data) => { if (Array.isArray(data) && data.length > 0) setRoutine(data); })
+      timetableApi
+        .getTimetable({ semester: selectedSemester, level: activeLevel })
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) setRoutine(data);
+        })
         .catch(() => {});
     };
 
@@ -188,7 +233,7 @@ const TimetableSection = ({ t }) => {
       socket.off('timetable:period:updated', refetchRoutine);
       socket.off('timetable:period:deleted', refetchRoutine);
     };
-  }, []);
+  }, [selectedSemester, activeLevel]);
 
   // load exams (lazy)
   useEffect(() => {
@@ -262,6 +307,73 @@ const TimetableSection = ({ t }) => {
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+
+      {/* Program & Semester Navigation Banner */}
+      <div className="rounded-2xl border p-4 sm:p-5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: t.chipBg }}>
+              <GraduationCap size={20} style={{ color: t.textPrimary }} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-extrabold" style={{ color: t.textPrimary }}>
+                  {department} · Semester {selectedSemester}
+                </h3>
+                <span className="rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ backgroundColor: t.accentPrimary, color: t.pageBg }}>
+                  Level {activeLevel} ({activeLevelPrefix})
+                </span>
+                {user?.group && (
+                  <span className="rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                    Group: {user.group}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs" style={{ color: t.textMuted }}>
+                {activeLevel === 4
+                  ? 'Year 1 Modules (4CS / 4MM) — Semesters 1 & 2'
+                  : activeLevel === 5
+                  ? 'Year 2 Modules (5CS) — Semesters 3 & 4'
+                  : 'Year 3 Modules (6CS) — Semesters 5 & 6'}
+              </p>
+            </div>
+          </div>
+
+          {/* Semester Selector Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border p-1" style={{ backgroundColor: t.pageBg, borderColor: t.border }}>
+            <span className="px-2 text-xs font-bold" style={{ color: t.textMuted }}>Semester:</span>
+            {semesterOptions.map((sem) => {
+              const isSelected = selectedSemester === sem;
+              const isEnrolled = user?.semester && Number(user.semester) === sem;
+              return (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => setSelectedSemester(sem)}
+                  className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                  style={{
+                    backgroundColor: isSelected ? t.accentPrimary : 'transparent',
+                    color: isSelected ? t.pageBg : t.textPrimary,
+                  }}
+                >
+                  Sem {sem}
+                  {isEnrolled && (
+                    <span
+                      className="rounded-full px-1 text-[9px] font-extrabold"
+                      style={{
+                        backgroundColor: isSelected ? t.pageBg : t.accentPrimary,
+                        color: isSelected ? t.accentPrimary : t.pageBg,
+                      }}
+                    >
+                      You
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Sub-tab switcher */}
       <div className="inline-flex flex-wrap items-center gap-1 rounded-full border p-1" style={{ borderColor: t.border }}>

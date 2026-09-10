@@ -1,8 +1,8 @@
 import axiosInstance from './axiosInstance';
 
 const moduleApi = {
-  getModules: async () => {
-    const res = await axiosInstance.get('/modules');
+  getModules: async (params = {}) => {
+    const res = await axiosInstance.get('/modules', { params });
     return res.data;
   },
   createModule: async (payload) => {

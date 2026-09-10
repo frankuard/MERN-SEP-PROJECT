@@ -24,9 +24,33 @@ const ADMIN_TABS = [
   { id: 'requests',  label: 'Room Requests',    icon: ClipboardCheck },
 ];
 
+const LEVEL_CONFIGS = [
+  { level: 4, name: 'Level 4', semesters: [1, 2], prefix: '4CS', label: 'Level 4 (Sem 1 & 2) · 4CS' },
+  { level: 5, name: 'Level 5', semesters: [3, 4], prefix: '5CS', label: 'Level 5 (Sem 3 & 4) · 5CS' },
+  { level: 6, name: 'Level 6', semesters: [5, 6], prefix: '6CS', label: 'Level 6 (Sem 5 & 6) · 6CS' },
+];
+
+const autoDetectLevel = (code = '') => {
+  const clean = String(code).trim().toUpperCase();
+  if (clean.startsWith('4')) return { level: 4, semesters: [1, 2] };
+  if (clean.startsWith('5')) return { level: 5, semesters: [3, 4] };
+  if (clean.startsWith('6')) return { level: 6, semesters: [5, 6] };
+  return { level: 4, semesters: [1, 2] };
+};
+
+const getModuleLevelNumber = (m) => {
+  if (m?.level) return Number(m.level);
+  return autoDetectLevel(m?.code || '').level;
+};
+
 const emptyPeriodForm = {
   day: DAY_ORDER[0], startTime: '', endTime: '', classType: 'Lecture',
   moduleId: '', lecturer: '', groupIds: [], roomId: '', order: 0,
+  level: 4, semester: '', department: 'BCS',
+};
+
+const emptyModuleForm = {
+  code: '', name: '', level: 4, semesterOpt: 'both', department: 'BCS',
 };
 
 const emptyClassroomForm = { name: '', capacity: '', facilities: '' };
@@ -71,6 +95,10 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
 
   useEffect(() => { loadMasters(); }, []);
 
+  // -------- Level Filters for Admin Tabs --------
+  const [periodLevelFilter, setPeriodLevelFilter] = useState('All');
+  const [moduleLevelFilter, setModuleLevelFilter] = useState('All');
+
   // -------- Periods --------
   const [periods, setPeriods] = useState(null);
   const [periodDay, setPeriodDay] = useState(DAY_ORDER[new Date().getDay()]);
@@ -86,21 +114,46 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
   useEffect(() => { if (tab === 'periods' && periods === null) loadPeriods(); }, [tab]);
   useEffect(() => { if (tab === 'changes' && periods === null) loadPeriods(); }, [tab]);
 
-  const periodsForDay = (periods || []).filter((p) => p.day === periodDay);
+  const periodsForDay = (periods || []).filter((p) => {
+    if (p.day !== periodDay) return false;
+    if (periodLevelFilter !== 'All') {
+      const pLvl = p.level || (p.moduleCode?.startsWith('5') ? 5 : p.moduleCode?.startsWith('6') ? 6 : 4);
+      if (pLvl !== Number(periodLevelFilter)) return false;
+    }
+    return true;
+  });
 
   const openAddPeriod = () => {
-    setPeriodModal({ mode: 'add', form: { ...emptyPeriodForm, day: periodDay }, editingId: null });
+    const defaultLevel = periodLevelFilter !== 'All' ? Number(periodLevelFilter) : 4;
+    setPeriodModal({
+      mode: 'add',
+      form: {
+        ...emptyPeriodForm,
+        day: periodDay,
+        level: defaultLevel,
+      },
+      editingId: null,
+    });
     setPeriodError('');
   };
 
   const openEditPeriod = (p) => {
+    const pLvl = p.level || (p.moduleCode?.startsWith('5') ? 5 : p.moduleCode?.startsWith('6') ? 6 : 4);
     setPeriodModal({
       mode: 'edit',
       form: {
-        day: p.day, startTime: p.startTime, endTime: p.endTime, classType: p.classType,
-        moduleId: p.module, lecturer: p.lecturer,
+        day: p.day,
+        startTime: p.startTime,
+        endTime: p.endTime,
+        classType: p.classType,
+        moduleId: p.module,
+        lecturer: p.lecturer,
         groupIds: (p.groups || []).map((g) => (typeof g === 'string' ? g : g._id)),
-        roomId: p.room, order: p.order || 0,
+        roomId: p.room,
+        order: p.order || 0,
+        level: pLvl,
+        semester: p.semester || '',
+        department: p.department || 'BCS',
       },
       editingId: p._id,
     });
@@ -125,6 +178,9 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
       groupIds: f.groupIds || [],
       roomId: f.roomId,
       order: Number(f.order) || 0,
+      level: Number(f.level) || 4,
+      semester: f.semester ? Number(f.semester) : null,
+      department: f.department || 'BCS',
     };
     try {
       if (periodModal.mode === 'add') {
@@ -146,24 +202,62 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
       await timetableApi.deletePeriod(id);
       loadPeriods();
     } catch {
-      // list stays as-is; user can retry
+      /* list stays as-is */
     }
   };
 
   // -------- Modules --------
-  const [moduleModal, setModuleModal] = useState(null); // { mode, form: {code, name}, editingId }
+  const [moduleModal, setModuleModal] = useState(null); // { mode, form: {code, name, level, semesterOpt, department}, editingId }
   const [moduleError, setModuleError] = useState('');
   const [savingModule, setSavingModule] = useState(false);
 
-  const openAddModule = () => { setModuleModal({ mode: 'add', form: { code: '', name: '' }, editingId: null }); setModuleError(''); };
-  const openEditModule = (m) => { setModuleModal({ mode: 'edit', form: { code: m.code, name: m.name }, editingId: m._id }); setModuleError(''); };
+  const openAddModule = () => {
+    const defaultLevel = moduleLevelFilter !== 'All' ? Number(moduleLevelFilter) : 4;
+    setModuleModal({
+      mode: 'add',
+      form: { ...emptyModuleForm, level: defaultLevel },
+      editingId: null,
+    });
+    setModuleError('');
+  };
+
+  const openEditModule = (m) => {
+    const lvl = getModuleLevelNumber(m);
+    let semOpt = 'both';
+    if (m.semesters && m.semesters.length === 1) {
+      semOpt = String(m.semesters[0]);
+    }
+    setModuleModal({
+      mode: 'edit',
+      form: {
+        code: m.code,
+        name: m.name,
+        level: lvl,
+        semesterOpt: semOpt,
+        department: m.department || 'BCS',
+      },
+      editingId: m._id,
+    });
+    setModuleError('');
+  };
 
   const saveModule = async () => {
     const f = moduleModal.form;
     if (!f.code.trim() || !f.name.trim()) { setModuleError('Code and name are required.'); return; }
     setSavingModule(true); setModuleError('');
     try {
-      const payload = { code: f.code.trim(), name: f.name.trim() };
+      const lvl = Number(f.level) || 4;
+      let sems = lvl === 4 ? [1, 2] : lvl === 5 ? [3, 4] : lvl === 6 ? [5, 6] : [1, 2];
+      if (f.semesterOpt && f.semesterOpt !== 'both') {
+        sems = [Number(f.semesterOpt)];
+      }
+      const payload = {
+        code: f.code.trim(),
+        name: f.name.trim(),
+        level: lvl,
+        semesters: sems,
+        department: f.department || 'BCS',
+      };
       if (moduleModal.mode === 'add') await moduleApi.createModule(payload);
       else await moduleApi.updateModule(moduleModal.editingId, payload);
       setModuleModal(null);
@@ -508,8 +602,9 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
       {/* ===================== CLASS PERIODS ===================== */}
       {tab === 'periods' && (
         <div className="space-y-5">
+          {/* Day & Level Selectors */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {DAY_ORDER.map((day) => (
                 <button
                   key={day}
@@ -536,6 +631,31 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
             </button>
           </div>
 
+          {/* Level Filter Bar */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border p-2" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+            <span className="text-xs font-bold px-1" style={{ color: t.textMuted }}>Academic Level:</span>
+            {['All', '4', '5', '6'].map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => setPeriodLevelFilter(lvl)}
+                className="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                style={{
+                  backgroundColor: periodLevelFilter === lvl ? t.accentPrimary : t.chipBg,
+                  color: periodLevelFilter === lvl ? t.pageBg : t.textPrimary,
+                }}
+              >
+                {lvl === 'All'
+                  ? 'All Levels'
+                  : lvl === '4'
+                  ? 'Level 4 (Sem 1-2 · 4CS)'
+                  : lvl === '5'
+                  ? 'Level 5 (Sem 3-4 · 5CS)'
+                  : 'Level 6 (Sem 5-6 · 6CS)'}
+              </button>
+            ))}
+          </div>
+
           {periods === null && (
             <div className="rounded-2xl border px-4 py-8 text-center text-sm" style={{ backgroundColor: t.cardBg, borderColor: t.border, color: t.textMuted }}>
               Loading periods...
@@ -544,37 +664,45 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
 
           {periods !== null && periodsForDay.length === 0 && (
             <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
-              No periods on {periodDay} yet.
+              No periods on {periodDay} {periodLevelFilter !== 'All' ? `for Level ${periodLevelFilter}` : ''} yet.
             </div>
           )}
 
           {periods !== null && periodsForDay.length > 0 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {periodsForDay.map((p) => (
-                <div key={p._id} className="rounded-xl border p-4" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold tabular-nums" style={{ color: t.textMuted }}>
-                      {p.startTime} – {p.endTime}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => openEditPeriod(p)}>
-                        <Pencil size={14} style={{ color: t.textMuted }} />
-                      </button>
-                      <button type="button" onClick={() => deletePeriod(p._id)}>
-                        <Trash2 size={14} style={{ color: '#dc2626' }} />
-                      </button>
+              {periodsForDay.map((p) => {
+                const pLvl = p.level || (p.moduleCode?.startsWith('5') ? 5 : p.moduleCode?.startsWith('6') ? 6 : 4);
+                return (
+                  <div key={p._id} className="rounded-xl border p-4" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold tabular-nums" style={{ color: t.textMuted }}>
+                        {p.startTime} – {p.endTime}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => openEditPeriod(p)}>
+                          <Pencil size={14} style={{ color: t.textMuted }} />
+                        </button>
+                        <button type="button" onClick={() => deletePeriod(p._id)}>
+                          <Trash2 size={14} style={{ color: '#dc2626' }} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                        Level {pLvl}{p.semester ? ` · Sem ${p.semester}` : pLvl === 4 ? ' · Sem 1-2' : pLvl === 5 ? ' · Sem 3-4' : ' · Sem 5-6'}
+                      </span>
+                      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
+                        {p.moduleCode}{(p.groupNames || []).length > 0 ? ` · ${p.groupNames.join(' + ')}` : ''}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>{p.moduleName}</p>
+                    <div className="mt-2 space-y-1 text-xs" style={{ color: t.textMuted }}>
+                      <p>{p.classType} · {p.lecturer}</p>
+                      <p>{p.roomName}</p>
                     </div>
                   </div>
-                  <p className="mt-2 text-[11px] font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>
-                    {p.moduleCode}{(p.groupNames || []).length > 0 ? ` · ${p.groupNames.join(' + ')}` : ''}
-                  </p>
-                  <p className="text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>{p.moduleName}</p>
-                  <div className="mt-2 space-y-1 text-xs" style={{ color: t.textMuted }}>
-                    <p>{p.classType} · {p.lecturer}</p>
-                    <p>{p.roomName}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -602,6 +730,58 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                     >
                       {DAY_ORDER.map((d) => <option key={d} value={d}>{d}</option>)}
                     </select>
+                  </div>
+
+                  {/* Level & Semester Selectors */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>Academic Level</label>
+                      <select
+                        value={periodModal.form.level}
+                        onChange={(e) => {
+                          const nextLvl = Number(e.target.value);
+                          setPeriodModal({
+                            ...periodModal,
+                            form: { ...periodModal.form, level: nextLvl, semester: '' },
+                          });
+                        }}
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={inputStyle}
+                      >
+                        <option value={4}>Level 4 (Sem 1-2 · 4CS)</option>
+                        <option value={5}>Level 5 (Sem 3-4 · 5CS)</option>
+                        <option value={6}>Level 6 (Sem 5-6 · 6CS)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>Semester (optional)</label>
+                      <select
+                        value={periodModal.form.semester}
+                        onChange={(e) => setPeriodModal({ ...periodModal, form: { ...periodModal.form, semester: e.target.value } })}
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={inputStyle}
+                      >
+                        <option value="">Full Level / Both</option>
+                        {periodModal.form.level === 4 && (
+                          <>
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                          </>
+                        )}
+                        {periodModal.form.level === 5 && (
+                          <>
+                            <option value="3">Semester 3</option>
+                            <option value="4">Semester 4</option>
+                          </>
+                        )}
+                        {periodModal.form.level === 6 && (
+                          <>
+                            <option value="5">Semester 5</option>
+                            <option value="6">Semester 6</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -640,19 +820,38 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Module</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>Module</label>
+                      <span className="text-[11px]" style={{ color: t.textMuted }}>
+                        Filtering: Level {periodModal.form.level}
+                      </span>
+                    </div>
                     <select
                       value={periodModal.form.moduleId}
-                      onChange={(e) => setPeriodModal({ ...periodModal, form: { ...periodModal.form, moduleId: e.target.value } })}
+                      onChange={(e) => {
+                        const modId = e.target.value;
+                        const selectedMod = modules.find((m) => m._id === modId);
+                        const nextForm = { ...periodModal.form, moduleId: modId };
+                        if (selectedMod) {
+                          nextForm.level = getModuleLevelNumber(selectedMod);
+                        }
+                        setPeriodModal({ ...periodModal, form: nextForm });
+                      }}
                       className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                       style={inputStyle}
                     >
                       <option value="">Select module...</option>
-                      {modules.map((m) => <option key={m._id} value={m._id}>{m.code} — {m.name}</option>)}
+                      {modules
+                        .filter((m) => !periodModal.form.level || getModuleLevelNumber(m) === Number(periodModal.form.level))
+                        .map((m) => (
+                          <option key={m._id} value={m._id}>
+                            {m.code} — {m.name} (L{getModuleLevelNumber(m)})
+                          </option>
+                        ))}
                     </select>
                     {modules.length === 0 && (
                       <p className="mt-1 text-[11px]" style={{ color: t.textMuted }}>
-                        No modules yet — add one in the "Modules & Groups" tab first.
+                        No modules yet — add one in the "Modules &amp; Groups" tab first.
                       </p>
                     )}
                   </div>
@@ -668,7 +867,9 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Groups (select all that apply)</label>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>
+                      Groups (select all that apply for Level {periodModal.form.level})
+                    </label>
                     <div className="mt-1 max-h-36 space-y-1.5 overflow-y-auto rounded-lg border p-2.5" style={inputStyle}>
                       {groups.length === 0 && (
                         <p className="text-[11px]" style={{ color: t.textMuted }}>
@@ -762,6 +963,31 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
               </button>
             </div>
 
+            {/* Level Filter Bar */}
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border p-2" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+              <span className="text-xs font-bold px-1" style={{ color: t.textMuted }}>Filter by Level:</span>
+              {['All', '4', '5', '6'].map((lvl) => (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => setModuleLevelFilter(lvl)}
+                  className="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                  style={{
+                    backgroundColor: moduleLevelFilter === lvl ? t.accentPrimary : t.chipBg,
+                    color: moduleLevelFilter === lvl ? t.pageBg : t.textPrimary,
+                  }}
+                >
+                  {lvl === 'All'
+                    ? 'All Modules'
+                    : lvl === '4'
+                    ? 'Level 4 (Sem 1-2 · 4CS)'
+                    : lvl === '5'
+                    ? 'Level 5 (Sem 3-4 · 5CS)'
+                    : 'Level 6 (Sem 5-6 · 6CS)'}
+                </button>
+              ))}
+            </div>
+
             {modules.length === 0 && (
               <div className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm" style={{ borderColor: t.border, color: t.textMuted }}>
                 No modules yet.
@@ -770,22 +996,43 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
 
             {modules.length > 0 && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {modules.map((m) => (
-                  <div key={m._id} className="flex items-center justify-between rounded-xl border p-3.5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>{m.code}</p>
-                      <p className="text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>{m.name}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => openEditModule(m)}>
-                        <Pencil size={14} style={{ color: t.textMuted }} />
-                      </button>
-                      <button type="button" onClick={() => deleteModule(m._id)}>
-                        <Trash2 size={14} style={{ color: '#dc2626' }} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                {modules
+                  .filter((m) => {
+                    if (moduleLevelFilter === 'All') return true;
+                    return getModuleLevelNumber(m) === Number(moduleLevelFilter);
+                  })
+                  .map((m) => {
+                    const mLvl = getModuleLevelNumber(m);
+                    const semLabel =
+                      m.semesters && m.semesters.length > 0
+                        ? m.semesters.join(' & ')
+                        : mLvl === 4
+                        ? '1 & 2'
+                        : mLvl === 5
+                        ? '3 & 4'
+                        : '5 & 6';
+                    return (
+                      <div key={m._id} className="flex items-center justify-between rounded-xl border p-3.5" style={{ backgroundColor: t.cardBg, borderColor: t.border }}>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: t.chipBg, color: t.textMuted }}>
+                              Level {mLvl} · Sem {semLabel}
+                            </span>
+                            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: t.textMuted }}>{m.code}</p>
+                          </div>
+                          <p className="mt-1 text-sm font-bold leading-tight" style={{ color: t.textPrimary }}>{m.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => openEditModule(m)}>
+                            <Pencil size={14} style={{ color: t.textMuted }} />
+                          </button>
+                          <button type="button" onClick={() => deleteModule(m._id)}>
+                            <Trash2 size={14} style={{ color: '#dc2626' }} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -845,17 +1092,32 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                 </div>
                 <div className="mt-4 space-y-3">
                   <div>
-                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Code</label>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Module Code</label>
                     <input
                       value={moduleModal.form.code}
-                      onChange={(e) => setModuleModal({ ...moduleModal, form: { ...moduleModal.form, code: e.target.value } })}
-                      placeholder="4CS001"
+                      onChange={(e) => {
+                        const newCode = e.target.value;
+                        const inferred = autoDetectLevel(newCode);
+                        setModuleModal({
+                          ...moduleModal,
+                          form: {
+                            ...moduleModal.form,
+                            code: newCode,
+                            level: inferred.level,
+                            semesterOpt: 'both',
+                          },
+                        });
+                      }}
+                      placeholder="4CS001, 5CS048, 6CS014..."
                       className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                       style={inputStyle}
                     />
+                    <p className="mt-1 text-[11px]" style={{ color: t.textMuted }}>
+                      4CS auto-maps to Level 4 (Sem 1-2), 5CS to Level 5 (Sem 3-4), 6CS to Level 6 (Sem 5-6).
+                    </p>
                   </div>
                   <div>
-                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Name</label>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Module Name</label>
                     <input
                       value={moduleModal.form.name}
                       onChange={(e) => setModuleModal({ ...moduleModal, form: { ...moduleModal.form, name: e.target.value } })}
@@ -863,6 +1125,75 @@ const ManageTimetableSection = ({ t, activeTab: controlledActiveTab, onTabChange
                       className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                       style={inputStyle}
                     />
+                  </div>
+
+                  {/* Level & Semester Configuration */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>Academic Level</label>
+                      <select
+                        value={moduleModal.form.level}
+                        onChange={(e) => {
+                          const nextLvl = Number(e.target.value);
+                          setModuleModal({
+                            ...moduleModal,
+                            form: { ...moduleModal.form, level: nextLvl, semesterOpt: 'both' },
+                          });
+                        }}
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={inputStyle}
+                      >
+                        <option value={4}>Level 4 (Sem 1-2 · 4CS)</option>
+                        <option value={5}>Level 5 (Sem 3-4 · 5CS)</option>
+                        <option value={6}>Level 6 (Sem 5-6 · 6CS)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold" style={{ color: t.textMuted }}>Semester</label>
+                      <select
+                        value={moduleModal.form.semesterOpt}
+                        onChange={(e) => setModuleModal({ ...moduleModal, form: { ...moduleModal.form, semesterOpt: e.target.value } })}
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={inputStyle}
+                      >
+                        <option value="both">
+                          {moduleModal.form.level === 4 ? 'Semesters 1 & 2' : moduleModal.form.level === 5 ? 'Semesters 3 & 4' : 'Semesters 5 & 6'}
+                        </option>
+                        {moduleModal.form.level === 4 && (
+                          <>
+                            <option value="1">Semester 1 Only</option>
+                            <option value="2">Semester 2 Only</option>
+                          </>
+                        )}
+                        {moduleModal.form.level === 5 && (
+                          <>
+                            <option value="3">Semester 3 Only</option>
+                            <option value="4">Semester 4 Only</option>
+                          </>
+                        )}
+                        {moduleModal.form.level === 6 && (
+                          <>
+                            <option value="5">Semester 5 Only</option>
+                            <option value="6">Semester 6 Only</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold" style={{ color: t.textMuted }}>Department</label>
+                    <select
+                      value={moduleModal.form.department || 'BCS'}
+                      onChange={(e) => setModuleModal({ ...moduleModal, form: { ...moduleModal.form, department: e.target.value } })}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={inputStyle}
+                    >
+                      <option value="BCS">BCS</option>
+                      <option value="B.Sc. Cybersecurity">B.Sc. Cybersecurity</option>
+                      <option value="BIBM">BIBM</option>
+                      <option value="MBA">MBA</option>
+                    </select>
                   </div>
                   {moduleError && <p className="text-xs font-semibold" style={{ color: '#dc2626' }}>{moduleError}</p>}
                   <button
